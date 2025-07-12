@@ -1,0 +1,12 @@
+{
+  "name": "shopflow-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:pos": "npm --workspace apps/pos-frontend run dev",
+    "dev:cms": "npm --workspace apps/cms-web run dev"
+  }
+}
