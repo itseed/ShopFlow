@@ -18,7 +18,10 @@ This template is designed to guide AI in generating code for the POS and Web CMS
     -   Next.js applications will be deployed as **static sites** (`next export`).
     -   All dynamic data fetching and mutations will occur via **client-side API calls to Supabase**.
     -   For self-hosting, Docker/Docker Compose will be used. Nginx will serve as a reverse proxy for domain pointing and SSL.
--   **Styling:** Using **Tailwind CSS** for all styling.
+-   **Styling Framework:** **Tailwind CSS**
+-   **UI Component Library:** **[Specify if using a component library like Chakra UI, Material UI, Ant Design, etc., or state 'None (pure Tailwind CSS)']**
+    * *(Example: `Chakra UI`)*
+    * *(Example: `None (pure Tailwind CSS)`)*
 -   **Internationalization (i18n):** The system supports multiple languages, starting with Thai and English.
 
 ---
@@ -68,7 +71,10 @@ Please adhere to the following guidelines when generating code:
 * **Modularity:** Keep components and functions **reusable and modular**.
 * **Naming Conventions:** Use **clear and concise variable, function, and component naming**.
 * **Comments:** Add **inline comments** where necessary to explain complex logic or non-obvious parts.
-* **Styling:** Apply **Tailwind CSS classes** directly in JSX where appropriate. Avoid inline styles unless absolutely necessary.
+* **Styling Implementation:**
+    * Use **Tailwind CSS classes** directly in JSX where appropriate.
+    * **If a UI Component Library is specified in Project Context (e.g., Chakra UI), utilize its components (e.g., `<Button>`, `<Input>`, `<Modal>`) for consistent UI elements.**
+    * Avoid generic inline styles unless absolutely necessary.
 * **Error Handling:** Ensure **robust error handling** for all network requests and Supabase operations.
 * **Supabase Client:** Use the **Supabase Client SDK (`@supabase/supabase-js`)** for all interactions with Supabase. Assume the `supabase` client instance is imported from `lib/supabase.ts` (or `apps/<app-name>/lib/supabase.ts`).
 * **Data Fetching:** For client-side data fetching, consider using plain `useEffect` with `useState` for simple cases, or leverage libraries like SWR/React Query if the request implies complex caching/revalidation (you can suggest this).
@@ -81,7 +87,7 @@ Please provide:
 
 * The generated code, clearly separated by file paths.
 * Any necessary TypeScript interfaces/types relevant to the generated code.
-* A brief explanation of the code structure and how to integrate it into the existing monorepo.
+* A brief explanation of the code structure and how to integrate it.
 * If applicable, a minimal example of how to use the generated component/page.
 
 ---
