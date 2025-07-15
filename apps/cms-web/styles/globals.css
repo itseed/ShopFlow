@@ -1,0 +1,66 @@
+/* ShopFlow CMS Global Styles */
+
+/* Reset and base styles */
+html, body {
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+  font-family: 'Inter', 'Kanit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+body {
+  background-color: #f7fafc;
+  color: #1a202c;
+}
+
+/* Fix for layout issues */
+#__next {
+  min-height: 100vh;
+}
+
+/* Basic reset */
+* {
+  box-sizing: border-box;
+}
+
+/* Remove default margins */
+h1, h2, h3, h4, h5, h6, p, ul, ol, li {
+  margin: 0;
+  padding: 0;
+}
+
+/* List styles */
+ul, ol {
+  list-style: none;
+}
+
+/* Link styles */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Button reset */
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Input reset */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Focus styles */
+:focus {
+  outline: 2px solid #3182ce;
+  outline-offset: 2px;
+}
+
+/* Ensure text is readable */
+:root {
+  color-scheme: light;
+}

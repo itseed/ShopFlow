@@ -1,31 +1,37 @@
-import React from 'react';
-import { ProductTable } from '@ui/ProductTable';
-import { Product } from '@types/Product';
+import { useEffect } from "react";
+import { useRouter } from "next/router";
+import { Box, Spinner, Text, VStack } from "@chakra-ui/react";
+import { useAuth } from "../lib/auth";
 
-const sampleProducts: Product[] = [
-  { id: '1', name: 'Product A', price: 10 },
-  { id: '2', name: 'Product B', price: 20 },
-];
+export default function HomePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-const HomePage: React.FC = () => {
-  const handleEdit = (product: Product) => {
-    console.log('Edit', product);
-  };
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        // User is authenticated, redirect to dashboard
+        router.replace("/dashboard");
+      } else {
+        // User is not authenticated, redirect to sign in
+        router.replace("/auth/signin");
+      }
+    }
+  }, [user, loading, router]);
 
-  const handleDelete = (product: Product) => {
-    console.log('Delete', product);
-  };
-
+  // Show loading while checking authentication
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Products</h1>
-      <ProductTable
-        products={sampleProducts}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
-    </div>
+    <Box
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      minHeight="100vh"
+      bg="gray.50"
+    >
+      <VStack spacing={4}>
+        <Spinner size="xl" color="blue.500" thickness="4px" />
+        <Text color="gray.600">กำลังโหลด...</Text>
+      </VStack>
+    </Box>
   );
-};
-
-export default HomePage;
+}

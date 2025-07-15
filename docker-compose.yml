@@ -1,0 +1,67 @@
+# ShopFlow/docker-compose.yml
+
+version: "3.8" # แนะนำใช้เวอร์ชัน 3.8 หรือสูงกว่า
+
+services:
+  # ----------------------------------------------------
+  # 1. POS Frontend Application Service (Next.js)
+  # ----------------------------------------------------
+  pos-frontend:
+    build:
+      context: ./apps/pos-frontend # ระบุ Path ไปยังโฟลเดอร์ของ POS App
+      dockerfile: Dockerfile # ระบุชื่อ Dockerfile ภายในโฟลเดอร์นั้น
+    # `expose` จะเปิดพอร์ตภายใน Docker Network เท่านั้น ไม่ได้ Map ออกสู่ Host
+    # Nginx จะเชื่อมต่อกับพอร์ตนี้
+    expose:
+      - "3000" # พอร์ตที่ Next.js App รันอยู่ภายใน Container
+    environment:
+      # ส่ง Environment Variables จาก .env.local ของ Host เข้าไปใน Container
+      # ถ้า Supabase Local รันบน Host Machine, ให้ใช้ host.docker.internal
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    restart: always # ทำให้ Container รันใหม่เองหากเกิดข้อผิดพลาด
+    # volumes: # Uncomment ส่วนนี้หากต้องการ Hot-Reloading สำหรับ Development (เฉพาะช่วง DEV เท่านั้น)
+    #   - ./apps/pos-frontend:/app # Mount โค้ดจาก Host เข้าไปใน Container
+    #   - /app/node_modules # ป้องกันการทับซ้อนของ node_modules ระหว่าง Host และ Container
+
+  # ----------------------------------------------------
+  # 2. CMS Web Application Service (Next.js)
+  # ----------------------------------------------------
+  cms-web:
+    build:
+      context: ./apps/cms-web # ระบุ Path ไปยังโฟลเดอร์ของ CMS App
+      dockerfile: Dockerfile # ระบุชื่อ Dockerfile ภายในโฟลเดอร์นั้น
+    expose:
+      - "3000" # พอร์ตที่ Next.js App รันอยู่ภายใน Container
+    environment:
+      # ส่ง Environment Variables จาก .env.local ของ Host เข้าไปใน Container
+      # ถ้า Supabase Local รันบน Host Machine, ให้ใช้ host.docker.internal
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    restart: always
+    # volumes: # Uncomment ส่วนนี้หากต้องการ Hot-Reloading สำหรับ Development (เฉพาะช่วง DEV เท่านั้น)
+    #   - ./apps/cms-web:/app
+    #   - /app/node_modules
+
+  # ----------------------------------------------------
+  # 3. Nginx Reverse Proxy Service
+  # ----------------------------------------------------
+  nginx:
+    image: nginx:latest # ใช้ Nginx Official Image
+    ports:
+      - "80:80" # Map Host Port 80 (HTTP) ไปยัง Container Port 80
+      - "443:443" # Map Host Port 443 (HTTPS) ไปยัง Container Port 443
+    volumes:
+      # Mount Nginx Configuration files จาก Host เข้าไปใน Container
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro # Main Nginx config file
+      - ./nginx/conf.d/:/etc/nginx/conf.d/:ro # Directory สำหรับ Virtual Host configs
+      # Uncomment และปรับแต่งส่วนนี้สำหรับ Let's Encrypt / SSL Certificates
+      # - ./certbot/conf:/etc/letsencrypt:ro # สำหรับ SSL Certificates จาก Certbot
+      # - ./certbot/www:/var/www/certbot:ro  # สำหรับ Certbot HTTP-01 challenge (ถ้าใช้)
+    depends_on:
+      - pos-frontend # Nginx ควรเริ่มทำงานหลังจาก Next.js apps เริ่มทำงานแล้ว
+      - cms-web
+    restart: always
+# Docker Compose จะสร้าง Network default ให้โดยอัตโนมัติ
+# Services ใน Network เดียวกันสามารถสื่อสารกันได้ด้วยชื่อ Service (e.g., http://pos-frontend:3000)
+# ไม่จำเป็นต้องกำหนด networks: โดยชัดเจน หากไม่มีความซับซ้อนเพิ่มเติม
