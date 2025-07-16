@@ -1,0 +1,9 @@
+{
+  "name": "ShopFlow POS",
+  "short_name": "ShopFlow",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2B6CB0",
+  "icons": []
+}
