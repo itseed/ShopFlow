@@ -40,8 +40,11 @@ import {
   FiMapPin,
   FiUserPlus,
 } from "react-icons/fi";
-import Layout from "../components/Layout";
-import { withAuth } from "../lib/auth";
+// Make sure the path below matches the actual location of your Layout component
+import Layout from "../../components/Layout";
+// import { withAuth } from "../lib/auth";
+// Update the import path below to the correct location of your withAuth function
+import { withAuth } from "../../lib/auth";
 
 // Mock data for customers
 const mockCustomers = [

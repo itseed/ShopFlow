@@ -52,6 +52,7 @@ import {
   FiTarget,
   FiDollarSign,
   FiPieChart,
+  FiStar,
 } from "react-icons/fi";
 import { useAuth } from "../lib/auth";
 
@@ -74,8 +75,16 @@ interface NavigationItem {
 
 const navigation: NavigationItem[] = [
   { name: "แดชบอร์ด", href: "/dashboard", icon: FiHome },
-  { name: "สินค้า", href: "/products", icon: FiPackage },
-  { name: "หมวดหมู่", href: "/categories", icon: FiGrid },
+  {
+    name: "จัดการสินค้า",
+    icon: FiPackage,
+    hasSubmenu: true,
+    submenu: [
+      { name: "ภาพรวม", href: "/catalog", icon: FiGrid },
+      { name: "สินค้า", href: "/catalog/products", icon: FiPackage },
+      { name: "หมวดหมู่", href: "/catalog/categories", icon: FiGrid },
+    ],
+  },
   { name: "คำสั่งซื้อ", href: "/orders", icon: FiShoppingCart },
   { name: "ลูกค้า", href: "/customers", icon: FiUsers },
   {
@@ -101,6 +110,11 @@ const navigation: NavigationItem[] = [
         name: "เป้าหมายยอดขาย",
         href: "/reports/sales-targets",
         icon: FiTarget,
+      },
+      {
+        name: "ผลิตภัณฑ์ยอดนิยม",
+        href: "/reports/popular-products",
+        icon: FiStar,
       },
       { name: "กำไรขาดทุน", href: "/reports/profit-loss", icon: FiDollarSign },
     ],

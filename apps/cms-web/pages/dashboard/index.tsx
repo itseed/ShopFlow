@@ -67,8 +67,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { withAuth } from "../lib/auth";
-import Layout from "../components/Layout";
+import { withAuth } from "../../lib/auth";
+import Layout from "../../components/Layout";
 import Link from "next/link";
 
 // Mock data for charts

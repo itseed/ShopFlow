@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ReactElement } from "react";
-import { NextPageWithLayout } from "./_app";
-import Layout from "../components/Layout";
+import { NextPageWithLayout } from "../_app";
+import Layout from "../../components/Layout";
 import { Category, CategoryStatus } from "@shopflow/types";
-import { withAuth } from "../lib/auth";
+import { withAuth } from "../../lib/auth";
 import {
   Box,
   VStack,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
-import { NextPageWithLayout } from "./_app";
-import Layout from "../components/Layout";
+import { NextPageWithLayout } from "../_app";
+import Layout from "../../components/Layout";
 import {
   Order,
   OrderStatus,
@@ -11,7 +11,7 @@ import {
   DeliveryMethod,
   OrderPriority,
 } from "@shopflow/types";
-import { withAuth } from "../lib/auth";
+import { withAuth } from "../../lib/auth";
 import {
   Box,
   VStack,
@@ -149,6 +149,46 @@ const mockOrders: Order[] = [
     sales_rep: "สมศักดิ์",
     items: [],
     created_at: "2024-01-15T09:15:00Z",
+  },
+  {
+    id: "ORD-002-A",
+    order_number: "WS-2024-002A",
+    customer_type: "walk_in",
+    // ลูกค้าหน้าร้านไม่ได้ให้ข้อมูล
+    subtotal: 3250,
+    discount_amount: 0,
+    tax: 228,
+    delivery_fee: 0,
+    total: 3478,
+    payment_method: "cash",
+    payment_status: "paid",
+    delivery_method: "pickup",
+    status: "completed",
+    priority: "normal",
+    notes: "ลูกค้าหน้าร้าน ไม่ได้ระบุชื่อ",
+    sales_rep: "สมศักดิ์",
+    items: [],
+    created_at: "2024-01-15T11:45:00Z",
+  },
+  {
+    id: "ORD-002-B",
+    order_number: "WS-2024-002B",
+    customer_type: "walk_in",
+    customer_phone: "081-999-8888", // มีเบอร์โทรแต่ไม่มีชื่อ
+    subtotal: 1890,
+    discount_amount: 0,
+    tax: 132,
+    delivery_fee: 0,
+    total: 2022,
+    payment_method: "cash",
+    payment_status: "paid",
+    delivery_method: "pickup",
+    status: "completed",
+    priority: "normal",
+    notes: "ลูกค้าให้เบอร์โทรเฉพาะ",
+    sales_rep: "วิชาญ",
+    items: [],
+    created_at: "2024-01-15T14:20:00Z",
   },
   {
     id: "ORD-003",
@@ -347,6 +387,33 @@ const getShopTypeText = (type: ShopType): string => {
     default:
       return type;
   }
+};
+
+// Helper functions for displaying customer info that might be missing
+const getDisplayCustomerName = (order: Order): string => {
+  if (order.customer_name) {
+    return order.customer_name;
+  }
+  if (order.customer_type === "walk_in") {
+    return "ลูกค้าหน้าร้าน";
+  }
+  return "ไม่ระบุชื่อ";
+};
+
+const getDisplayShopInfo = (
+  order: Order
+): { name: string; hasShop: boolean } => {
+  if (order.shop_name) {
+    return { name: order.shop_name, hasShop: true };
+  }
+  if (order.customer_type === "walk_in") {
+    return { name: "ซื้อใช้ส่วนตัว", hasShop: false };
+  }
+  return { name: "ไม่ระบุร้านค้า", hasShop: false };
+};
+
+const shouldShowContactInfo = (order: Order): boolean => {
+  return !!(order.customer_phone || order.customer_email);
 };
 
 function OrdersPage() {
@@ -609,23 +676,54 @@ function OrdersPage() {
                     </Td>
                     <Td>
                       <VStack align="start" spacing={1}>
-                        <Text fontWeight="medium">{order.customer_name}</Text>
-                        <Text
-                          fontSize="sm"
-                          color="blue.600"
-                          fontWeight="medium"
-                        >
-                          {order.shop_name}
+                        <Text fontWeight="medium">
+                          {getDisplayCustomerName(order)}
                         </Text>
+                        {shouldShowContactInfo(order) &&
+                          order.customer_phone && (
+                            <Text fontSize="xs" color="gray.600">
+                              <Icon as={FiPhone} mr={1} />
+                              {order.customer_phone}
+                            </Text>
+                          )}
+                        {(() => {
+                          const shopInfo = getDisplayShopInfo(order);
+                          return (
+                            <Text
+                              fontSize="sm"
+                              color={shopInfo.hasShop ? "blue.600" : "gray.500"}
+                              fontWeight={
+                                shopInfo.hasShop ? "medium" : "normal"
+                              }
+                              fontStyle={
+                                !shopInfo.hasShop ? "italic" : "normal"
+                              }
+                            >
+                              {shopInfo.name}
+                            </Text>
+                          );
+                        })()}
                         {order.branch_name && (
                           <Text fontSize="xs" color="gray.500">
                             {order.branch_name}
                           </Text>
                         )}
                         <HStack spacing={2}>
-                          <Badge colorScheme="gray" size="sm">
-                            {getShopTypeText(order.shop_type!)}
-                          </Badge>
+                          {order.shop_type && (
+                            <Badge colorScheme="gray" size="sm">
+                              {getShopTypeText(order.shop_type)}
+                            </Badge>
+                          )}
+                          {order.customer_type === "walk_in" &&
+                            !order.customer_name && (
+                              <Badge
+                                colorScheme="orange"
+                                size="sm"
+                                variant="outline"
+                              >
+                                ไม่ระบุข้อมูล
+                              </Badge>
+                            )}
                         </HStack>
                       </VStack>
                     </Td>
@@ -771,24 +869,58 @@ function OrdersPage() {
                     <SimpleGrid columns={2} spacing={4}>
                       <Box>
                         <Text fontWeight="medium">ชื่อลูกค้า</Text>
-                        <Text>{selectedOrder.customer_name}</Text>
-                      </Box>
-                      <Box>
-                        <Text fontWeight="medium">เบอร์โทร</Text>
-                        <Text>{selectedOrder.customer_phone}</Text>
-                      </Box>
-                      <Box>
-                        <Text fontWeight="medium">ชื่อร้านค้า</Text>
-                        <Text color="blue.600" fontWeight="medium">
-                          {selectedOrder.shop_name}
+                        <Text>
+                          {selectedOrder.customer_name || (
+                            <Text as="span" color="gray.500" fontStyle="italic">
+                              ลูกค้าไม่ระบุชื่อ
+                            </Text>
+                          )}
                         </Text>
                       </Box>
                       <Box>
-                        <Text fontWeight="medium">ประเภทร้าน</Text>
-                        <Badge>
-                          {getShopTypeText(selectedOrder.shop_type!)}
-                        </Badge>
+                        <Text fontWeight="medium">เบอร์โทร</Text>
+                        <Text>
+                          {selectedOrder.customer_phone || (
+                            <Text as="span" color="gray.500" fontStyle="italic">
+                              ไม่ระบุ
+                            </Text>
+                          )}
+                        </Text>
                       </Box>
+                      <Box>
+                        <Text fontWeight="medium">อีเมล</Text>
+                        <Text>
+                          {selectedOrder.customer_email || (
+                            <Text as="span" color="gray.500" fontStyle="italic">
+                              ไม่ระบุ
+                            </Text>
+                          )}
+                        </Text>
+                      </Box>
+                      <Box>
+                        <Text fontWeight="medium">ชื่อร้านค้า</Text>
+                        <Text
+                          color={
+                            selectedOrder.shop_name ? "blue.600" : "gray.500"
+                          }
+                          fontWeight={
+                            selectedOrder.shop_name ? "medium" : "normal"
+                          }
+                          fontStyle={
+                            !selectedOrder.shop_name ? "italic" : "normal"
+                          }
+                        >
+                          {selectedOrder.shop_name || "ไม่ระบุร้านค้า"}
+                        </Text>
+                      </Box>
+                      {selectedOrder.shop_type && (
+                        <Box>
+                          <Text fontWeight="medium">ประเภทร้าน</Text>
+                          <Badge>
+                            {getShopTypeText(selectedOrder.shop_type)}
+                          </Badge>
+                        </Box>
+                      )}
                       {selectedOrder.branch_name && (
                         <Box>
                           <Text fontWeight="medium">สาขา</Text>
