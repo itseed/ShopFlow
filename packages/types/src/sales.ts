@@ -1,4 +1,6 @@
 // Sales Terminal Types
+import type { ProductVariant } from "./Product";
+
 export interface SalesProduct {
   id: string;
   name: string;
@@ -13,6 +15,9 @@ export interface SalesProduct {
   discountEligible: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // เพิ่มสำหรับรองรับ variant
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
 }
 
 export interface SalesCartItem {

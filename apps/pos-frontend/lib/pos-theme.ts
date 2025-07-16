@@ -3,8 +3,8 @@ import { extendTheme } from "@chakra-ui/react";
 // POS-specific theme optimized for touch interfaces
 const posTheme = extendTheme({
   fonts: {
-    heading: '"Noto Sans Thai", "Noto Sans", sans-serif',
-    body: '"Noto Sans Thai", "Noto Sans", sans-serif',
+    heading: 'Inter, Kanit, sans-serif',
+    body: 'Inter, Kanit, sans-serif',
   },
   colors: {
     // Primary POS colors - comfortable blues and greens

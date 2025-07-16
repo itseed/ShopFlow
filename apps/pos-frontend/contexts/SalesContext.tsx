@@ -63,10 +63,20 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
 
     setError(null);
 
-    // Check if product already exists in cart
-    const existingItemIndex = cart.items.findIndex(
-      (item) => item.product.id === product.id
-    );
+    // ถ้าเป็นสินค้าที่มี variant (ชื่อมี () หรือ product.hasVariants)
+    const isVariant = product.hasVariants || /\(.+\)/.test(product.name);
+    let existingItemIndex = -1;
+    if (isVariant) {
+      // เช็คทั้ง id และชื่อ (ชื่อจะมี combination)
+      existingItemIndex = cart.items.findIndex(
+        (item) => item.product.id === product.id && item.product.name === product.name
+      );
+    } else {
+      // สินค้าทั่วไป เช็คแค่ id
+      existingItemIndex = cart.items.findIndex(
+        (item) => item.product.id === product.id
+      );
+    }
 
     if (existingItemIndex >= 0) {
       // Update existing item quantity

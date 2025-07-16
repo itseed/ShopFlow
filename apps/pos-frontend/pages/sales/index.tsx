@@ -32,6 +32,7 @@ import {
   ModalCloseButton,
   useDisclosure,
   Image,
+  Button,
 } from "@chakra-ui/react";
 import {
   IoSearch,
@@ -48,15 +49,18 @@ import {
   PaymentResult,
   Receipt,
 } from "@shopflow/types";
-import { useSales } from "../contexts/SalesContext";
-import { POSLayout, TouchButton, POSCard, LoadingSpinner } from "../components";
-import PaymentModal from "../components/payment/PaymentModal";
-import ReceiptModal from "../components/payment/ReceiptModal";
+import { useSales } from "../../contexts/SalesContext";
+import { POSLayout, TouchButton, POSCard, LoadingSpinner } from "../../components";
+import PaymentModal from "../../components/payment/PaymentModal";
+import ReceiptModal from "../../components/payment/ReceiptModal";
 import {
   searchProducts,
   formatCurrency,
   getProductCategories,
-} from "../lib/sales";
+} from "../../lib/sales";
+import ProductGrid from "../../components/sales/ProductGrid";
+import ProductList from "../../components/sales/ProductList";
+import CartSummary from "../../components/sales/CartSummary";
 
 const SalesTerminal = () => {
   const {
@@ -104,6 +108,85 @@ const SalesTerminal = () => {
     null
   );
   const [quantity, setQuantity] = useState(1);
+  const [variantModalProduct, setVariantModalProduct] = useState<SalesProduct | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [variantSelections, setVariantSelections] = useState<Record<string, string>>({});
+  const [variantQuantity, setVariantQuantity] = useState(1);
+
+  const [perPage] = useState(8);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const paginatedProducts = viewMode === "grid"
+    ? products.slice((currentPage - 1) * perPage, currentPage * perPage)
+    : products;
+  const totalPages = viewMode === "grid" ? Math.ceil(products.length / perPage) : 1;
+
+  useEffect(() => {
+    setCurrentPage(1); // reset page เมื่อเปลี่ยน filter/view
+  }, [products, viewMode, searchTerm, selectedCategory]);
+
+  const handleSelectVariant = (product: SalesProduct) => {
+    setVariantModalProduct(product);
+    setVariantSelections({});
+    setSelectedVariantId(null);
+    setVariantQuantity(1);
+  };
+
+  const handleVariantTypeSelect = (type: string, value: string) => {
+    setVariantSelections((prev) => ({ ...prev, [type]: value }));
+    setSelectedVariantId(null); // reset selected variant id
+  };
+
+  const getAvailableVariantTypes = (product: SalesProduct) => {
+    if (!product.variants) return [];
+    const allTypes = Object.keys(product.variants[0].variant_combinations);
+    return allTypes;
+  };
+
+  const getFilteredVariants = (product: SalesProduct) => {
+    if (!product.variants) return [];
+    // filter variants ที่ตรงกับ selections ที่เลือกแล้ว
+    return product.variants.filter((variant) => {
+      return Object.entries(variantSelections).every(
+        ([type, value]) => variant.variant_combinations[type] === value
+      );
+    });
+  };
+
+  const isAllVariantTypeSelected = (product: SalesProduct) => {
+    const types = getAvailableVariantTypes(product);
+    return types.every((type) => variantSelections[type]);
+  };
+
+  const handleAddVariantToCart = () => {
+    if (variantModalProduct && isAllVariantTypeSelected(variantModalProduct)) {
+      const match = variantModalProduct.variants?.find((variant) => {
+        return Object.entries(variantSelections).every(
+          ([type, value]) => variant.variant_combinations[type] === value
+        );
+      });
+      if (match) {
+        addToCart({
+          ...variantModalProduct,
+          price: variantModalProduct.price + (match.price_adjustment || 0),
+          name: `${variantModalProduct.name} (${Object.values(match.variant_combinations).join(", ")})`,
+          stock: match.stock,
+          // ไม่ใส่ variantId/variantCombinations ใน SalesProduct (type error)
+        }, variantQuantity);
+        setVariantModalProduct(null);
+        setVariantSelections({});
+        setSelectedVariantId(null);
+        setVariantQuantity(1);
+        toast({
+          title: "เพิ่มลงตะกร้าแล้ว",
+          description: `${variantModalProduct.name} (${Object.values(match.variant_combinations).join(", ")}) x${variantQuantity}`,
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     // Load products on mount
@@ -283,217 +366,6 @@ const SalesTerminal = () => {
     }
   };
 
-  const ProductGrid = ({ products }: { products: SalesProduct[] }) => (
-    <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={4}>
-      {products.map((product) => (
-        <POSCard
-          key={product.id}
-          p={3}
-          cursor="pointer"
-          onClick={() => handleAddToCart(product)}
-          _hover={{ transform: "translateY(-2px)", shadow: "md" }}
-          transition="all 0.2s"
-        >
-          {product.image && (
-            <Image
-              src={product.image}
-              alt={product.name}
-              height="80px"
-              width="100%"
-              objectFit="cover"
-              borderRadius="md"
-              mb={2}
-            />
-          )}
-          <VStack spacing={2} align="stretch">
-            <Text fontSize="sm" fontWeight="semibold" noOfLines={2}>
-              {product.name}
-            </Text>
-            <Text fontSize="xs" color="gray.500" noOfLines={1}>
-              {product.category}
-            </Text>
-            <HStack justify="space-between" align="center">
-              <Text fontSize="md" fontWeight="bold" color="primary.600">
-                {formatCurrency(product.price)}
-              </Text>
-              <IconButton
-                size="sm"
-                icon={<IoAdd />}
-                aria-label="Add to cart"
-                colorScheme="primary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleQuickAddToCart(product);
-                }}
-              />
-            </HStack>
-          </VStack>
-        </POSCard>
-      ))}
-    </SimpleGrid>
-  );
-
-  const ProductList = ({ products }: { products: SalesProduct[] }) => (
-    <VStack spacing={3}>
-      {products.map((product) => (
-        <POSCard
-          key={product.id}
-          p={4}
-          w="100%"
-          cursor="pointer"
-          onClick={() => handleAddToCart(product)}
-          _hover={{ bg: "gray.50" }}
-        >
-          <HStack spacing={4} align="center">
-            {product.image && (
-              <Image
-                src={product.image}
-                alt={product.name}
-                height="50px"
-                width="50px"
-                objectFit="cover"
-                borderRadius="md"
-              />
-            )}
-            <VStack align="start" spacing={1} flex={1}>
-              <Text fontSize="sm" fontWeight="semibold">
-                {product.name}
-              </Text>
-              <Text fontSize="xs" color="gray.500">
-                {product.category}
-              </Text>
-            </VStack>
-            <VStack align="end" spacing={1}>
-              <Text fontSize="md" fontWeight="bold" color="primary.600">
-                {formatCurrency(product.price)}
-              </Text>
-              <IconButton
-                size="sm"
-                icon={<IoAdd />}
-                aria-label="Add to cart"
-                colorScheme="primary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleQuickAddToCart(product);
-                }}
-              />
-            </VStack>
-          </HStack>
-        </POSCard>
-      ))}
-    </VStack>
-  );
-
-  const CartSummary = () => (
-    <POSCard>
-      <VStack spacing={4} align="stretch">
-        <HStack justify="space-between">
-          <Text fontSize="lg" fontWeight="bold">
-            Cart ({cart.items.length})
-          </Text>
-          <TouchButton
-            size="sm"
-            colorScheme="red"
-            variant="secondary"
-            leftIcon={<IoTrash />}
-            onClick={handleClearCart}
-            isDisabled={cart.items.length === 0}
-          >
-            Clear
-          </TouchButton>
-        </HStack>
-        <VStack spacing={3} align="stretch">
-          {cart.items.length === 0 ? (
-            <Text textAlign="center" color="gray.500">
-              No items in cart
-            </Text>
-          ) : (
-            <>
-              {cart.items.map((item: SalesCartItem) => (
-                <Box key={item.id} p={3} bg="gray.50" borderRadius="md">
-                  <HStack justify="space-between" align="start">
-                    <VStack align="start" spacing={1} flex={1}>
-                      <Text fontSize="sm" fontWeight="semibold">
-                        {item.product.name}
-                      </Text>
-                      <Text fontSize="xs" color="gray.500">
-                        {formatCurrency(item.unitPrice)} each
-                      </Text>
-                    </VStack>
-                    <VStack align="end" spacing={2}>
-                      <HStack>
-                        <IconButton
-                          size="xs"
-                          icon={<IoRemove />}
-                          onClick={() =>
-                            handleUpdateQuantity(item.id, item.quantity - 1)
-                          }
-                          aria-label="Decrease quantity"
-                        />
-                        <Text fontSize="sm" minW="30px" textAlign="center">
-                          {item.quantity}
-                        </Text>
-                        <IconButton
-                          size="xs"
-                          icon={<IoAdd />}
-                          onClick={() =>
-                            handleUpdateQuantity(item.id, item.quantity + 1)
-                          }
-                          aria-label="Increase quantity"
-                        />
-                      </HStack>
-                      <Text fontSize="sm" fontWeight="bold">
-                        {formatCurrency(item.total)}
-                      </Text>
-                    </VStack>
-                  </HStack>
-                </Box>
-              ))}
-              <Divider />
-              <VStack spacing={2} align="stretch">
-                <HStack justify="space-between">
-                  <Text fontSize="sm">Subtotal:</Text>
-                  <Text fontSize="sm" fontWeight="semibold">
-                    {formatCurrency(cart.subtotal)}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm">Tax:</Text>
-                  <Text fontSize="sm" fontWeight="semibold">
-                    {formatCurrency(cart.taxAmount)}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm">Discount:</Text>
-                  <Text fontSize="sm" fontWeight="semibold" color="green.600">
-                    -{formatCurrency(cart.discountAmount)}
-                  </Text>
-                </HStack>
-                <Divider />
-                <HStack justify="space-between">
-                  <Text fontSize="lg" fontWeight="bold">
-                    Total:
-                  </Text>
-                  <Text fontSize="lg" fontWeight="bold" color="primary.600">
-                    {formatCurrency(cart.total)}
-                  </Text>
-                </HStack>
-              </VStack>
-            </>
-          )}
-        </VStack>
-      </VStack>
-    </POSCard>
-  );
-
-  if (isLoading) {
-    return (
-      <POSLayout>
-        <LoadingSpinner />
-      </POSLayout>
-    );
-  }
-
   return (
     <POSLayout>
       <Grid templateColumns="1fr 350px" gap={6} h="full">
@@ -548,9 +420,50 @@ const SalesTerminal = () => {
               <TabPanel p={0}>
                 <Box py={4}>
                   {viewMode === "grid" ? (
-                    <ProductGrid products={products} />
+                    <>
+                      <ProductGrid
+                        products={paginatedProducts}
+                        onAddToCart={handleAddToCart}
+                        onQuickAddToCart={handleQuickAddToCart}
+                        onSelectVariant={handleSelectVariant}
+                      />
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <HStack justify="center" mt={4} spacing={2}>
+                          <Button
+                            size="sm"
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            isDisabled={currentPage === 1}
+                          >
+                            ก่อนหน้า
+                          </Button>
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <Button
+                              key={page}
+                              size="sm"
+                              variant={page === currentPage ? "solid" : "ghost"}
+                              colorScheme={page === currentPage ? "blue" : undefined}
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </Button>
+                          ))}
+                          <Button
+                            size="sm"
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            isDisabled={currentPage === totalPages}
+                          >
+                            ถัดไป
+                          </Button>
+                        </HStack>
+                      )}
+                    </>
                   ) : (
-                    <ProductList products={products} />
+                    <ProductList
+                      products={products}
+                      onAddToCart={handleAddToCart}
+                      onQuickAddToCart={handleQuickAddToCart}
+                    />
                   )}
                 </Box>
               </TabPanel>
@@ -559,15 +472,15 @@ const SalesTerminal = () => {
                   <Box py={4}>
                     {viewMode === "grid" ? (
                       <ProductGrid
-                        products={products.filter(
-                          (p) => p.category === category
-                        )}
+                        products={products.filter((p) => p.category === category)}
+                        onAddToCart={handleAddToCart}
+                        onQuickAddToCart={handleQuickAddToCart}
                       />
                     ) : (
                       <ProductList
-                        products={products.filter(
-                          (p) => p.category === category
-                        )}
+                        products={products.filter((p) => p.category === category)}
+                        onAddToCart={handleAddToCart}
+                        onQuickAddToCart={handleQuickAddToCart}
                       />
                     )}
                   </Box>
@@ -578,16 +491,31 @@ const SalesTerminal = () => {
         </VStack>
 
         {/* Cart Section */}
-        <VStack spacing={4} align="stretch">
-          <CartSummary />
-          <TouchButton
-            size="lg"
-            colorScheme="primary"
-            isDisabled={cart.items.length === 0}
-            onClick={handlePayment}
-          >
-            ชำระเงิน
-          </TouchButton>
+        <VStack spacing={4} align="stretch" h="100vh" maxH="100vh" flex={1} minH={0}>
+          <Box flex="1" minH={0} overflow="hidden" display="flex" flexDirection="column">
+            <CartSummary
+              cart={cart}
+              onClearCart={handleClearCart}
+              onUpdateQuantity={handleUpdateQuantity}
+              scrollableItems
+              p={5}
+              shadow="lg"
+              borderRadius="xl"
+            />
+          </Box>
+          <Box>
+            <TouchButton
+              size="lg"
+              colorScheme="primary"
+              isDisabled={cart.items.length === 0}
+              onClick={handlePayment}
+              w="100%"
+              py={6}
+              fontSize="xl"
+            >
+              ชำระเงิน
+            </TouchButton>
+          </Box>
         </VStack>
       </Grid>
 
@@ -648,6 +576,94 @@ const SalesTerminal = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {/* Variant Modal */}
+      {variantModalProduct && (
+        <Modal isOpen={!!variantModalProduct} onClose={() => setVariantModalProduct(null)} size="sm">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>เลือกตัวเลือก</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4} align="stretch">
+                <Text fontWeight="bold">{variantModalProduct.name}</Text>
+                {getAvailableVariantTypes(variantModalProduct).map((type) => (
+                  <Box key={type}>
+                    <Text fontWeight="semibold" mb={1}>{type}</Text>
+                    <HStack spacing={2} flexWrap="wrap">
+                      {[...new Set(variantModalProduct.variants?.map(v => v.variant_combinations[type]))].map((value) => (
+                        <Button
+                          key={value}
+                          variant={variantSelections[type] === value ? "solid" : "outline"}
+                          colorScheme="blue"
+                          onClick={() => handleVariantTypeSelect(type, value!)}
+                          size="sm"
+                        >
+                          {value}
+                        </Button>
+                      ))}
+                    </HStack>
+                  </Box>
+                ))}
+                {/* เลือกจำนวน */}
+                <Box>
+                  <Text fontWeight="semibold" mb={1}>จำนวน</Text>
+                  <HStack spacing={4}>
+                    <TouchButton
+                      size="lg"
+                      onClick={() => setVariantQuantity((q) => Math.max(1, q - 1))}
+                      aria-label="ลดจำนวน"
+                      touchOptimized
+                    >
+                      -
+                    </TouchButton>
+                    <Text fontSize="2xl" minW="40px" textAlign="center">
+                      {variantQuantity}
+                    </Text>
+                    <TouchButton
+                      size="lg"
+                      onClick={() => setVariantQuantity((q) => Math.min(99, q + 1))}
+                      aria-label="เพิ่มจำนวน"
+                      touchOptimized
+                    >
+                      +
+                    </TouchButton>
+                  </HStack>
+                </Box>
+                {/* แสดงรายการ variant ที่ตรงกับ selections */}
+                {isAllVariantTypeSelected(variantModalProduct) && (
+                  <Box mt={2}>
+                    {getFilteredVariants(variantModalProduct).map((variant) => (
+                      <Box key={variant.id} p={2} borderWidth={1} borderRadius="md" mb={2}>
+                        <Text fontSize="sm">
+                          {Object.entries(variant.variant_combinations).map(([type, value]) => `${type}: ${value}`).join(", ")}
+                          {variant.price_adjustment !== 0 && (
+                            <Text as="span" ml={2} color="gray.500" fontSize="sm">
+                              ({variant.price_adjustment > 0 ? "+" : ""}{variant.price_adjustment} ฿)
+                            </Text>
+                          )}
+                        </Text>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </VStack>
+            </ModalBody>
+            <HStack p={4} justify="flex-end">
+              <Button onClick={() => setVariantModalProduct(null)} variant="ghost">
+                ยกเลิก
+              </Button>
+              <Button
+                colorScheme="blue"
+                onClick={handleAddVariantToCart}
+                isDisabled={!isAllVariantTypeSelected(variantModalProduct)}
+              >
+                เพิ่มลงตะกร้า
+              </Button>
+            </HStack>
+          </ModalContent>
+        </Modal>
+      )}
 
       {/* Payment Modal */}
       <PaymentModal
