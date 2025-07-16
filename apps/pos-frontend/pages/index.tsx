@@ -74,24 +74,43 @@ export default function HomePage() {
 
         {/* Quick Action Cards */}
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-          <POSCard variant="elevated" interactive>
-            <VStack spacing={4}>
-              <Heading size="md" color="primary.600">
-                🛒 Sales Terminal
-              </Heading>
-              <Text textAlign="center" color="gray.600">
-                Start selling products and manage transactions
-              </Text>
-              <TouchButton
-                variant="primary"
-                size="lg"
-                width="full"
-                onClick={() => router.push("/sales")}
-              >
-                Start Sales
-              </TouchButton>
-            </VStack>
-          </POSCard>
+        <POSCard variant="elevated" interactive>
+          <VStack spacing={4}>
+            <Heading size="md" color="primary.600">
+              🛒 Sales Terminal
+            </Heading>
+            <Text textAlign="center" color="gray.600">
+              Start selling products and manage transactions
+            </Text>
+            <TouchButton
+              variant="primary"
+              size="lg"
+              width="full"
+              onClick={() => router.push("/sales")}
+            >
+              Start Sales
+            </TouchButton>
+          </VStack>
+        </POSCard>
+
+        <POSCard variant="elevated" interactive>
+          <VStack spacing={4}>
+            <Heading size="md" color="teal.600">
+              🛍️ Products
+            </Heading>
+            <Text textAlign="center" color="gray.600">
+              Manage product listings and pricing
+            </Text>
+            <TouchButton
+              variant="primary"
+              size="lg"
+              width="full"
+              onClick={() => router.push("/products")}
+            >
+              Manage Products
+            </TouchButton>
+          </VStack>
+        </POSCard>
 
           <POSCard variant="elevated" interactive>
             <VStack spacing={4}>
@@ -105,7 +124,7 @@ export default function HomePage() {
                 variant="primary"
                 size="lg"
                 width="full"
-                onClick={() => handleQuickAction("inventory")}
+                onClick={() => router.push("/inventory")}
               >
                 View Inventory
               </TouchButton>
@@ -124,7 +143,7 @@ export default function HomePage() {
                 variant="warning"
                 size="lg"
                 width="full"
-                onClick={() => handleQuickAction("reports")}
+                onClick={() => router.push("/reports")}
               >
                 View Reports
               </TouchButton>
@@ -143,7 +162,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="lg"
                 width="full"
-                onClick={() => handleQuickAction("customers")}
+                onClick={() => router.push("/customers")}
               >
                 Manage Customers
               </TouchButton>
@@ -162,7 +181,7 @@ export default function HomePage() {
                 variant="warning"
                 size="lg"
                 width="full"
-                onClick={() => handleQuickAction("settings")}
+                onClick={() => router.push("/settings")}
               >
                 System Settings
               </TouchButton>
