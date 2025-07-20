@@ -56,7 +56,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [splitPayment, setSplitPayment] = useState(false);
   const [splitAmount, setSplitAmount] = useState(0);
   const [firstPaymentComplete, setFirstPaymentComplete] = useState(false);
-  const [remainingAmount, setRemainingAmount] = useState(cart.total);
+  const [remainingAmount, setRemainingAmount] = useState(cart?.total || 0);
 
   const toast = useToast();
   const cardBg = useColorModeValue("white", "gray.800");
@@ -102,7 +102,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setSplitPayment(false);
       setSplitAmount(0);
       setFirstPaymentComplete(false);
-      setRemainingAmount(cart.total);
+      setRemainingAmount(cart?.total || 0);
     }
   }, [isOpen, cart.total]);
 
@@ -114,13 +114,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     if (splitPayment && !firstPaymentComplete) {
       // First payment in split payment
       setFirstPaymentComplete(true);
-      setRemainingAmount(cart.total - splitAmount);
+      setRemainingAmount((cart?.total || 0) - splitAmount);
       setSelectedMethod(null);
       toast({
         title: "ชำระเงินส่วนแรกสำเร็จ",
         description: `ชำระแล้ว ${formatCurrency(
           splitAmount
-        )} เหลือ ${formatCurrency(cart.total - splitAmount)}`,
+        )} เหลือ ${formatCurrency((cart?.total || 0) - splitAmount)}`,
         status: "success",
         duration: 3000,
       });
@@ -133,7 +133,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleSplitPayment = () => {
     setSplitPayment(true);
-    setSplitAmount(Math.floor(cart.total / 2));
+    setSplitAmount(Math.floor((cart?.total || 0) / 2));
   };
 
   const renderPaymentComponent = () => {
@@ -220,14 +220,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   <Text fontSize="sm" color="gray.600">
                     รายการสินค้า
                   </Text>
-                  <Text fontSize="sm">{cart.items.length} รายการ</Text>
+                  <Text fontSize="sm">{cart.items?.length || 0} รายการ</Text>
                 </HStack>
                 <HStack justify="space-between" w="full">
                   <Text fontSize="sm" color="gray.600">
                     ยอดรวม
                   </Text>
                   <Text fontSize="lg" fontWeight="bold">
-                    {formatCurrency(cart.total)}
+                    {formatCurrency(cart?.total || 0)}
                   </Text>
                 </HStack>
                 {splitPayment && (

@@ -5,40 +5,35 @@ import { IoTrash, IoRemove, IoAdd } from "react-icons/io5";
 import { SalesCartItem } from "@shopflow/types";
 
 interface CartSummaryProps extends BoxProps {
-  cart: any;
-  onClearCart: () => void;
+  items: SalesCartItem[];
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  total: number;
   onUpdateQuantity: (itemId: string, newQuantity: number) => void;
+  onRemoveItem: (itemId: string) => void;
   scrollableItems?: boolean;
 }
 
-const CartSummary: React.FC<CartSummaryProps> = ({ cart, onClearCart, onUpdateQuantity, scrollableItems, ...boxProps }) => (
+const CartSummary: React.FC<CartSummaryProps> = ({ items, subtotal, taxAmount, discountAmount, total, onUpdateQuantity, onRemoveItem, scrollableItems, ...boxProps }) => (
   <POSCard borderRadius={boxProps.borderRadius || "xl"} shadow={boxProps.shadow || "md"} h="full" display="flex" flexDirection="column" p={boxProps.p || 5} {...boxProps}>
     <VStack spacing={5} align="stretch" h="full">
       <HStack justify="space-between">
         <Text fontSize="lg" fontWeight="bold">
-          ตะกร้าสินค้า ({cart.items.length})
+          ตะกร้าสินค้า ({items?.length || 0})
         </Text>
-        <IconButton
-          size="md"
-          colorScheme="red"
-          variant="ghost"
-          icon={<IoTrash />}
-          aria-label="ล้างตะกร้า"
-          onClick={onClearCart}
-          isDisabled={cart.items.length === 0}
-        />
       </HStack>
       {scrollableItems ? (
         <>
           <Box flex="1" minH={0} maxH="32vh" overflowY="auto">
             <VStack spacing={3} align="stretch">
-              {cart.items.length === 0 ? (
+              {!items || items.length === 0 ? (
                 <Text textAlign="center" color="gray.500">
                   ไม่มีสินค้าในตะกร้า
                 </Text>
               ) : (
                 <>
-                  {cart.items.map((item: SalesCartItem) => (
+                  {items.map((item: SalesCartItem) => (
                     <Box key={item.id} p={3} bg="gray.50" borderRadius="md">
                       <HStack justify="space-between" align="start">
                         <VStack align="start" spacing={1} flex={1}>
@@ -92,19 +87,19 @@ const CartSummary: React.FC<CartSummaryProps> = ({ cart, onClearCart, onUpdateQu
             <HStack justify="space-between">
               <Text fontSize="sm">ยอดรวม:</Text>
               <Text fontSize="sm" fontWeight="semibold">
-                {cart.subtotal.toFixed(2)} ฿
+                {subtotal.toFixed(2)} ฿
               </Text>
             </HStack>
             <HStack justify="space-between">
               <Text fontSize="sm">ภาษี:</Text>
               <Text fontSize="sm" fontWeight="semibold">
-                {cart.taxAmount.toFixed(2)} ฿
+                {taxAmount.toFixed(2)} ฿
               </Text>
             </HStack>
             <HStack justify="space-between">
               <Text fontSize="sm">ส่วนลด:</Text>
               <Text fontSize="sm" fontWeight="semibold" color="green.600">
-                -{cart.discountAmount.toFixed(2)} ฿
+                -{discountAmount.toFixed(2)} ฿
               </Text>
             </HStack>
             <Divider />
@@ -113,20 +108,20 @@ const CartSummary: React.FC<CartSummaryProps> = ({ cart, onClearCart, onUpdateQu
                 รวมสุทธิ:
               </Text>
               <Text fontSize="lg" fontWeight="bold" color="blue.600">
-                {cart.total.toFixed(2)} ฿
+                {total.toFixed(2)} ฿
               </Text>
             </HStack>
           </VStack>
         </>
       ) : (
         <VStack spacing={3} align="stretch">
-          {cart.items.length === 0 ? (
+          {!items || items.length === 0 ? (
             <Text textAlign="center" color="gray.500">
               ไม่มีสินค้าในตะกร้า
             </Text>
           ) : (
             <>
-              {cart.items.map((item: SalesCartItem) => (
+              {items.map((item: SalesCartItem) => (
                 <Box key={item.id} p={3} bg="gray.50" borderRadius="md">
                   <HStack justify="space-between" align="start">
                     <VStack align="start" spacing={1} flex={1}>
@@ -175,19 +170,19 @@ const CartSummary: React.FC<CartSummaryProps> = ({ cart, onClearCart, onUpdateQu
                 <HStack justify="space-between">
                   <Text fontSize="sm">ยอดรวม:</Text>
                   <Text fontSize="sm" fontWeight="semibold">
-                    {cart.subtotal.toFixed(2)} ฿
+                    {subtotal.toFixed(2)} ฿
                   </Text>
                 </HStack>
                 <HStack justify="space-between">
                   <Text fontSize="sm">ภาษี:</Text>
                   <Text fontSize="sm" fontWeight="semibold">
-                    {cart.taxAmount.toFixed(2)} ฿
+                    {taxAmount.toFixed(2)} ฿
                   </Text>
                 </HStack>
                 <HStack justify="space-between">
                   <Text fontSize="sm">ส่วนลด:</Text>
                   <Text fontSize="sm" fontWeight="semibold" color="green.600">
-                    -{cart.discountAmount.toFixed(2)} ฿
+                    -{discountAmount.toFixed(2)} ฿
                   </Text>
                 </HStack>
                 <Divider />
@@ -196,7 +191,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({ cart, onClearCart, onUpdateQu
                     รวมสุทธิ:
                   </Text>
                   <Text fontSize="lg" fontWeight="bold" color="blue.600">
-                    {cart.total.toFixed(2)} ฿
+                    {total.toFixed(2)} ฿
                   </Text>
                 </HStack>
               </VStack>

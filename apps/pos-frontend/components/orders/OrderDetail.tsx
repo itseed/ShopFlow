@@ -362,7 +362,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
         <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
           <CardHeader>
             <Text fontSize="lg" fontWeight="medium">
-              รายการสินค้า ({order.cart.items.length} รายการ)
+              รายการสินค้า ({order.cart.items?.length || 0} รายการ)
             </Text>
           </CardHeader>
           <CardBody>

@@ -11,7 +11,7 @@ import {
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FiHome, FiShoppingCart, FiBox, FiLayers, FiBarChart2, FiUsers, FiSettings } from "react-icons/fi";
+import { FiHome, FiShoppingCart, FiClipboard, FiBox, FiLayers, FiBarChart2, FiUsers, FiSettings } from "react-icons/fi";
 import { ReactNode } from "react";
 
 interface POSLayoutProps {
@@ -24,6 +24,7 @@ interface POSLayoutProps {
 const navLinks: { label: string; href: string; icon: JSX.Element }[] = [
   { label: "หน้าหลัก", href: "/", icon: <FiHome /> },
   { label: "ขายสินค้า", href: "/sales", icon: <FiShoppingCart /> },
+  { label: "ออเดอร์", href: "/orders", icon: <FiClipboard /> },
   { label: "สินค้า", href: "/products", icon: <FiBox /> },
   { label: "สต็อก", href: "/inventory", icon: <FiLayers /> },
   { label: "รายงาน", href: "/reports", icon: <FiBarChart2 /> },

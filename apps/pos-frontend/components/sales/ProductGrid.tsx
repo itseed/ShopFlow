@@ -20,7 +20,7 @@ interface ProductGridProps {
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart, onQuickAddToCart, onSelectVariant }) => (
-  <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={4}>
+  <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={{ base: 4, md: 6 }}>
     {products.map((product) => (
       <POSCard
         key={product.id}
@@ -74,7 +74,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart, onQuic
               {product.price.toFixed(2)} ฿
             </Text>
             <IconButton
-              size="md"
+              size="lg"
+              fontSize="2xl"
+              px={6}
+              py={4}
               icon={<IoAdd />}
               aria-label="Add to cart"
               colorScheme="blue"

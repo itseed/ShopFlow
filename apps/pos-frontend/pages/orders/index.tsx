@@ -42,6 +42,13 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
+  Icon,
+  Heading,
+  Progress,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from "@chakra-ui/react";
 import {
   IoSearch,
@@ -54,6 +61,12 @@ import {
   IoDocument,
   IoCard,
   IoTime,
+  IoTrendingUp,
+  IoStatsChart,
+  IoCheckmarkCircle,
+  IoWarning,
+  IoCash,
+  IoPrint,
 } from "react-icons/io5";
 import { FaChevronDown } from "react-icons/fa";
 import {
@@ -65,6 +78,7 @@ import {
 import { SalesTransaction } from "@shopflow/types";
 import { formatCurrency } from "../../lib/sales";
 import { useRouter } from "next/router";
+import OrderTable from "../../components/orders/OrderTable";
 
 interface OrderFilters {
   searchTerm: string;
@@ -95,11 +109,20 @@ const OrdersPage = () => {
     averageOrderValue: 0,
     completedOrders: 0,
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage] = useState(10);
+  const paginatedOrders = orders.slice((currentPage - 1) * perPage, currentPage * perPage);
+  const totalPages = Math.ceil(orders.length / perPage);
 
   const toast = useToast();
   const router = useRouter();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
+  // Color mode values
+  const bgGradient = useColorModeValue(
+    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    "linear-gradient(135deg, #2d3748 0%, #1a202c 100%)"
+  );
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
@@ -250,76 +273,97 @@ const OrdersPage = () => {
           status: "completed",
           receipt: {
             printed: true,
-            emailSent: true,
+            emailSent: false,
             receiptNumber: "R20241201002",
           },
+          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+          completedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+        },
+        {
+          id: "tx_003",
+          transactionNumber: "TXN-2024-003",
+          cart: {
+            id: "cart_003",
+            items: [
+              {
+                id: "item_003",
+                product: {
+                  id: "prod_003",
+                  name: "น้ำส้มคั้น",
+                  description: "น้ำส้มคั้นสด",
+                  price: 35,
+                  barcode: "1234567890003",
+                  category: "เครื่องดื่ม",
+                  stock: 30,
+                  isActive: true,
+                  taxRate: 0.07,
+                  discountEligible: true,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+                quantity: 3,
+                unitPrice: 35,
+                discountAmount: 0,
+                discountPercentage: 0,
+                taxAmount: 7.35,
+                subtotal: 105,
+                total: 105,
+              },
+            ],
+            subtotal: 105,
+            discountAmount: 0,
+            taxAmount: 7.35,
+            total: 112.35,
+            itemCount: 3,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          payments: [
+            {
+              id: "pay_003",
+              type: "digital",
+              amount: 112.35,
+              status: "completed",
+              createdAt: new Date(),
+            },
+          ],
+          cashier: {
+            id: "cashier_002",
+            name: "พนักงานเก็บเงิน 2",
+            username: "cashier02",
+          },
+          branch: {
+            id: "branch_001",
+            name: "สาขาหลัก",
+          },
+          status: "pending",
+          receipt: {
+            printed: false,
+            emailSent: false,
+            receiptNumber: "R20241201003",
+          },
           createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-          completedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
         },
       ];
 
-      // Apply filters
-      let filteredOrders = [...mockOrders];
-
-      if (filters.searchTerm) {
-        filteredOrders = filteredOrders.filter(
-          (order) =>
-            order.transactionNumber
-              .toLowerCase()
-              .includes(filters.searchTerm.toLowerCase()) ||
-            order.customer?.name
-              .toLowerCase()
-              .includes(filters.searchTerm.toLowerCase()) ||
-            order.receipt?.receiptNumber
-              .toLowerCase()
-              .includes(filters.searchTerm.toLowerCase())
-        );
-      }
-
-      if (filters.status !== "all") {
-        filteredOrders = filteredOrders.filter(
-          (order) => order.status === filters.status
-        );
-      }
-
-      // Sort orders
-      filteredOrders.sort((a, b) => {
-        const aValue = a[filters.sortBy as keyof SalesTransaction];
-        const bValue = b[filters.sortBy as keyof SalesTransaction];
-
-        if (filters.sortOrder === "asc") {
-          return aValue > bValue ? 1 : -1;
-        } else {
-          return aValue < bValue ? 1 : -1;
-        }
-      });
-
-      setOrders(filteredOrders);
-
+      setOrders(mockOrders);
+      
       // Calculate stats
-      const totalOrders = filteredOrders.length;
-      const totalAmount = filteredOrders.reduce(
-        (sum, order) => sum + order.cart.total,
-        0
-      );
-      const completedOrders = filteredOrders.filter(
-        (order) => order.status === "completed"
-      ).length;
-      const averageOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
-
+      const totalAmount = mockOrders.reduce((sum, order) => sum + order.cart.total, 0);
+      const completedOrders = mockOrders.filter(order => order.status === "completed").length;
+      
       setStats({
-        totalOrders,
+        totalOrders: mockOrders.length,
         totalAmount,
-        averageOrderValue,
+        averageOrderValue: mockOrders.length > 0 ? totalAmount / mockOrders.length : 0,
         completedOrders,
       });
     } catch (error) {
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้",
+        description: "ไม่สามารถโหลดข้อมูลออเดอร์ได้",
         status: "error",
         duration: 3000,
-        isClosable: true,
       });
     } finally {
       setLoading(false);
@@ -332,13 +376,21 @@ const OrdersPage = () => {
   };
 
   const handleViewReceipt = (order: SalesTransaction) => {
-    // Navigate to receipt view
-    router.push(`/orders/${order.id}/receipt`);
+    toast({
+      title: "ดูใบเสร็จ",
+      description: `กำลังเปิดใบเสร็จ ${order.receipt?.receiptNumber}`,
+      status: "info",
+      duration: 2000,
+    });
   };
 
   const handleRefundOrder = (order: SalesTransaction) => {
-    // Navigate to refund page
-    router.push(`/orders/${order.id}/refund`);
+    toast({
+      title: "คืนเงิน",
+      description: `กำลังดำเนินการคืนเงินสำหรับ ${order.transactionNumber}`,
+      status: "warning",
+      duration: 3000,
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -350,7 +402,7 @@ const OrdersPage = () => {
       case "cancelled":
         return "red";
       case "refunded":
-        return "purple";
+        return "orange";
       default:
         return "gray";
     }
@@ -367,7 +419,7 @@ const OrdersPage = () => {
       case "refunded":
         return "คืนเงิน";
       default:
-        return status;
+        return "ไม่ทราบสถานะ";
     }
   };
 
@@ -376,100 +428,168 @@ const OrdersPage = () => {
       case "cash":
         return "เงินสด";
       case "card":
-        return "บัตรเครดิต/เดบิต";
-      case "digital":
-        return "ชำระดิจิทัล";
+        return `บัตร${payment.cardType || ""} (${payment.cardLastFour || ""})`;
+      case "qr":
+        return "QR Payment";
       default:
-        return payment.type;
+        return "ไม่ทราบ";
     }
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleString("th-TH", {
-      day: "2-digit",
-      month: "2-digit",
+    return new Intl.DateTimeFormat("th-TH", {
       year: "numeric",
+      month: "short",
+      day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(date);
   };
 
   return (
-    <POSLayout title="ประวัติการสั่งซื้อ">
-      <VStack spacing={6} align="stretch">
+    <POSLayout>
+      <VStack spacing={6} align="stretch" h="full" p={{ base: 2, md: 4 }}>
         {/* Header with Stats */}
-        <Box>
-          <HStack justify="space-between" align="center" mb={4}>
-            <Text fontSize="2xl" fontWeight="bold">
-              ประวัติการสั่งซื้อ
-            </Text>
-            <TouchButton
-              leftIcon={<IoRefresh />}
-              onClick={loadOrders}
-              isLoading={loading}
-              variant="outline"
-            >
-              รีเฟรช
-            </TouchButton>
-          </HStack>
-
-          {/* Stats Cards */}
-          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4} mb={6}>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>คำสั่งซื้อทั้งหมด</StatLabel>
-                  <StatNumber color="blue.500">{stats.totalOrders}</StatNumber>
-                  <StatHelpText>รายการ</StatHelpText>
+        <Box
+          bgGradient={bgGradient}
+          borderRadius="2xl"
+          p={6}
+          color="white"
+          position="relative"
+          overflow="hidden"
+          _before={{
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bg: "rgba(255,255,255,0.1)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <Flex justify="space-between" align="center" position="relative" zIndex={1}>
+            <VStack align="start" spacing={2}>
+              <Heading size="lg" fontWeight="bold">
+                📋 ประวัติการสั่งซื้อ
+              </Heading>
+              <Text fontSize="lg" opacity={0.9}>
+                ออเดอร์ทั้งหมด {stats.totalOrders} รายการ
+              </Text>
+            </VStack>
+            <VStack align="end" spacing={2}>
+              <HStack spacing={4}>
+                <Stat color="white">
+                  <StatLabel fontSize="sm">ยอดขายรวม</StatLabel>
+                  <StatNumber fontSize="2xl">{formatCurrency(stats.totalAmount)}</StatNumber>
                 </Stat>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>ยอดขายรวม</StatLabel>
-                  <StatNumber color="green.500">
-                    {formatCurrency(stats.totalAmount)}
-                  </StatNumber>
-                  <StatHelpText>บาท</StatHelpText>
+                <Stat color="white">
+                  <StatLabel fontSize="sm">ออเดอร์สำเร็จ</StatLabel>
+                  <StatNumber fontSize="2xl">{stats.completedOrders}</StatNumber>
                 </Stat>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>ค่าเฉลี่ยต่อคำสั่ง</StatLabel>
-                  <StatNumber color="purple.500">
-                    {formatCurrency(stats.averageOrderValue)}
-                  </StatNumber>
-                  <StatHelpText>บาท</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>คำสั่งที่สำเร็จ</StatLabel>
-                  <StatNumber color="orange.500">
-                    {stats.completedOrders}
-                  </StatNumber>
-                  <StatHelpText>รายการ</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
+              </HStack>
+              <HStack spacing={2}>
+                <Icon as={IoTrendingUp} color="yellow.300" />
+                <Text fontSize="sm" opacity={0.9}>เฉลี่ย {formatCurrency(stats.averageOrderValue)} ต่อออเดอร์</Text>
+              </HStack>
+            </VStack>
+          </Flex>
         </Box>
 
+        {/* Stats Cards */}
+        <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
+          <Card variant="elevated" bg={cardBg} borderColor={borderColor}>
+            <CardBody>
+              <HStack spacing={3}>
+                <Box
+                  p={3}
+                  borderRadius="lg"
+                  bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  color="white"
+                >
+                  <Icon as={IoDocument} boxSize={6} />
+                </Box>
+                <VStack align="start" spacing={1}>
+                  <Stat>
+                    <StatLabel fontSize="sm" color="gray.600">ออเดอร์ทั้งหมด</StatLabel>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="blue.500">{stats.totalOrders}</StatNumber>
+                  </Stat>
+                </VStack>
+              </HStack>
+            </CardBody>
+          </Card>
+
+          <Card variant="elevated" bg={cardBg} borderColor={borderColor}>
+            <CardBody>
+              <HStack spacing={3}>
+                <Box
+                  p={3}
+                  borderRadius="lg"
+                  bgGradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+                  color="white"
+                >
+                  <Icon as={IoCheckmarkCircle} boxSize={6} />
+                </Box>
+                <VStack align="start" spacing={1}>
+                  <Stat>
+                    <StatLabel fontSize="sm" color="gray.600">ยอดขายรวม</StatLabel>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="green.500">{formatCurrency(stats.totalAmount)}</StatNumber>
+                  </Stat>
+                </VStack>
+              </HStack>
+            </CardBody>
+          </Card>
+
+          <Card variant="elevated" bg={cardBg} borderColor={borderColor}>
+            <CardBody>
+              <HStack spacing={3}>
+                <Box
+                  p={3}
+                  borderRadius="lg"
+                  bgGradient="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)"
+                  color="white"
+                >
+                  <Icon as={IoStatsChart} boxSize={6} />
+                </Box>
+                <VStack align="start" spacing={1}>
+                  <Stat>
+                    <StatLabel fontSize="sm" color="gray.600">เฉลี่ยต่อออเดอร์</StatLabel>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="purple.500">{formatCurrency(stats.averageOrderValue)}</StatNumber>
+                  </Stat>
+                </VStack>
+              </HStack>
+            </CardBody>
+          </Card>
+
+          <Card variant="elevated" bg={cardBg} borderColor={borderColor}>
+            <CardBody>
+              <HStack spacing={3}>
+                <Box
+                  p={3}
+                  borderRadius="lg"
+                  bgGradient="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)"
+                  color="white"
+                >
+                  <Icon as={IoCheckmarkCircle} boxSize={6} />
+                </Box>
+                <VStack align="start" spacing={1}>
+                  <Stat>
+                    <StatLabel fontSize="sm" color="gray.600">ออเดอร์สำเร็จ</StatLabel>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="orange.500">{stats.completedOrders}</StatNumber>
+                  </Stat>
+                </VStack>
+              </HStack>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
+
         {/* Filters */}
-        <POSCard p={4}>
+        <POSCard variant="elevated" bg={cardBg} borderColor={borderColor}>
           <VStack spacing={4}>
-            <HStack spacing={4} w="full">
+            <HStack w="full" spacing={4}>
               <InputGroup flex={2}>
                 <InputLeftElement>
-                  <IoSearch />
+                  <Icon as={IoSearch} color="gray.400" />
                 </InputLeftElement>
                 <Input
                   placeholder="ค้นหาด้วยเลขที่คำสั่ง, ชื่อลูกค้า, หรือเลขใบเสร็จ"
@@ -480,6 +600,8 @@ const OrdersPage = () => {
                       searchTerm: e.target.value,
                     }))
                   }
+                  size="lg"
+                  borderRadius="xl"
                 />
               </InputGroup>
 
@@ -489,6 +611,8 @@ const OrdersPage = () => {
                   setFilters((prev) => ({ ...prev, status: e.target.value }))
                 }
                 w="200px"
+                size="lg"
+                borderRadius="xl"
               >
                 <option value="all">สถานะทั้งหมด</option>
                 <option value="completed">สำเร็จ</option>
@@ -503,6 +627,8 @@ const OrdersPage = () => {
                   setFilters((prev) => ({ ...prev, dateRange: e.target.value }))
                 }
                 w="200px"
+                size="lg"
+                borderRadius="xl"
               >
                 <option value="today">วันนี้</option>
                 <option value="yesterday">เมื่อวาน</option>
@@ -522,6 +648,8 @@ const OrdersPage = () => {
                   }))
                 }
                 w="200px"
+                size="lg"
+                borderRadius="xl"
               >
                 <option value="all">วิธีชำระทั้งหมด</option>
                 <option value="cash">เงินสด</option>
@@ -535,6 +663,8 @@ const OrdersPage = () => {
                   setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
                 }
                 w="200px"
+                size="lg"
+                borderRadius="xl"
               >
                 <option value="createdAt">วันที่สร้าง</option>
                 <option value="transactionNumber">เลขที่คำสั่ง</option>
@@ -550,136 +680,58 @@ const OrdersPage = () => {
                   }))
                 }
                 w="150px"
+                size="lg"
+                borderRadius="xl"
               >
                 <option value="desc">ใหม่ไปเก่า</option>
                 <option value="asc">เก่าไปใหม่</option>
               </Select>
+
+              <TouchButton
+                leftIcon={<IoRefresh />}
+                onClick={loadOrders}
+                isLoading={loading}
+                variant="secondary"
+                size="lg"
+                borderRadius="xl"
+              >
+                รีเฟรช
+              </TouchButton>
+            </HStack>
+
+            <HStack justify="space-between" w="full">
+              <Text fontSize="sm" color="gray.600">
+                แสดง {paginatedOrders.length} จาก {orders.length} รายการ
+              </Text>
+              <HStack spacing={2}>
+                <Badge colorScheme="blue" fontSize="sm">
+                  หน้า {currentPage} จาก {totalPages}
+                </Badge>
+              </HStack>
             </HStack>
           </VStack>
         </POSCard>
 
         {/* Orders Table */}
-        <POSCard>
-          {loading ? (
-            <Box py={10}>
-              <LoadingSpinner />
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table variant="simple" size="md">
-                <Thead>
-                  <Tr>
-                    <Th>เลขที่คำสั่ง</Th>
-                    <Th>วันที่/เวลา</Th>
-                    <Th>ลูกค้า</Th>
-                    <Th>รายการ</Th>
-                    <Th>วิธีชำระ</Th>
-                    <Th>ยอดรวม</Th>
-                    <Th>สถานะ</Th>
-                    <Th>จัดการ</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {orders.map((order) => (
-                    <Tr key={order.id} _hover={{ bg: hoverBg }}>
-                      <Td>
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="medium">
-                            {order.transactionNumber}
-                          </Text>
-                          <Text fontSize="sm" color="gray.500">
-                            {order.receipt?.receiptNumber}
-                          </Text>
-                        </VStack>
-                      </Td>
-                      <Td>
-                        <VStack align="start" spacing={1}>
-                          <Text fontSize="sm">
-                            {formatDate(order.createdAt)}
-                          </Text>
-                          <Text fontSize="xs" color="gray.500">
-                            {order.cashier.name}
-                          </Text>
-                        </VStack>
-                      </Td>
-                      <Td>
-                        <Text fontSize="sm">
-                          {order.customer?.name || "ไม่ระบุ"}
-                        </Text>
-                        {order.customer?.phone && (
-                          <Text fontSize="xs" color="gray.500">
-                            {order.customer.phone}
-                          </Text>
-                        )}
-                      </Td>
-                      <Td>
-                        <Text fontSize="sm">{order.cart.itemCount} รายการ</Text>
-                      </Td>
-                      <Td>
-                        <Text fontSize="sm">
-                          {getPaymentMethodText(order.payments[0])}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <Text fontSize="sm" fontWeight="medium">
-                          {formatCurrency(order.cart.total)}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <Badge colorScheme={getStatusColor(order.status)}>
-                          {getStatusText(order.status)}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Menu>
-                          <MenuButton
-                            as={IconButton}
-                            icon={<IoEllipsisVertical />}
-                            variant="ghost"
-                            size="sm"
-                          />
-                          <MenuList>
-                            <MenuItem
-                              icon={<IoEye />}
-                              onClick={() => handleViewOrder(order)}
-                            >
-                              ดูรายละเอียด
-                            </MenuItem>
-                            <MenuItem
-                              icon={<IoReceipt />}
-                              onClick={() => handleViewReceipt(order)}
-                            >
-                              ดูใบเสร็จ
-                            </MenuItem>
-                            {order.status === "completed" && (
-                              <MenuItem
-                                icon={<IoRefresh />}
-                                onClick={() => handleRefundOrder(order)}
-                              >
-                                คืนเงิน
-                              </MenuItem>
-                            )}
-                          </MenuList>
-                        </Menu>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          )}
-
-          {!loading && orders.length === 0 && (
-            <Box textAlign="center" py={10}>
-              <Text color="gray.500">ไม่พบคำสั่งซื้อที่ตรงกับเงื่อนไข</Text>
-            </Box>
-          )}
+        <POSCard variant="elevated" bg={cardBg} borderColor={borderColor}>
+          <OrderTable
+            orders={paginatedOrders}
+            loading={loading}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            onView={handleViewOrder}
+            onViewReceipt={handleViewReceipt}
+            onRefund={handleRefundOrder}
+            filters={filters}
+            onFilterChange={setFilters}
+          />
         </POSCard>
       </VStack>
 
       {/* Order Details Modal */}
       {selectedOrder && (
-        <Modal isOpen={isOpen} onClose={onClose} size="lg">
+        <Modal isOpen={isOpen} onClose={onClose} size={{ base: 'md', md: 'lg' }}>
           <ModalOverlay />
           <ModalContent>
             <ModalHeader>
@@ -834,14 +886,19 @@ const OrdersPage = () => {
             </ModalBody>
             <ModalFooter>
               <HStack spacing={3}>
-                <Button
+                <TouchButton
                   leftIcon={<IoReceipt />}
-                  colorScheme="blue"
-                  variant="outline"
+                  variant="primary"
                   onClick={() => handleViewReceipt(selectedOrder)}
+                  bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  _hover={{
+                    transform: "translateY(-1px)",
+                    boxShadow: "lg",
+                  }}
+                  color="white"
                 >
                   ดูใบเสร็จ
-                </Button>
+                </TouchButton>
                 <Button onClick={onClose}>ปิด</Button>
               </HStack>
             </ModalFooter>

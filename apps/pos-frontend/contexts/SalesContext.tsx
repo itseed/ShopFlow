@@ -51,7 +51,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
 
   // Save cart to storage whenever it changes
   useEffect(() => {
-    if (cart.items.length > 0) {
+    if (cart.items && cart.items.length > 0) {
       setStoredCart(cart);
     } else {
       clearStoredCart();
@@ -218,7 +218,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
       return null;
     }
 
-    if (cart.items.length === 0) {
+    if (!cart.items || cart.items.length === 0) {
       setError("Cart is empty");
       return null;
     }
