@@ -300,6 +300,10 @@ const SalesTerminal = () => {
   };
 
   const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity < 1) {
+      handleRemoveItem(itemId);
+      return;
+    }
     updateCartItem(itemId, { quantity: newQuantity });
   };
 
@@ -372,7 +376,7 @@ const SalesTerminal = () => {
     clearCart();
     toast({
       title: "ชำระเงินสำเร็จ",
-      description: `ยอดรวม: ${formatCurrency(result.amount)}`,
+      description: `ยอดรวม: ${formatCurrency(result.amount, "THB")}`,
       status: "success",
       duration: 3000,
       isClosable: true,
@@ -438,7 +442,7 @@ const SalesTerminal = () => {
                   🛒 ระบบขายสินค้า
                 </Heading>
                 <Text fontSize="lg" opacity={0.9}>
-                  ยอดขายวันนี้: ฿{salesStats.todaySales.toLocaleString()}
+                  ยอดขายวันนี้: {formatCurrency(salesStats.todaySales, "THB")}
                 </Text>
               </VStack>
               <VStack align="end" spacing={2}>
@@ -449,7 +453,7 @@ const SalesTerminal = () => {
                   </Stat>
                   <Stat color="white">
                     <StatLabel fontSize="sm">เฉลี่ย/รายการ</StatLabel>
-                    <StatNumber fontSize="2xl">฿{salesStats.averageTicket}</StatNumber>
+                    <StatNumber fontSize="2xl">{formatCurrency(salesStats.averageTicket, "THB")}</StatNumber>
                   </Stat>
                 </HStack>
                 <HStack spacing={2}>
@@ -586,50 +590,16 @@ const SalesTerminal = () => {
                   ยอดรวม
                 </Text>
                 <Text fontSize="2xl" fontWeight="bold" color="green.500">
-                  ฿{formatCurrency(cartTotal)}
+                  {formatCurrency(cartTotal, "THB")}
                 </Text>
               </HStack>
-              
-              <SimpleGrid columns={2} spacing={3} w="full">
-                <TouchButton
-                  variant="primary"
-                  size="lg"
-                  leftIcon={<IoCard />}
-                  onClick={handlePayment}
-                  isDisabled={!cart.items || cart.items.length === 0}
-                  bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                  _hover={{
-                    transform: "translateY(-1px)",
-                    boxShadow: "lg",
-                  }}
-                  color="white"
-                >
-                  บัตรเครดิต
-                </TouchButton>
-                <TouchButton
-                  variant="success"
-                  size="lg"
-                  leftIcon={<IoCash />}
-                  onClick={handlePayment}
-                  isDisabled={!cart.items || cart.items.length === 0}
-                  bgGradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
-                  _hover={{
-                    transform: "translateY(-1px)",
-                    boxShadow: "lg",
-                  }}
-                  color="white"
-                >
-                  เงินสด
-                </TouchButton>
-              </SimpleGrid>
-              
               <TouchButton
-                variant="warning"
+                variant="primary"
                 size="lg"
-                leftIcon={<IoQrCode />}
+                leftIcon={<IoCard />}
                 onClick={handlePayment}
                 isDisabled={!cart.items || cart.items.length === 0}
-                bgGradient="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)"
+                bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
                 _hover={{
                   transform: "translateY(-1px)",
                   boxShadow: "lg",
@@ -637,7 +607,7 @@ const SalesTerminal = () => {
                 color="white"
                 w="full"
               >
-                QR Payment
+                ชำระเงิน
               </TouchButton>
             </VStack>
           </POSCard>
@@ -669,6 +639,63 @@ const SalesTerminal = () => {
                 variant="primary"
                 onClick={handleQuantitySubmit}
                 width="full"
+              >
+                เพิ่มลงตะกร้า
+              </TouchButton>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+      {/* Variant Selection Modal */}
+      <Modal isOpen={!!variantModalProduct} onClose={() => setVariantModalProduct(null)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>เลือกตัวเลือกสินค้า</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <Text fontWeight="bold">{variantModalProduct?.name}</Text>
+              {variantModalProduct && getAvailableVariantTypes(variantModalProduct).map((type) => (
+                <Box key={type}>
+                  <Text fontSize="sm" color="gray.600" mb={1}>{type}</Text>
+                  <HStack spacing={2} flexWrap="wrap">
+                    {Array.from(new Set(variantModalProduct.variants?.map(v => v.variant_combinations[type]) || [])).map((value) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={variantSelections[type] === value ? "solid" : "outline"}
+                        colorScheme="blue"
+                        onClick={() => handleVariantTypeSelect(type, value)}
+                      >
+                        {value}
+                      </Button>
+                    ))}
+                  </HStack>
+                </Box>
+              ))}
+              {variantModalProduct && (
+                <NumberInput
+                  value={variantQuantity}
+                  onChange={(_, value) => setVariantQuantity(value)}
+                  min={1}
+                  max={getFilteredVariants(variantModalProduct)[0]?.stock || 999}
+                >
+                  <NumberInputField />
+                  <NumberInputStepper>
+                    <NumberIncrementStepper />
+                    <NumberDecrementStepper />
+                  </NumberInputStepper>
+                </NumberInput>
+              )}
+              <TouchButton
+                variant="primary"
+                onClick={handleAddVariantToCart}
+                width="full"
+                isDisabled={
+                  !variantModalProduct ||
+                  !isAllVariantTypeSelected(variantModalProduct) ||
+                  getFilteredVariants(variantModalProduct).length === 0
+                }
               >
                 เพิ่มลงตะกร้า
               </TouchButton>

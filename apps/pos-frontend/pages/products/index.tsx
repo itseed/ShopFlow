@@ -81,6 +81,8 @@ import {
   IoPricetag,
   IoAlertCircle,
   IoCheckmarkCircle,
+  IoChevronBack,
+  IoChevronForward,
 } from "react-icons/io5";
 import { POSLayout, TouchButton, POSCard } from "../../components";
 import { mockProducts } from "../../lib/sales";
@@ -141,6 +143,21 @@ const ProductsPage = () => {
   const lowStockProducts = products.filter(p => p.stock <= 10).length;
   const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
   const outOfStockProducts = products.filter(p => p.stock === 0).length;
+
+  const [currentGridSlide, setCurrentGridSlide] = useState(1);
+  const [currentTablePage, setCurrentTablePage] = useState(1);
+  const gridPerSlide = 8;
+  const tablePerPage = 10;
+  const totalGridSlides = Math.ceil(filteredProducts.length / gridPerSlide);
+  const totalTablePages = Math.ceil(filteredProducts.length / tablePerPage);
+  const paginatedGridProducts = filteredProducts.slice((currentGridSlide - 1) * gridPerSlide, currentGridSlide * gridPerSlide);
+  const paginatedTableProducts = filteredProducts.slice((currentTablePage - 1) * tablePerPage, currentTablePage * tablePerPage);
+
+  // Reset slide/page when filter/search/viewMode changes
+  React.useEffect(() => {
+    setCurrentGridSlide(1);
+    setCurrentTablePage(1);
+  }, [filter, search, viewMode]);
 
   const handleAddProduct = () => {
     if (!productForm.name || productForm.price <= 0) {
@@ -482,7 +499,7 @@ const ProductsPage = () => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {filteredProducts.map((product) => (
+                  {paginatedTableProducts.map((product) => (
                     <Tr key={product.id} _hover={{ bg: "gray.50" }} cursor="pointer" onClick={() => { setSelectedProduct(product); onViewProductOpen(); }}>
                       <Td>
                         <HStack>
@@ -552,88 +569,122 @@ const ProductsPage = () => {
                   ))}
                 </Tbody>
               </Table>
+              <HStack justify="center" mt={4} spacing={1}>
+                <IconButton icon={<IoChevronBack />} aria-label="ย้อนกลับ" onClick={() => setCurrentTablePage(p => Math.max(1, p - 1))} isDisabled={currentTablePage === 1} />
+                {Array.from({ length: totalTablePages }, (_, i) => (
+                  <Button
+                    key={i+1}
+                    size="sm"
+                    borderRadius="full"
+                    variant={currentTablePage === i+1 ? "solid" : "ghost"}
+                    colorScheme={currentTablePage === i+1 ? "blue" : undefined}
+                    onClick={() => setCurrentTablePage(i+1)}
+                  >
+                    {i+1}
+                  </Button>
+                ))}
+                <IconButton icon={<IoChevronForward />} aria-label="ถัดไป" onClick={() => setCurrentTablePage(p => Math.min(totalTablePages, p + 1))} isDisabled={currentTablePage === totalTablePages} />
+              </HStack>
             </CardBody>
           </Card>
         ) : (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-            {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                cursor="pointer"
-                _hover={{ transform: "translateY(-4px)", shadow: "lg", bg: "blue.50" }}
-                transition="all 0.2s"
-                borderRadius="xl"
-                shadow="md"
-                onClick={() => { setSelectedProduct(product); onViewProductOpen(); }}
-              >
-                <CardBody>
-                  <VStack spacing={3} align="stretch">
-                    <HStack justify="space-between">
-                      <Avatar size="md" name={product.name} />
-                      <Badge colorScheme={getStatusColor(product.stock)}>
-                        {getStatusText(product.stock)}
-                      </Badge>
-                    </HStack>
-                    <VStack align="start" spacing={1}>
-                      <Text fontWeight="bold" fontSize="lg">{product.name}</Text>
-                      <Text fontSize="sm" color="gray.500" noOfLines={2}>
-                        {product.description}
-                      </Text>
-                      <Badge colorScheme="blue">{product.category}</Badge>
-                    </VStack>
-                    <Divider />
-                    <VStack spacing={2} align="stretch">
+          <Box>
+            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
+              {paginatedGridProducts.map((product) => (
+                <Card
+                  key={product.id}
+                  cursor="pointer"
+                  _hover={{ transform: "translateY(-4px)", shadow: "lg", bg: "blue.50" }}
+                  transition="all 0.2s"
+                  borderRadius="xl"
+                  shadow="md"
+                  onClick={() => { setSelectedProduct(product); onViewProductOpen(); }}
+                >
+                  <CardBody>
+                    <VStack spacing={3} align="stretch">
                       <HStack justify="space-between">
-                        <Text fontWeight="bold" color="green.500">{formatCurrency(product.price)}</Text>
-                        <Text fontSize="sm">สต็อก: {product.stock}</Text>
+                        <Avatar size="md" name={product.name} />
+                        <Badge colorScheme={getStatusColor(product.stock)}>
+                          {getStatusText(product.stock)}
+                        </Badge>
                       </HStack>
-                      <Progress 
-                        value={(product.stock / 100) * 100} 
-                        size="sm" 
-                        colorScheme={getStatusColor(product.stock)}
-                        borderRadius="full"
-                      />
+                      <VStack align="start" spacing={1}>
+                        <Text fontWeight="bold" fontSize="lg">{product.name}</Text>
+                        <Text fontSize="sm" color="gray.500" noOfLines={2}>
+                          {product.description}
+                        </Text>
+                        <Badge colorScheme="blue">{product.category}</Badge>
+                      </VStack>
+                      <Divider />
+                      <VStack spacing={2} align="stretch">
+                        <HStack justify="space-between">
+                          <Text fontWeight="bold" color="green.500">{formatCurrency(product.price)}</Text>
+                          <Text fontSize="sm">สต็อก: {product.stock}</Text>
+                        </HStack>
+                        <Progress 
+                          value={(product.stock / 100) * 100} 
+                          size="sm" 
+                          colorScheme={getStatusColor(product.stock)}
+                          borderRadius="full"
+                        />
+                      </VStack>
+                      <HStack justify="end">
+                        <IconButton
+                          size="sm"
+                          icon={<IoEye />}
+                          variant="ghost"
+                          aria-label="แก้ไขสินค้า"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProduct(product);
+                            setProductForm({
+                              name: product.name,
+                              description: product.description || "",
+                              price: product.price,
+                              category: product.category,
+                              stock: product.stock,
+                              barcode: product.barcode || "",
+                              isActive: product.isActive,
+                              taxRate: product.taxRate * 100,
+                              discountEligible: product.discountEligible,
+                            });
+                            onEditProductOpen();
+                          }}
+                        />
+                        <IconButton
+                          size="sm"
+                          icon={<IoTrash />}
+                          variant="ghost"
+                          colorScheme="red"
+                          aria-label="ลบสินค้า"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProduct(product.id);
+                          }}
+                        />
+                      </HStack>
                     </VStack>
-                    <HStack justify="end">
-                      <IconButton
-                        size="sm"
-                        icon={<IoEye />}
-                        variant="ghost"
-                        aria-label="แก้ไขสินค้า"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProduct(product);
-                          setProductForm({
-                            name: product.name,
-                            description: product.description || "",
-                            price: product.price,
-                            category: product.category,
-                            stock: product.stock,
-                            barcode: product.barcode || "",
-                            isActive: product.isActive,
-                            taxRate: product.taxRate * 100,
-                            discountEligible: product.discountEligible,
-                          });
-                          onEditProductOpen();
-                        }}
-                      />
-                      <IconButton
-                        size="sm"
-                        icon={<IoTrash />}
-                        variant="ghost"
-                        colorScheme="red"
-                        aria-label="ลบสินค้า"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteProduct(product.id);
-                        }}
-                      />
-                    </HStack>
-                  </VStack>
-                </CardBody>
-              </Card>
-            ))}
-          </SimpleGrid>
+                  </CardBody>
+                </Card>
+              ))}
+            </SimpleGrid>
+            <HStack justify="center" mt={4} spacing={1}>
+              <IconButton icon={<IoChevronBack />} aria-label="ก่อนหน้า" onClick={() => setCurrentGridSlide(s => Math.max(1, s - 1))} isDisabled={currentGridSlide === 1} />
+              {Array.from({ length: totalGridSlides }, (_, i) => (
+                <Button
+                  key={i+1}
+                  size="sm"
+                  borderRadius="full"
+                  variant={currentGridSlide === i+1 ? "solid" : "ghost"}
+                  colorScheme={currentGridSlide === i+1 ? "blue" : undefined}
+                  onClick={() => setCurrentGridSlide(i+1)}
+                >
+                  {i+1}
+                </Button>
+              ))}
+              <IconButton icon={<IoChevronForward />} aria-label="ถัดไป" onClick={() => setCurrentGridSlide(s => Math.min(totalGridSlides, s + 1))} isDisabled={currentGridSlide === totalGridSlides} />
+            </HStack>
+          </Box>
         )}
 
         {/* Add Product Modal */}
