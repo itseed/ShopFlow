@@ -26,7 +26,6 @@ import {
   Grid,
   GridItem,
   useColorModeValue,
-  SimpleGrid,
 } from "@chakra-ui/react";
 import {
   IoPersonAddOutline,
@@ -390,98 +389,72 @@ const CustomersPage: React.FC = () => {
     });
   };
 
-  // Style values for consistent design
+  // Style values
   const bgGradient = useColorModeValue(
     "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     "linear-gradient(135deg, #2d3748 0%, #1a202c 100%)"
   );
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
-  const pageBg = useColorModeValue("gray.50", "gray.900");
 
   return (
     <POSLayout>
-      <VStack spacing={8} align="stretch">
-        {/* Header with Stats */}
-        <Box
-          bgGradient={bgGradient}
-          borderRadius="2xl"
-          p={8}
-          color="white"
-          position="relative"
-          overflow="hidden"
-          _before={{
-            content: '""',
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            bg: "rgba(255,255,255,0.1)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <Flex
-            justify="space-between"
-            align="center"
-            position="relative"
-            zIndex={1}
-          >
-            <VStack align="start" spacing={3}>
-              <HStack spacing={3}>
-                <Box
-                  p={3}
-                  borderRadius="xl"
-                  bg="rgba(255,255,255,0.2)"
-                  color="white"
-                >
-                  <Icon as={IoPersonOutline} boxSize={6} />
-                </Box>
-                <VStack align="start" spacing={0}>
-                  <Text fontSize="sm" fontWeight="medium">
-                    {viewMode === "detail" ? "ข้อมูลลูกค้า" : "จัดการลูกค้า"}
-                  </Text>
-                  <Text fontSize="2xl" fontWeight="bold">
-                    {viewMode === "detail" && selectedCustomer
-                      ? selectedCustomer.name
-                      : `${overviewStats.totalCustomers} รายการ`}
-                  </Text>
-                </VStack>
-              </HStack>
+      <Box as="main" minH="100vh" bg={useColorModeValue("gray.50", "gray.900")} pt={6} pb={10}>
+        <Container maxW="7xl">
+          {/* Breadcrumb */}
+          <Breadcrumb mb={4}>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">หน้าแรก</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/customers">จัดการลูกค้า</BreadcrumbLink>
+            </BreadcrumbItem>
+            {viewMode === "detail" && selectedCustomer && (
+              <BreadcrumbItem isCurrentPage>
+                <BreadcrumbLink>{selectedCustomer.name}</BreadcrumbLink>
+              </BreadcrumbItem>
+            )}
+          </Breadcrumb>
 
-              {/* Breadcrumb */}
-              <Breadcrumb color="whiteAlpha.800" fontSize="sm">
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/">หน้าแรก</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/customers">
-                    จัดการลูกค้า
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                {viewMode === "detail" && selectedCustomer && (
-                  <BreadcrumbItem isCurrentPage>
-                    <BreadcrumbLink>{selectedCustomer.name}</BreadcrumbLink>
-                  </BreadcrumbItem>
-                )}
-              </Breadcrumb>
-            </VStack>
+          {/* Header */}
+          <HStack justify="space-between" align="center">
+            <HStack spacing={4}>
+              {viewMode === "detail" && (
+                <Button
+                  leftIcon={<Icon as={IoArrowBackOutline} />}
+                  variant="ghost"
+                  onClick={handleBackToList}
+                >
+                  กลับ
+                </Button>
+              )}
+              <VStack align="start" spacing={1}>
+                <Text fontSize="3xl" fontWeight="bold">
+                  {viewMode === "detail" && selectedCustomer
+                    ? `ข้อมูลลูกค้า: ${selectedCustomer.name}`
+                    : "จัดการลูกค้า"}
+                </Text>
+                <Text color="gray.500">
+                  {viewMode === "detail"
+                    ? "รายละเอียดและประวัติการซื้อของลูกค้า"
+                    : "รายชื่อลูกค้าและการจัดการข้อมูล"}
+                </Text>
+              </VStack>
+            </HStack>
 
             <HStack spacing={3}>
               {viewMode === "list" && (
                 <>
                   <Button
                     leftIcon={<Icon as={IoDownloadOutline} />}
-                    variant="solid"
-                    colorScheme="whiteAlpha"
+                    variant="outline"
                     onClick={handleExportCustomers}
                   >
                     ส่งออกข้อมูล
                   </Button>
                   <Button
                     leftIcon={<Icon as={IoPersonAddOutline} />}
-                    colorScheme="white"
-                    variant="solid"
+                    colorScheme="blue"
                     onClick={handleAddCustomer}
                   >
                     เพิ่มลูกค้า
@@ -489,106 +462,102 @@ const CustomersPage: React.FC = () => {
                 </>
               )}
               {viewMode === "detail" && selectedCustomer && (
-                <>
-                  <Button
-                    leftIcon={<Icon as={IoArrowBackOutline} />}
-                    variant="ghost"
-                    colorScheme="whiteAlpha"
-                    onClick={handleBackToList}
-                  >
-                    กลับ
-                  </Button>
-                  <Button
-                    leftIcon={<Icon as={IoPersonAddOutline} />}
-                    colorScheme="white"
-                    variant="solid"
-                    onClick={() => handleEditCustomer(selectedCustomer)}
-                  >
-                    แก้ไขข้อมูล
-                  </Button>
-                </>
+                <Button
+                  leftIcon={<Icon as={IoPersonAddOutline} />}
+                  colorScheme="blue"
+                  onClick={() => handleEditCustomer(selectedCustomer)}
+                >
+                  แก้ไขข้อมูล
+                </Button>
               )}
             </HStack>
-          </Flex>
+          </HStack>
 
           {/* Overview Statistics (only in list view) */}
           {viewMode === "list" && (
-            <SimpleGrid
-              columns={{ base: 1, md: 2, lg: 4 }}
-              spacing={6}
-              mt={8}
-              position="relative"
-              zIndex={1}
-            >
-              <Stat>
-                <StatLabel color="whiteAlpha.800">ลูกค้าทั้งหมด</StatLabel>
-                <StatNumber fontSize="3xl">
-                  {overviewStats.totalCustomers.toLocaleString()}
-                </StatNumber>
-                <StatHelpText color="whiteAlpha.800">
-                  <HStack>
-                    <Text>ใช้งาน:</Text>
-                    <Badge colorScheme="green" variant="solid">
-                      {overviewStats.activeCustomers}
-                    </Badge>
-                  </HStack>
-                </StatHelpText>
-              </Stat>
+            <Card>
+              <CardBody>
+                <StatGroup>
+                  <Stat>
+                    <StatLabel>
+                      <HStack>
+                        <Icon as={IoPersonOutline} />
+                        <Text>ลูกค้าทั้งหมด</Text>
+                      </HStack>
+                    </StatLabel>
+                    <StatNumber color="blue.500">
+                      {overviewStats.totalCustomers.toLocaleString()}
+                    </StatNumber>
+                    <StatHelpText>
+                      <HStack>
+                        <Text>ใช้งาน:</Text>
+                        <Badge colorScheme="green">
+                          {overviewStats.activeCustomers}
+                        </Badge>
+                      </HStack>
+                    </StatHelpText>
+                  </Stat>
 
-              <Stat>
-                <StatLabel color="whiteAlpha.800">ยอดขายรวม</StatLabel>
-                <StatNumber fontSize="3xl">
-                  {formatCurrency(overviewStats.totalRevenue)}
-                </StatNumber>
-                <StatHelpText color="whiteAlpha.800">
-                  จากลูกค้าทั้งหมด
-                </StatHelpText>
-              </Stat>
+                  <Stat>
+                    <StatLabel>
+                      <HStack>
+                        <Icon as={IoCashOutline} />
+                        <Text>ยอดขายรวม</Text>
+                      </HStack>
+                    </StatLabel>
+                    <StatNumber color="green.500">
+                      {formatCurrency(overviewStats.totalRevenue)}
+                    </StatNumber>
+                    <StatHelpText>จากลูกค้าทั้งหมด</StatHelpText>
+                  </Stat>
 
-              <Stat>
-                <StatLabel color="whiteAlpha.800">ยอดเฉลี่ยต่อคน</StatLabel>
-                <StatNumber fontSize="3xl">
-                  {formatCurrency(overviewStats.averageSpending)}
-                </StatNumber>
-                <StatHelpText color="whiteAlpha.800">
-                  ค่าเฉลี่ยการซื้อ
-                </StatHelpText>
-              </Stat>
+                  <Stat>
+                    <StatLabel>
+                      <HStack>
+                        <Icon as={IoTrendingUpOutline} />
+                        <Text>ยอดเฉลี่ยต่อคน</Text>
+                      </HStack>
+                    </StatLabel>
+                    <StatNumber color="purple.500">
+                      {formatCurrency(overviewStats.averageSpending)}
+                    </StatNumber>
+                    <StatHelpText>ค่าเฉลี่ยการซื้อ</StatHelpText>
+                  </Stat>
 
-              <Stat>
-                <StatLabel color="whiteAlpha.800">สมาชิก</StatLabel>
-                <StatNumber fontSize="3xl">
-                  {overviewStats.membersCount.toLocaleString()}
-                </StatNumber>
-                <StatHelpText color="whiteAlpha.800">
-                  {(
-                    (overviewStats.membersCount /
-                      overviewStats.totalCustomers) *
-                    100
-                  ).toFixed(1)}
-                  % ของทั้งหมด
-                </StatHelpText>
-              </Stat>
-            </SimpleGrid>
+                  <Stat>
+                    <StatLabel>
+                      <HStack>
+                        <Icon as={IoStar} />
+                        <Text>สมาชิก</Text>
+                      </HStack>
+                    </StatLabel>
+                    <StatNumber color="orange.500">
+                      {overviewStats.membersCount.toLocaleString()}
+                    </StatNumber>
+                    <StatHelpText>
+                      {(
+                        (overviewStats.membersCount /
+                          overviewStats.totalCustomers) *
+                        100
+                      ).toFixed(1)}
+                      % ของทั้งหมด
+                    </StatHelpText>
+                  </Stat>
+                </StatGroup>
+              </CardBody>
+            </Card>
           )}
-        </Box>
 
-        {/* Main Content */}
-        <Card
-          bg={cardBg}
-          borderWidth="1px"
-          borderColor={borderColor}
-          overflow="hidden"
-        >
+          {/* Main Content */}
           {isLoading ? (
-            <Center py={10}>
+            <Center py={20}>
               <VStack spacing={4}>
                 <Spinner size="xl" color="blue.500" />
                 <Text>กำลังโหลดข้อมูลลูกค้า...</Text>
               </VStack>
             </Center>
           ) : (
-            <CardBody>
+            <>
               {viewMode === "list" && (
                 <CustomerList
                   customers={customers}
@@ -619,9 +588,9 @@ const CustomersPage: React.FC = () => {
                   showActions={true}
                 />
               )}
-            </CardBody>
+            </>
           )}
-        </Card>
+        </VStack>
 
         {/* Customer Form Modal */}
         <CustomerForm
@@ -632,7 +601,9 @@ const CustomersPage: React.FC = () => {
           onSave={handleCustomerSave}
           mode={editingCustomer ? "edit" : "create"}
         />
-      </VStack>
+          </VStack>
+        </Container>
+      </Box>
     </POSLayout>
   );
 };

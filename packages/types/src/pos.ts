@@ -1,5 +1,5 @@
 // POS-specific types extending base types
-import { Product, UserProfile, Branch, Category } from "./index";
+import { Product, UserProfile, Branch, Category, Customer } from "./index";
 
 // Authentication & Session Types
 export interface UserSession {
@@ -155,24 +155,6 @@ export interface RefundPayment {
   return_id: string;
   payment_method: POSPaymentMethod;
   amount: number;
-  created_at: string;
-}
-
-// Customer Types
-export interface Customer {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CustomerTransaction {
-  id: string;
-  customer_id: string;
-  order_id: string;
-  branch_id: string;
   created_at: string;
 }
 
