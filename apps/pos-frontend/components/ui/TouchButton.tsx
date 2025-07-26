@@ -64,7 +64,7 @@ export const TouchButton = ({
       {...props}
     >
       {loading ? <Spinner size="sm" mr={children ? 2 : 0} /> : null}
-      {children}
+      <span>{children}</span>
     </Button>
   );
 };

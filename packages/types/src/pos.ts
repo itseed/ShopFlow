@@ -12,12 +12,6 @@ export interface UserSession {
   is_active: boolean;
 }
 
-export interface POSLoginCredentials {
-  username: string;
-  password: string;
-  branch_code?: string;
-}
-
 export interface PinCredentials {
   pin: string;
   user_id: string;
@@ -192,7 +186,7 @@ export interface ShiftWithSummary extends Shift {
 }
 
 // Receipt Types
-export interface Receipt {
+export interface POSReceipt {
   order: OrderWithItems;
   branch: Branch;
   user: UserProfile;

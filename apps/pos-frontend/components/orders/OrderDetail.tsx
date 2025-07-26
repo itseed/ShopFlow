@@ -45,8 +45,8 @@ import {
   GridItem,
   Icon,
   Flex,
-  useReactToPrint,
 } from "@chakra-ui/react";
+import { useReactToPrint } from "react-to-print";
 import {
   IoReceipt,
   IoMail,
@@ -113,7 +113,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
   const warningColor = useColorModeValue("yellow.50", "yellow.900");
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    contentRef: printRef,
   });
 
   const handleRefund = async () => {

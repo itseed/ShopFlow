@@ -257,6 +257,11 @@ const ReturnsPage = () => {
         const aValue = a[filters.sortBy as keyof RefundTransaction];
         const bValue = b[filters.sortBy as keyof RefundTransaction];
 
+        // Handle undefined values
+        if (aValue === undefined && bValue === undefined) return 0;
+        if (aValue === undefined) return 1;
+        if (bValue === undefined) return -1;
+
         if (filters.sortOrder === "asc") {
           return aValue > bValue ? 1 : -1;
         } else {
@@ -316,7 +321,7 @@ const ReturnsPage = () => {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const updatedRefund = {
+      const updatedRefund: RefundTransaction = {
         ...selectedRefund,
         status: action === "approve" ? "completed" : "rejected",
         processedAt: new Date(),
@@ -431,7 +436,7 @@ const ReturnsPage = () => {
               leftIcon={<IoRefresh />}
               onClick={loadRefunds}
               isLoading={loading}
-              variant="outline"
+              variant="secondary"
             >
               รีเฟรช
             </TouchButton>

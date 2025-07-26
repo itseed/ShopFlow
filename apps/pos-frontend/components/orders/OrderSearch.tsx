@@ -168,7 +168,7 @@ const OrderSearch: React.FC<OrderSearchProps> = ({
           order.customer?.name
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          order.customer?.phone.includes(searchTerm)
+          order.customer?.phone?.includes(searchTerm)
       );
 
       setSearchResults(filteredResults);

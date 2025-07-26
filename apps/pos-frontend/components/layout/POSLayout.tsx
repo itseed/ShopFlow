@@ -12,10 +12,9 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { FiHome, FiShoppingCart, FiClipboard, FiBox, FiLayers, FiBarChart2, FiUsers, FiSettings } from "react-icons/fi";
-import { ReactNode } from "react";
 
 interface POSLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
   title?: string;
   showHeader?: boolean;
   showFooter?: boolean;
@@ -99,7 +98,7 @@ export const POSLayout = ({
       )}
 
       <Box flex="1" p={4} overflow="auto" bg="pos.background">
-        {children}
+        <div>{children}</div>
       </Box>
 
       {showFooter && (
