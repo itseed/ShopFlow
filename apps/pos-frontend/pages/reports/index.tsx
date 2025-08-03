@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   VStack,
@@ -11,6 +11,7 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
+  StatArrow,
   Divider,
   useColorModeValue,
   Icon,
@@ -18,6 +19,7 @@ import {
   Flex,
   Card,
   CardBody,
+  CardHeader,
   Progress,
   Alert,
   AlertIcon,
@@ -32,6 +34,21 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  Avatar,
+  AvatarGroup,
+  List,
+  ListItem,
+  ListIcon,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import {
   IoBarChart,
@@ -52,8 +69,15 @@ import {
   IoBag,
   IoCash,
   IoCard,
+  IoStatsChart,
+  IoAnalytics,
+  IoPieChart,
+  IoArrowForward,
+  IoEye,
+  IoAlertCircle,
 } from "react-icons/io5";
 import { POSLayout } from "../../components";
+import { formatCurrency } from "../../lib/sales";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -67,6 +91,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import Link from "next/link";
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -196,6 +222,81 @@ const ReportsPage = () => {
     },
   ];
 
+  // Extended mock data for dashboard
+  const dashboardData = {
+    overview: {
+      totalRevenue: 128750,
+      totalOrders: 324,
+      averageOrderValue: 397.37,
+      salesGrowth: 12.5,
+      ordersGrowth: 8.3,
+      revenueGrowth: 15.2,
+    },
+    todayStats: {
+      customers: 38,
+      peakHour: "14:00-15:00",
+      topProduct: "กาแฟเย็น",
+    },
+    alerts: [
+      { type: "critical", message: "สินค้าหมดสต็อก 3 รายการ", count: 3 },
+      { type: "warning", message: "สินค้าใกล้หมด 8 รายการ", count: 8 },
+      { type: "info", message: "รายงานสำเร็จ 1 รายการ", count: 1 },
+    ],
+  };
+
+  const reportCards = [
+    {
+      title: "รายงานยอดขาย",
+      description: "วิเคราะห์ยอดขายรายวัน รายสัปดาห์ และรายเดือน",
+      icon: IoBarChart,
+      color: "blue",
+      href: "/reports/sales",
+      stats: `${formatCurrency(stats.todaySales)} วันนี้`,
+    },
+    {
+      title: "รายงานสินค้าคงคลัง",
+      description: "ติดตามสต็อกสินค้า การเคลื่อนไหว และการสั่งซื้อ",
+      icon: IoAnalytics,
+      color: "green",
+      href: "/reports/inventory",
+      stats: `${dashboardData.alerts[0].count + dashboardData.alerts[1].count} รายการต้องดูแล`,
+    },
+    {
+      title: "รายงานการเงิน",
+      description: "วิเคราะห์รายได้ ค่าใช้จ่าย และกำไรขาดทุน",
+      icon: IoCash,
+      color: "purple",
+      href: "/reports/financial",
+      stats: `${formatCurrency(dashboardData.overview.totalRevenue)} รายได้รวม`,
+    },
+    {
+      title: "รายงานลูกค้า",
+      description: "วิเคราะห์พฤติกรรมลูกค้าและความพึงพอใจ",
+      icon: IoPeople,
+      color: "orange",
+      href: "/reports/customers",
+      stats: `${dashboardData.todayStats.customers} คนวันนี้`,
+    },
+  ];
+
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case "critical": return IoAlertCircle;
+      case "warning": return IoWarning;
+      case "info": return IoCheckmarkCircle;
+      default: return IoStatsChart;
+    }
+  };
+
+  const getAlertColor = (type: string) => {
+    switch (type) {
+      case "critical": return "red";
+      case "warning": return "orange";
+      case "info": return "blue";
+      default: return "gray";
+    }
+  };
+
   return (
     <POSLayout>
       <VStack spacing={8} align="stretch">
@@ -227,127 +328,188 @@ const ReportsPage = () => {
                   bg="rgba(255,255,255,0.2)"
                   color="white"
                 >
-                  <Icon as={IoBarChart} boxSize={6} />
+                  <Icon as={IoStatsChart} boxSize={6} />
                 </Box>
-                <VStack align="start" spacing={1}>
-                  <Heading size="lg" fontWeight="bold">
-                    📊 รายงานและวิเคราะห์
-                  </Heading>
-                  <Text fontSize="lg" opacity={0.9}>
-                    ข้อมูลยอดขายและสถิติการทำงาน
+                <VStack align="start" spacing={0}>
+                  <Text fontSize="sm" fontWeight="medium">
+                    รายงานและวิเคราะห์
+                  </Text>
+                  <Text fontSize="2xl" fontWeight="bold">
+                    แดชบอร์ดรายงาน
                   </Text>
                 </VStack>
               </HStack>
-              <HStack spacing={4}>
-                <Badge colorScheme="green" variant="solid" px={3} py={1}>
-                  <HStack spacing={1}>
-                    <Icon as={IoTrendingUp} />
-                    <Text>+{stats.growth}% จากเมื่อวาน</Text>
-                  </HStack>
-                </Badge>
-                <Badge colorScheme="blue" variant="solid" px={3} py={1}>
-                  <HStack spacing={1}>
-                    <Icon as={IoTime} />
-                    <Text>อัพเดทล่าสุด: 2 นาทีที่แล้ว</Text>
-                  </HStack>
-                </Badge>
-              </HStack>
+
+              {/* Breadcrumb */}
+              <Breadcrumb color="whiteAlpha.800" fontSize="sm">
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/">หน้าแรก</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbItem isCurrentPage>
+                  <BreadcrumbLink>รายงาน</BreadcrumbLink>
+                </BreadcrumbItem>
+              </Breadcrumb>
             </VStack>
-            <VStack spacing={3}>
-              <HStack spacing={2}>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  leftIcon={<IoDownload />}
-                  bg="rgba(255,255,255,0.2)"
-                  _hover={{ bg: "rgba(255,255,255,0.3)" }}
-                  color="white"
-                >
-                  Export
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  leftIcon={<IoPrint />}
-                  bg="rgba(255,255,255,0.2)"
-                  _hover={{ bg: "rgba(255,255,255,0.3)" }}
-                  color="white"
-                >
-                  Print
-                </Button>
-              </HStack>
-            </VStack>
+            <HStack spacing={3}>
+              <Select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                bg="rgba(255,255,255,0.2)"
+                border="none"
+                color="white"
+                _focus={{ bg: "rgba(255,255,255,0.3)" }}
+              >
+                <option value="today" style={{ color: "black" }}>วันนี้</option>
+                <option value="week" style={{ color: "black" }}>สัปดาห์นี้</option>
+                <option value="month" style={{ color: "black" }}>เดือนนี้</option>
+                <option value="year" style={{ color: "black" }}>ปีนี้</option>
+              </Select>
+              <Button
+                leftIcon={<Icon as={IoDownload} />}
+                variant="solid"
+                colorScheme="whiteAlpha"
+                onClick={() => {
+                  // This would open an export modal or dropdown
+                  // For now, we'll just show a toast
+                  alert("เลือกประเภทรายงานที่ต้องการส่งออกจากเมนูด้านล่าง");
+                }}
+              >
+                ส่งออก
+              </Button>
+            </HStack>
           </Flex>
         </Box>
 
         {/* Quick Stats */}
-        <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
-          <Card bg={cardBg} borderColor={borderColor} shadow="lg">
-            <CardBody>
-              <VStack spacing={3}>
-                <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">ยอดขายวันนี้</Text>
-                  <Icon as={IoTrendingUp} color="green.500" />
-                </HStack>
-                <Text fontSize="3xl" fontWeight="bold" color="green.500">
-                  ฿{stats.todaySales.toLocaleString()}
-                </Text>
-                <HStack spacing={1}>
-                  <Icon as={IoTrendingUp} color="green.500" size="sm" />
-                  <Text fontSize="sm" color="green.500">+{stats.growth}%</Text>
-                </HStack>
-                <Progress value={75} colorScheme="green" size="sm" w="full" />
-              </VStack>
-            </CardBody>
-          </Card>
+        <SimpleGrid
+          columns={{ base: 1, md: 2, lg: 4 }}
+          spacing={6}
+          position="relative"
+          zIndex={1}
+        >
+          <Stat>
+            <StatLabel color="whiteAlpha.800">ยอดขายวันนี้</StatLabel>
+            <StatNumber fontSize="3xl">
+              {formatCurrency(stats.todaySales)}
+            </StatNumber>
+            <StatHelpText color="whiteAlpha.800">
+              <StatArrow type="increase" />
+              {dashboardData.overview.salesGrowth}%
+            </StatHelpText>
+          </Stat>
 
-          <Card bg={cardBg} borderColor={borderColor} shadow="lg">
-            <CardBody>
-              <VStack spacing={3}>
-                <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">ธุรกรรม</Text>
-                  <Icon as={IoCart} color="blue.500" />
-                </HStack>
-                <Text fontSize="3xl" fontWeight="bold" color="blue.500">
-                  {stats.totalTransactions}
-                </Text>
-                <Text fontSize="sm" color="gray.500">รายการวันนี้</Text>
-                <Progress value={60} colorScheme="blue" size="sm" w="full" />
-              </VStack>
-            </CardBody>
-          </Card>
+          <Stat>
+            <StatLabel color="whiteAlpha.800">คำสั่งซื้อ</StatLabel>
+            <StatNumber fontSize="3xl">
+              {stats.totalTransactions}
+            </StatNumber>
+            <StatHelpText color="whiteAlpha.800">
+              <StatArrow type="increase" />
+              {dashboardData.overview.ordersGrowth}%
+            </StatHelpText>
+          </Stat>
 
-          <Card bg={cardBg} borderColor={borderColor} shadow="lg">
-            <CardBody>
-              <VStack spacing={3}>
-                <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">เฉลี่ย/รายการ</Text>
-                  <Icon as={IoCash} color="purple.500" />
-                </HStack>
-                <Text fontSize="3xl" fontWeight="bold" color="purple.500">
-                  ฿{stats.averageTicket}
-                </Text>
-                <Text fontSize="sm" color="gray.500">บาท</Text>
-                <Progress value={85} colorScheme="purple" size="sm" w="full" />
-              </VStack>
-            </CardBody>
-          </Card>
+          <Stat>
+            <StatLabel color="whiteAlpha.800">ค่าเฉลี่ยต่อออเดอร์</StatLabel>
+            <StatNumber fontSize="3xl">
+              {formatCurrency(stats.averageTicket)}
+            </StatNumber>
+            <StatHelpText color="whiteAlpha.800">
+              <StatArrow type="increase" />
+              {dashboardData.overview.revenueGrowth}%
+            </StatHelpText>
+          </Stat>
 
-          <Card bg={cardBg} borderColor={borderColor} shadow="lg">
-            <CardBody>
-              <VStack spacing={3}>
-                <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">กำไร</Text>
-                  <Icon as={IoCheckmarkCircle} color="orange.500" />
-                </HStack>
-                <Text fontSize="3xl" fontWeight="bold" color="orange.500">
-                  ฿{stats.profit.toLocaleString()}
-                </Text>
-                <Text fontSize="sm" color="gray.500">บาท</Text>
-                <Progress value={70} colorScheme="orange" size="sm" w="full" />
-              </VStack>
-            </CardBody>
-          </Card>
+          <Stat>
+            <StatLabel color="whiteAlpha.800">ลูกค้าวันนี้</StatLabel>
+            <StatNumber fontSize="3xl">
+              {dashboardData.todayStats.customers}
+            </StatNumber>
+            <StatHelpText color="whiteAlpha.800">
+              ช่วงเวลาที่คึกคัก: {dashboardData.todayStats.peakHour}
+            </StatHelpText>
+          </Stat>
+        </SimpleGrid>
+
+        {/* Alerts Section */}
+        {dashboardData.alerts.length > 0 && (
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+            {dashboardData.alerts.map((alert, index) => (
+              <Card
+                key={index}
+                bg={cardBg}
+                borderWidth="1px"
+                borderColor={`${getAlertColor(alert.type)}.200`}
+                borderLeftWidth="4px"
+                borderLeftColor={`${getAlertColor(alert.type)}.500`}
+              >
+                <CardBody>
+                  <HStack spacing={3}>
+                    <Icon 
+                      as={getAlertIcon(alert.type)} 
+                      color={`${getAlertColor(alert.type)}.500`}
+                      boxSize={5}
+                    />
+                    <VStack align="start" spacing={1} flex={1}>
+                      <Text fontSize="sm" fontWeight="medium">
+                        {alert.message}
+                      </Text>
+                      <Badge colorScheme={getAlertColor(alert.type)} size="sm">
+                        {alert.count} รายการ
+                      </Badge>
+                    </VStack>
+                  </HStack>
+                </CardBody>
+              </Card>
+            ))}
+          </SimpleGrid>
+        )}
+
+        {/* Report Categories */}
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+          {reportCards.map((report, index) => (
+            <Link key={index} href={report.href}>
+              <Card
+                bg={cardBg}
+                borderWidth="1px"
+                borderColor={borderColor}
+                cursor="pointer"
+                transition="all 0.2s"
+                _hover={{
+                  shadow: "lg",
+                  transform: "translateY(-2px)",
+                  borderColor: `${report.color}.300`,
+                }}
+              >
+                <CardHeader>
+                  <HStack spacing={4}>
+                    <Box
+                      p={3}
+                      borderRadius="xl"
+                      bg={`${report.color}.100`}
+                      color={`${report.color}.600`}
+                    >
+                      <Icon as={report.icon} boxSize={6} />
+                    </Box>
+                    <VStack align="start" spacing={1} flex={1}>
+                      <Text fontSize="lg" fontWeight="bold">
+                        {report.title}
+                      </Text>
+                      <Text fontSize="sm" color="gray.500">
+                        {report.description}
+                      </Text>
+                    </VStack>
+                    <Icon as={IoArrowForward} color="gray.400" />
+                  </HStack>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <Text fontSize="sm" fontWeight="medium" color={`${report.color}.600`}>
+                    {report.stats}
+                  </Text>
+                </CardBody>
+              </Card>
+            </Link>
+          ))}
         </SimpleGrid>
 
         {/* Reports Tabs */}

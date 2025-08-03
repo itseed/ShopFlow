@@ -58,7 +58,7 @@ import {
   IoReceiptOutline,
   IoTrendingUpOutline,
   IoGiftOutline,
-  IoEditOutline,
+  IoCreateOutline,
   IoTrashOutline,
   IoAddOutline,
 } from "react-icons/io5";
@@ -259,7 +259,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
               {showActions && (
                 <VStack spacing={2}>
                   <Button
-                    leftIcon={<Icon as={IoEditOutline} />}
+                    leftIcon={<Icon as={IoCreateOutline} />}
                     colorScheme="blue"
                     size="sm"
                     onClick={onEdit}

@@ -17,3 +17,12 @@ export { default as CashPayment } from "./payment/CashPayment";
 export { default as CardPayment } from "./payment/CardPayment";
 export { default as QRPayment } from "./payment/QRPayment";
 export { default as ReceiptModal } from "./payment/ReceiptModal";
+
+// Inventory Components
+export { ProductSearch, ProductGrid, StockIndicator, StockTrend, StockAdjustment, StockAlerts, BarcodeScanner, BarcodeScannerButton } from "./inventory";
+
+// Analytics Components
+export { SalesChart, InventoryChart, RevenueChart, CustomerAnalytics } from "./analytics";
+
+// Reports Components
+export { ExportModal, ReportScheduler } from "./reports";

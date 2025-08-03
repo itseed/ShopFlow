@@ -27,6 +27,11 @@ import {
   GridItem,
   useColorModeValue,
   SimpleGrid,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
 } from "@chakra-ui/react";
 import {
   IoPersonAddOutline,
@@ -49,8 +54,12 @@ import {
 import CustomerList from "../../components/customers/CustomerList";
 import CustomerForm from "../../components/customers/CustomerForm";
 import CustomerDetail from "../../components/customers/CustomerDetail";
+import CustomerSearch from "../../components/customers/CustomerSearch";
+import CustomerAnalytics from "../../components/customers/CustomerAnalytics";
 import { POSLayout } from "../../components";
 import { formatCurrency } from "../../lib/sales";
+import { useCustomers, useCustomer } from "../../hooks/useCustomers";
+import { downloadCustomersCSV, defaultCustomerFilters } from "../../lib/customers";
 
 // Mock data for development
 // Mock membership types for development
@@ -224,15 +233,13 @@ const mockActivities: CustomerActivity[] = [
   },
 ];
 
-type ViewMode = "list" | "detail";
+type ViewMode = "list" | "detail" | "analytics";
 
 const CustomersPage: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
   );
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [isLoading, setIsLoading] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   const {
@@ -242,25 +249,28 @@ const CustomersPage: React.FC = () => {
   } = useDisclosure();
   const toast = useToast();
 
-  // Calculate overview statistics
-  const overviewStats = useMemo(() => {
-    const totalCustomers = customers.length;
-    const activeCustomers = customers.filter((c) => c.isActive).length;
-    const totalRevenue = customers.reduce(
-      (sum, c) => sum + (c.membership?.totalSpent || 0),
-      0
-    );
-    const averageSpending = totalRevenue / totalCustomers || 0;
-    const membersCount = customers.filter((c) => c.membership).length;
+  // Use customer hooks
+  const {
+    customers,
+    filteredCustomers,
+    paginatedResult,
+    loading,
+    error,
+    filters,
+    setFilters,
+    stats: overviewStats,
+    createCustomer,
+    updateCustomer,
+    deleteCustomer,
+    refreshCustomers,
+  } = useCustomers();
 
-    return {
-      totalCustomers,
-      activeCustomers,
-      totalRevenue,
-      averageSpending,
-      membersCount,
-    };
-  }, [customers]);
+  const {
+    customer: selectedCustomerDetails,
+    stats: customerStats,
+    transactions: customerTransactions,
+    activities: customerActivities,
+  } = useCustomer(selectedCustomer?.id);
 
   const handleAddCustomer = () => {
     setEditingCustomer(null);
@@ -272,35 +282,35 @@ const CustomersPage: React.FC = () => {
     onFormOpen();
   };
 
-  const handleDeleteCustomer = (customerId: string) => {
-    setCustomers((prev) => prev.filter((c) => c.id !== customerId));
-    if (selectedCustomer?.id === customerId) {
-      setViewMode("list");
-      setSelectedCustomer(null);
+  const handleDeleteCustomer = async (customerId: string) => {
+    try {
+      await deleteCustomer(customerId);
+      if (selectedCustomer?.id === customerId) {
+        setViewMode("list");
+        setSelectedCustomer(null);
+      }
+      toast({
+        title: "ลบลูกค้าสำเร็จ",
+        description: "ลบข้อมูลลูกค้าแล้ว",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message || "ไม่สามารถลบลูกค้าได้",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
   const handleCustomerSave = async (customerData: CustomerFormData) => {
     try {
       if (editingCustomer) {
-        // Update existing customer
-        setCustomers((prev) =>
-          prev.map((c) =>
-            c.id === editingCustomer.id
-              ? {
-                  ...c,
-                  name: customerData.name,
-                  phone: customerData.phone,
-                  email: customerData.email,
-                  address: customerData.address,
-                  dateOfBirth: customerData.dateOfBirth,
-                  gender: customerData.gender,
-                  notes: customerData.notes,
-                  updatedAt: new Date(),
-                }
-              : c
-          )
-        );
+        await updateCustomer(editingCustomer.id, customerData);
         toast({
           title: "อัปเดตข้อมูลลูกค้าสำเร็จ",
           description: `ข้อมูลลูกค้า ${customerData.name} ได้รับการอัปเดตแล้ว`,
@@ -309,46 +319,7 @@ const CustomersPage: React.FC = () => {
           isClosable: true,
         });
       } else {
-        // Add new customer
-        const membershipType = customerData.membershipType
-          ? mockMembershipTypes.find(
-              (mt) => mt.id === customerData.membershipType
-            )
-          : undefined;
-
-        const newCustomer: Customer = {
-          id: Date.now().toString(),
-          customerNumber: `C${String(customers.length + 1).padStart(3, "0")}`,
-          name: customerData.name,
-          phone: customerData.phone,
-          email: customerData.email,
-          address: customerData.address,
-          dateOfBirth: customerData.dateOfBirth,
-          gender: customerData.gender,
-          notes: customerData.notes,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-
-        if (membershipType) {
-          newCustomer.membership = {
-            id: Date.now().toString(),
-            customerId: newCustomer.id,
-            membershipType: membershipType,
-            membershipNumber: `M${String(customers.length + 1).padStart(
-              4,
-              "0"
-            )}`,
-            points: 0,
-            totalSpent: 0,
-            discountPercentage: membershipType.discountPercentage,
-            joinedAt: new Date(),
-            status: "active",
-          };
-        }
-
-        setCustomers((prev) => [newCustomer, ...prev]);
+        await createCustomer(customerData);
         toast({
           title: "เพิ่มลูกค้าสำเร็จ",
           description: `เพิ่มลูกค้า ${customerData.name} แล้ว`,
@@ -358,10 +329,10 @@ const CustomersPage: React.FC = () => {
         });
       }
       onFormClose();
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถบันทึกข้อมูลลูกค้าได้",
+        description: error.message || "ไม่สามารถบันทึกข้อมูลลูกค้าได้",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -374,20 +345,43 @@ const CustomersPage: React.FC = () => {
     setViewMode("detail");
   };
 
+  const handleTabChange = (index: number) => {
+    if (index === 0) {
+      // When switching to customer list, clear selection if in detail view
+      if (viewMode === "detail") {
+        setSelectedCustomer(null);
+      }
+      setViewMode("list");
+    } else if (index === 1) {
+      setViewMode("analytics");
+      setSelectedCustomer(null); // Clear selection when viewing analytics
+    }
+  };
+
   const handleBackToList = () => {
     setSelectedCustomer(null);
     setViewMode("list");
   };
 
   const handleExportCustomers = () => {
-    // Mock export functionality
-    toast({
-      title: "กำลังส่งออกข้อมูล",
-      description: "ระบบกำลังเตรียมไฟล์ Excel สำหรับดาวน์โหลด",
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
+    try {
+      downloadCustomersCSV(customers, "customers-export.csv");
+      toast({
+        title: "ส่งออกข้อมูลสำเร็จ",
+        description: "ไฟล์ CSV ได้ถูกดาวน์โหลดแล้ว",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถส่งออกข้อมูลได้",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   // Style values for consistent design
@@ -580,7 +574,7 @@ const CustomersPage: React.FC = () => {
           borderColor={borderColor}
           overflow="hidden"
         >
-          {isLoading ? (
+          {loading ? (
             <Center py={10}>
               <VStack spacing={4}>
                 <Spinner size="xl" color="blue.500" />
@@ -589,36 +583,88 @@ const CustomersPage: React.FC = () => {
             </Center>
           ) : (
             <CardBody>
-              {viewMode === "list" && (
-                <CustomerList
-                  customers={customers}
-                  onCustomerSelect={handleCustomerSelect}
-                  onCustomerEdit={handleEditCustomer}
-                  onCustomerDelete={handleDeleteCustomer}
-                  showActions={true}
-                />
-              )}
+              <Tabs 
+                variant="enclosed" 
+                onChange={handleTabChange}
+                index={viewMode === "analytics" ? 1 : 0}
+              >
+                <TabList>
+                  <Tab>รายชื่อลูกค้า</Tab>
+                  <Tab>รายงานและสถิติ</Tab>
+                </TabList>
+                
+                <TabPanels>
+                  <TabPanel px={0}>
+                    {viewMode === "list" && (
+                      <VStack spacing={6} align="stretch">
+                        <CustomerSearch
+                          filters={filters}
+                          onFiltersChange={setFilters}
+                          onSearch={() => {/* Search is automatically applied */}}
+                          onReset={() => setFilters(defaultCustomerFilters)}
+                          isLoading={loading}
+                          customerCount={filteredCustomers.length}
+                          membershipTypes={mockMembershipTypes}
+                        />
+                        <CustomerList
+                          customers={paginatedResult.customers}
+                          onCustomerSelect={handleCustomerSelect}
+                          onCustomerEdit={handleEditCustomer}
+                          onCustomerDelete={handleDeleteCustomer}
+                          showActions={true}
+                        />
+                      </VStack>
+                    )}
 
-              {viewMode === "detail" && selectedCustomer && (
-                <CustomerDetail
-                  customer={selectedCustomer}
-                  stats={mockStats}
-                  transactions={mockTransactions}
-                  activities={mockActivities}
-                  onEdit={() => handleEditCustomer(selectedCustomer)}
-                  onDelete={() => handleDeleteCustomer(selectedCustomer.id)}
-                  onAddTransaction={() => {
-                    toast({
-                      title: "Feature Coming Soon",
-                      description: "การเพิ่มธุรกรรมโดยตรงจะเปิดให้ใช้ในอนาคต",
-                      status: "info",
-                      duration: 3000,
-                      isClosable: true,
-                    });
-                  }}
-                  showActions={true}
-                />
-              )}
+                    {viewMode === "detail" && selectedCustomer && (
+                      <CustomerDetail
+                        customer={selectedCustomerDetails || selectedCustomer}
+                        stats={customerStats}
+                        transactions={customerTransactions}
+                        activities={customerActivities}
+                        onEdit={() => handleEditCustomer(selectedCustomer)}
+                        onDelete={() => handleDeleteCustomer(selectedCustomer.id)}
+                        onAddTransaction={() => {
+                          toast({
+                            title: "Feature Coming Soon",
+                            description: "การเพิ่มธุรกรรมโดยตรงจะเปิดให้ใช้ในอนาคต",
+                            status: "info",
+                            duration: 3000,
+                            isClosable: true,
+                          });
+                        }}
+                        showActions={true}
+                      />
+                    )}
+                  </TabPanel>
+                  
+                  <TabPanel px={0}>
+                    <CustomerAnalytics
+                      analytics={{
+                        ...overviewStats,
+                        monthlyGrowth: {
+                          newCustomers: 12,
+                          growthRate: 8.5,
+                        },
+                        topSpenders: customers
+                          .filter(c => c.membership?.totalSpent)
+                          .sort((a, b) => (b.membership?.totalSpent || 0) - (a.membership?.totalSpent || 0))
+                          .slice(0, 5)
+                          .map(c => ({
+                            customerId: c.id,
+                            customerName: c.name,
+                            totalSpent: c.membership?.totalSpent || 0,
+                            ordersCount: Math.floor(Math.random() * 20) + 5, // Mock data
+                          })),
+                        genderStats: overviewStats.genderStats,
+                        ageStats: overviewStats.ageStats,
+                        membershipStats: overviewStats.membershipStats,
+                      }}
+                      isLoading={loading}
+                    />
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
             </CardBody>
           )}
         </Card>
