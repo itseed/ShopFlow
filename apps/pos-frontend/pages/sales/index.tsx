@@ -53,24 +53,19 @@ import {
   IoSearch,
   IoGrid,
   IoList,
+  IoCart,
   IoTrash,
+  IoCard,
   IoAdd,
   IoRemove,
-  IoCart,
-  IoReceipt,
-  IoCard,
+  IoClose,
+  IoCheckmark,
+  IoTrendingUp,
+  IoPrintOutline,
+  IoChevronBackOutline,
+  IoChevronForwardOutline,
   IoCash,
   IoQrCode,
-  IoTrendingUp,
-  IoTime,
-  IoCheckmarkCircle,
-  IoWarning,
-  IoRefresh,
-  IoFilter,
-  IoClose,
-  IoArrowBack,
-  IoPrint,
-  IoMail,
 } from "react-icons/io5";
 import {
   SalesProduct,
@@ -80,7 +75,12 @@ import {
   Receipt,
 } from "@shopflow/types";
 import { useSales } from "../../contexts/SalesContext";
-import { POSLayout, TouchButton, POSCard, LoadingSpinner } from "../../components";
+import {
+  POSLayout,
+  TouchButton,
+  POSCard,
+  LoadingSpinner,
+} from "../../components";
 import PaymentModal from "../../components/payment/PaymentModal";
 import ReceiptModal from "../../components/payment/ReceiptModal";
 import {
@@ -138,18 +138,25 @@ const SalesTerminal = () => {
     null
   );
   const [quantity, setQuantity] = useState(1);
-  const [variantModalProduct, setVariantModalProduct] = useState<SalesProduct | null>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
-  const [variantSelections, setVariantSelections] = useState<Record<string, string>>({});
+  const [variantModalProduct, setVariantModalProduct] =
+    useState<SalesProduct | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    null
+  );
+  const [variantSelections, setVariantSelections] = useState<
+    Record<string, string>
+  >({});
   const [variantQuantity, setVariantQuantity] = useState(1);
 
-  const [perPage] = useState(8);
+  const [perPage] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const paginatedProducts = viewMode === "grid"
-    ? products.slice((currentPage - 1) * perPage, currentPage * perPage)
-    : products;
-  const totalPages = viewMode === "grid" ? Math.ceil(products.length / perPage) : 1;
+  const paginatedProducts =
+    viewMode === "grid"
+      ? products.slice((currentPage - 1) * perPage, currentPage * perPage)
+      : products;
+  const totalPages =
+    viewMode === "grid" ? Math.ceil(products.length / perPage) : 1;
 
   // Color mode values
   const bgGradient = useColorModeValue(
@@ -161,7 +168,7 @@ const SalesTerminal = () => {
 
   // Mock sales stats
   const salesStats = {
-    todaySales: 15420.50,
+    todaySales: 15420.5,
     totalTransactions: 89,
     averageTicket: 173.26,
     topProduct: "Coca Cola",
@@ -213,20 +220,27 @@ const SalesTerminal = () => {
         );
       });
       if (match) {
-        addToCart({
-          ...variantModalProduct,
-          price: variantModalProduct.price + (match.price_adjustment || 0),
-          name: `${variantModalProduct.name} (${Object.values(match.variant_combinations).join(", ")})`,
-          stock: match.stock,
-          // ไม่ใส่ variantId/variantCombinations ใน SalesProduct (type error)
-        }, variantQuantity);
+        addToCart(
+          {
+            ...variantModalProduct,
+            price: variantModalProduct.price + (match.price_adjustment || 0),
+            name: `${variantModalProduct.name} (${Object.values(
+              match.variant_combinations
+            ).join(", ")})`,
+            stock: match.stock,
+            // ไม่ใส่ variantId/variantCombinations ใน SalesProduct (type error)
+          },
+          variantQuantity
+        );
         setVariantModalProduct(null);
         setVariantSelections({});
         setSelectedVariantId(null);
         setVariantQuantity(1);
         toast({
           title: "เพิ่มลงตะกร้าแล้ว",
-          description: `${variantModalProduct.name} (${Object.values(match.variant_combinations).join(", ")}) x${variantQuantity}`,
+          description: `${variantModalProduct.name} (${Object.values(
+            match.variant_combinations
+          ).join(", ")}) x${variantQuantity}`,
           status: "success",
           duration: 2000,
           isClosable: true,
@@ -365,7 +379,7 @@ const SalesTerminal = () => {
       isPrinted: false,
       isEmailSent: false,
     };
-    
+
     setCurrentReceipt(receipt);
     onPaymentModalClose();
     onReceiptModalOpen();
@@ -402,7 +416,8 @@ const SalesTerminal = () => {
   };
 
   const cartTotal = cart.items?.reduce((sum, item) => sum + item.total, 0) || 0;
-  const cartItemCount = cart.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const cartItemCount =
+    cart.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Loading sales terminal..." />;
@@ -410,7 +425,11 @@ const SalesTerminal = () => {
 
   return (
     <POSLayout>
-      <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap={6} h="calc(100vh - 200px)">
+      <Grid
+        templateColumns={{ base: "1fr", lg: "2fr 1fr" }}
+        gap={6}
+        h="calc(100vh - 200px)"
+      >
         {/* Left Panel - Products */}
         <VStack spacing={6} align="stretch">
           {/* Header with Stats */}
@@ -432,7 +451,12 @@ const SalesTerminal = () => {
               backdropFilter: "blur(10px)",
             }}
           >
-            <Flex justify="space-between" align="center" position="relative" zIndex={1}>
+            <Flex
+              justify="space-between"
+              align="center"
+              position="relative"
+              zIndex={1}
+            >
               <VStack align="start" spacing={2}>
                 <Heading size="lg" fontWeight="bold">
                   🛒 ระบบขายสินค้า
@@ -445,16 +469,22 @@ const SalesTerminal = () => {
                 <HStack spacing={4}>
                   <Stat color="white">
                     <StatLabel fontSize="sm">ธุรกรรม</StatLabel>
-                    <StatNumber fontSize="2xl">{salesStats.totalTransactions}</StatNumber>
+                    <StatNumber fontSize="2xl">
+                      {salesStats.totalTransactions}
+                    </StatNumber>
                   </Stat>
                   <Stat color="white">
                     <StatLabel fontSize="sm">เฉลี่ย/รายการ</StatLabel>
-                    <StatNumber fontSize="2xl">฿{salesStats.averageTicket}</StatNumber>
+                    <StatNumber fontSize="2xl">
+                      ฿{salesStats.averageTicket}
+                    </StatNumber>
                   </Stat>
                 </HStack>
                 <HStack spacing={2}>
                   <Icon as={IoTrendingUp} color="yellow.300" />
-                  <Text fontSize="sm" opacity={0.9}>+{salesStats.salesGrowth}% จากเมื่อวาน</Text>
+                  <Text fontSize="sm" opacity={0.9}>
+                    +{salesStats.salesGrowth}% จากเมื่อวาน
+                  </Text>
                 </HStack>
               </VStack>
             </Flex>
@@ -495,7 +525,7 @@ const SalesTerminal = () => {
                   />
                 </HStack>
               </HStack>
-              
+
               {/* Category Tabs */}
               <Tabs variant="soft-rounded" colorScheme="blue" w="full">
                 <TabList>
@@ -503,7 +533,10 @@ const SalesTerminal = () => {
                     ทั้งหมด ({products.length})
                   </Tab>
                   {categories.map((category) => (
-                    <Tab key={category} onClick={() => handleCategoryChange(category)}>
+                    <Tab
+                      key={category}
+                      onClick={() => handleCategoryChange(category)}
+                    >
                       {category}
                     </Tab>
                   ))}
@@ -515,11 +548,63 @@ const SalesTerminal = () => {
           {/* Products Display */}
           <Box flex="1" overflow="auto">
             {viewMode === "grid" ? (
-              <ProductGrid
-                products={paginatedProducts}
-                onAddToCart={handleAddToCart}
-                onQuickAddToCart={handleQuickAddToCart}
-              />
+              <VStack spacing={4}>
+                <ProductGrid
+                  products={paginatedProducts}
+                  onAddToCart={handleAddToCart}
+                  onQuickAddToCart={handleQuickAddToCart}
+                  onSelectVariant={handleSelectVariant}
+                />
+
+                {/* Pagination Controls for Grid View */}
+                {totalPages > 1 && (
+                  <HStack spacing={2} justify="center">
+                    <IconButton
+                      aria-label="Previous page"
+                      icon={<IoChevronBackOutline />}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
+                      isDisabled={currentPage === 1}
+                      size="sm"
+                      variant="outline"
+                    />
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          size="sm"
+                          variant={currentPage === page ? "solid" : "outline"}
+                          colorScheme="blue"
+                          onClick={() => setCurrentPage(page)}
+                          minW="40px"
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+
+                    <IconButton
+                      aria-label="Next page"
+                      icon={<IoChevronForwardOutline />}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                      }
+                      isDisabled={currentPage === totalPages}
+                      size="sm"
+                      variant="outline"
+                    />
+                  </HStack>
+                )}
+
+                {/* Results Info */}
+                <Text fontSize="sm" color="gray.500" textAlign="center">
+                  แสดง {(currentPage - 1) * perPage + 1}-
+                  {Math.min(currentPage * perPage, products.length)} จาก{" "}
+                  {products.length} รายการ
+                </Text>
+              </VStack>
             ) : (
               <ProductList
                 products={products}
@@ -589,7 +674,7 @@ const SalesTerminal = () => {
                   ฿{formatCurrency(cartTotal)}
                 </Text>
               </HStack>
-              
+
               <SimpleGrid columns={2} spacing={3} w="full">
                 <TouchButton
                   variant="primary"
@@ -622,7 +707,7 @@ const SalesTerminal = () => {
                   เงินสด
                 </TouchButton>
               </SimpleGrid>
-              
+
               <TouchButton
                 variant="warning"
                 size="lg"
@@ -673,6 +758,185 @@ const SalesTerminal = () => {
                 เพิ่มลงตะกร้า
               </TouchButton>
             </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Variant Selection Modal */}
+      <Modal
+        isOpen={!!variantModalProduct}
+        onClose={() => setVariantModalProduct(null)}
+        size="lg"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>เลือกรูปแบบสินค้า</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {variantModalProduct && (
+              <VStack spacing={4} align="stretch">
+                <HStack>
+                  <Image
+                    src={variantModalProduct.image}
+                    alt={variantModalProduct.name}
+                    boxSize="60px"
+                    borderRadius="md"
+                    fallback={
+                      <Box
+                        boxSize="60px"
+                        bg="gray.100"
+                        borderRadius="md"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        📦
+                      </Box>
+                    }
+                  />
+                  <VStack align="start" spacing={0}>
+                    <Text fontWeight="bold">{variantModalProduct.name}</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      {variantModalProduct.description}
+                    </Text>
+                    <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                      ฿{variantModalProduct.price.toFixed(2)}
+                    </Text>
+                  </VStack>
+                </HStack>
+
+                {/* Variant Type Selection */}
+                {getAvailableVariantTypes(variantModalProduct).map((type) => (
+                  <Box key={type}>
+                    <Text fontWeight="medium" mb={2} textTransform="capitalize">
+                      {type === "size"
+                        ? "ขนาด"
+                        : type === "color"
+                        ? "สี"
+                        : type}
+                      :
+                    </Text>
+                    <SimpleGrid columns={3} spacing={2}>
+                      {Array.from(
+                        new Set(
+                          variantModalProduct.variants?.map(
+                            (v) => v.variant_combinations[type]
+                          ) || []
+                        )
+                      ).map((value) => {
+                        const isSelected = variantSelections[type] === value;
+                        const variantsForThisValue = getFilteredVariants(
+                          variantModalProduct
+                        ).filter((v) => v.variant_combinations[type] === value);
+                        const hasStock = variantsForThisValue.some(
+                          (v) => v.stock > 0
+                        );
+
+                        return (
+                          <Button
+                            key={value}
+                            size="sm"
+                            variant={isSelected ? "solid" : "outline"}
+                            colorScheme={isSelected ? "blue" : "gray"}
+                            onClick={() => handleVariantTypeSelect(type, value)}
+                            isDisabled={!hasStock}
+                          >
+                            {value}
+                          </Button>
+                        );
+                      })}
+                    </SimpleGrid>
+                  </Box>
+                ))}
+
+                {/* Final Variant Selection */}
+                {isAllVariantTypeSelected(variantModalProduct) && (
+                  <Box>
+                    <Text fontWeight="medium" mb={2}>
+                      เลือกรูปแบบ:
+                    </Text>
+                    <VStack spacing={2}>
+                      {getFilteredVariants(variantModalProduct).map(
+                        (variant) => {
+                          const combinationText = Object.values(
+                            variant.variant_combinations
+                          ).join(", ");
+                          const finalPrice =
+                            variantModalProduct.price +
+                            (variant.price_adjustment || 0);
+                          const isSelected = selectedVariantId === variant.id;
+
+                          return (
+                            <Box
+                              key={variant.id}
+                              p={3}
+                              border="1px solid"
+                              borderColor={isSelected ? "blue.500" : "gray.200"}
+                              borderRadius="md"
+                              cursor="pointer"
+                              bg={isSelected ? "blue.50" : "white"}
+                              onClick={() => setSelectedVariantId(variant.id)}
+                              w="full"
+                            >
+                              <HStack justify="space-between">
+                                <VStack align="start" spacing={0}>
+                                  <Text fontWeight="medium">
+                                    {combinationText}
+                                  </Text>
+                                  <Text fontSize="sm" color="gray.600">
+                                    คงเหลือ: {variant.stock} ชิ้น
+                                  </Text>
+                                </VStack>
+                                <Text fontWeight="bold" color="blue.600">
+                                  ฿{finalPrice.toFixed(2)}
+                                </Text>
+                              </HStack>
+                            </Box>
+                          );
+                        }
+                      )}
+                    </VStack>
+                  </Box>
+                )}
+
+                {/* Quantity Selection for Variant */}
+                {selectedVariantId && (
+                  <Box>
+                    <Text fontWeight="medium" mb={2}>
+                      จำนวน:
+                    </Text>
+                    <HStack>
+                      <NumberInput
+                        value={variantQuantity}
+                        onChange={(value) => setVariantQuantity(Number(value))}
+                        min={1}
+                        max={
+                          variantModalProduct.variants?.find(
+                            (v) => v.id === selectedVariantId
+                          )?.stock || 1
+                        }
+                        size="lg"
+                        flex={1}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                      <TouchButton
+                        variant="primary"
+                        onClick={handleAddVariantToCart}
+                        size="lg"
+                        px={8}
+                      >
+                        เพิ่มลงตะกร้า
+                      </TouchButton>
+                    </HStack>
+                  </Box>
+                )}
+              </VStack>
+            )}
           </ModalBody>
         </ModalContent>
       </Modal>

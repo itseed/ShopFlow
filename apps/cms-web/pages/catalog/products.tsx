@@ -57,6 +57,11 @@ import {
   AlertDialogOverlay,
   Image,
   FormHelperText,
+  Checkbox,
+  SimpleGrid,
+  Tag,
+  TagLabel,
+  TagCloseButton,
 } from "@chakra-ui/react";
 import {
   FiPlus,
@@ -65,7 +70,9 @@ import {
   FiEdit2,
   FiTrash2,
   FiMoreVertical,
+  FiX,
 } from "react-icons/fi";
+import { IoAdd } from "react-icons/io5";
 
 const ProductsPage: NextPageWithLayout = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -83,7 +90,24 @@ const ProductsPage: NextPageWithLayout = () => {
     category_id: "",
     status: "active" as ProductStatus,
     images: [] as File[],
+    hasVariants: false,
+    variants: [] as {
+      id: string;
+      variant_combinations: Record<string, string>;
+      price_adjustment: number;
+      stock: number;
+      is_active: boolean;
+    }[],
   });
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [variantTypes, setVariantTypes] = useState<string[]>([]);
+  const [newVariantType, setNewVariantType] = useState("");
+  const [variantOptions, setVariantOptions] = useState<
+    Record<string, string[]>
+  >({});
+  const [newVariantOption, setNewVariantOption] = useState<
+    Record<string, string>
+  >({});
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
@@ -191,6 +215,90 @@ const ProductsPage: NextPageWithLayout = () => {
     }
   };
 
+  // Variant Management Functions
+  const addVariantType = () => {
+    if (
+      newVariantType.trim() &&
+      !variantTypes.includes(newVariantType.trim())
+    ) {
+      setVariantTypes([...variantTypes, newVariantType.trim()]);
+      setVariantOptions({ ...variantOptions, [newVariantType.trim()]: [] });
+      setNewVariantType("");
+    }
+  };
+
+  const removeVariantType = (type: string) => {
+    setVariantTypes(variantTypes.filter((t) => t !== type));
+    const newOptions = { ...variantOptions };
+    delete newOptions[type];
+    setVariantOptions(newOptions);
+    const newOption = { ...newVariantOption };
+    delete newOption[type];
+    setNewVariantOption(newOption);
+  };
+
+  const addVariantOption = (type: string) => {
+    const option = newVariantOption[type];
+    if (
+      option &&
+      option.trim() &&
+      !variantOptions[type]?.includes(option.trim())
+    ) {
+      setVariantOptions({
+        ...variantOptions,
+        [type]: [...(variantOptions[type] || []), option.trim()],
+      });
+      setNewVariantOption({ ...newVariantOption, [type]: "" });
+    }
+  };
+
+  const removeVariantOption = (type: string, option: string) => {
+    setVariantOptions({
+      ...variantOptions,
+      [type]: variantOptions[type]?.filter((o) => o !== option) || [],
+    });
+  };
+
+  const generateVariants = () => {
+    if (variantTypes.length === 0) return;
+
+    const combinations: Record<string, string>[] = [];
+
+    const generate = (index: number, current: Record<string, string>) => {
+      if (index === variantTypes.length) {
+        combinations.push({ ...current });
+        return;
+      }
+
+      const type = variantTypes[index];
+      const options = variantOptions[type] || [];
+
+      for (const option of options) {
+        current[type] = option;
+        generate(index + 1, current);
+      }
+    };
+
+    generate(0, {});
+
+    const variants = combinations.map((combo, index) => ({
+      id: `variant-${Date.now()}-${index}`,
+      variant_combinations: combo,
+      price_adjustment: 0,
+      stock: 0,
+      is_active: true,
+    }));
+
+    setFormData((prev) => ({ ...prev, variants }));
+  };
+
+  const resetVariantForm = () => {
+    setVariantTypes([]);
+    setVariantOptions({});
+    setNewVariantType("");
+    setNewVariantOption({});
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       loadProducts();
@@ -222,7 +330,10 @@ const ProductsPage: NextPageWithLayout = () => {
       category_id: "",
       status: "active",
       images: [],
+      hasVariants: false,
+      variants: [],
     });
+    resetVariantForm();
     onOpen();
   };
 
@@ -236,13 +347,57 @@ const ProductsPage: NextPageWithLayout = () => {
       category_id: product.category_id || "",
       status: product.status,
       images: [],
+      hasVariants:
+        (product as Product & { hasVariants?: boolean }).hasVariants || false,
+      variants:
+        (
+          product as Product & {
+            variants?: {
+              id: string;
+              variant_combinations: Record<string, string>;
+              price_adjustment: number;
+              stock: number;
+              is_active: boolean;
+            }[];
+          }
+        ).variants || [],
     });
+    resetVariantForm();
     onOpen();
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setFormData((prev) => ({ ...prev, images: files }));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    if (files.length > 0) {
+      setFormData((prev) => ({ ...prev, images: files }));
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSaveProduct = async () => {
@@ -298,7 +453,8 @@ const ProductsPage: NextPageWithLayout = () => {
       }
 
       onClose();
-    } catch (err) {
+    } catch (error) {
+      console.error("Save error:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: "ไม่สามารถบันทึกสินค้าได้",
@@ -329,7 +485,8 @@ const ProductsPage: NextPageWithLayout = () => {
 
       onDeleteClose();
       setProductToDelete(null);
-    } catch (err) {
+    } catch (error) {
+      console.error("Delete error:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: "ไม่สามารถลบสินค้าได้",
@@ -459,9 +616,21 @@ const ProductsPage: NextPageWithLayout = () => {
                     </Td>
                     <Td>
                       <VStack align="start" spacing={1}>
-                        <Text fontWeight="medium" fontFamily="body">
-                          {product.name}
-                        </Text>
+                        <HStack>
+                          <Text fontWeight="medium" fontFamily="body">
+                            {product.name}
+                          </Text>
+                          {(product as Product & { hasVariants?: boolean })
+                            .hasVariants && (
+                            <Badge
+                              size="sm"
+                              colorScheme="orange"
+                              variant="subtle"
+                            >
+                              หลายรูปแบบ
+                            </Badge>
+                          )}
+                        </HStack>
                         <Text
                           fontSize="sm"
                           color="gray.500"
@@ -470,6 +639,52 @@ const ProductsPage: NextPageWithLayout = () => {
                         >
                           {product.description}
                         </Text>
+                        {(
+                          product as Product & {
+                            variants?: {
+                              id: string;
+                              variant_combinations: Record<string, string>;
+                              price_adjustment: number;
+                              stock: number;
+                              is_active: boolean;
+                            }[];
+                          }
+                        ).variants &&
+                          (
+                            product as Product & {
+                              variants?: {
+                                id: string;
+                                variant_combinations: Record<string, string>;
+                                price_adjustment: number;
+                                stock: number;
+                                is_active: boolean;
+                              }[];
+                            }
+                          ).variants!.length > 0 && (
+                            <Text
+                              fontSize="xs"
+                              color="blue.600"
+                              fontFamily="body"
+                            >
+                              {
+                                (
+                                  product as Product & {
+                                    variants?: {
+                                      id: string;
+                                      variant_combinations: Record<
+                                        string,
+                                        string
+                                      >;
+                                      price_adjustment: number;
+                                      stock: number;
+                                      is_active: boolean;
+                                    }[];
+                                  }
+                                ).variants!.length
+                              }{" "}
+                              รูปแบบ
+                            </Text>
+                          )}
                       </VStack>
                     </Td>
                     <Td>
@@ -601,30 +816,110 @@ const ProductsPage: NextPageWithLayout = () => {
 
               <FormControl>
                 <FormLabel fontFamily="heading">รูปภาพสินค้า</FormLabel>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageChange}
-                  fontFamily="body"
-                />
-                <FormHelperText>
-                  รองรับไฟล์ .jpg, .png, .gif ขนาดไม่เกิน 5MB ต่อไฟล์
-                  (เลือกได้หลายไฟล์)
-                </FormHelperText>
+
+                {/* Drag & Drop Upload Area */}
+                <Box
+                  border="2px dashed"
+                  borderColor={isDragOver ? "blue.500" : "gray.300"}
+                  borderRadius="lg"
+                  p={6}
+                  textAlign="center"
+                  bg={isDragOver ? "blue.50" : "gray.50"}
+                  transition="all 0.2s"
+                  cursor="pointer"
+                  _hover={{ borderColor: "blue.400", bg: "blue.50" }}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() =>
+                    document.getElementById("product-image-upload")?.click()
+                  }
+                >
+                  <VStack spacing={3}>
+                    <Box
+                      p={3}
+                      borderRadius="full"
+                      bg={isDragOver ? "blue.100" : "gray.100"}
+                      color={isDragOver ? "blue.500" : "gray.500"}
+                    >
+                      <FiPlus size={24} />
+                    </Box>
+                    <VStack spacing={1}>
+                      <Text
+                        fontWeight="medium"
+                        color="gray.700"
+                        fontFamily="body"
+                      >
+                        {isDragOver
+                          ? "วางไฟล์รูปภาพที่นี่"
+                          : "ลากและวางไฟล์รูปภาพ หรือคลิกเพื่อเลือก"}
+                      </Text>
+                      <Text fontSize="sm" color="gray.500" fontFamily="body">
+                        รองรับไฟล์ JPG, PNG, GIF ขนาดไม่เกิน 5MB
+                        (เลือกได้หลายไฟล์)
+                      </Text>
+                    </VStack>
+                  </VStack>
+                  <Input
+                    id="product-image-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageChange}
+                    display="none"
+                  />
+                </Box>
+
+                {/* Image Preview */}
                 {formData.images.length > 0 && (
-                  <HStack mt={2} spacing={2} flexWrap="wrap">
-                    {formData.images.map((file, index) => (
-                      <Image
-                        key={index}
-                        src={URL.createObjectURL(file)}
-                        alt={`Preview ${index + 1}`}
-                        boxSize="100px"
-                        objectFit="cover"
-                        borderRadius="md"
-                      />
-                    ))}
-                  </HStack>
+                  <Box mt={4}>
+                    <Text
+                      fontSize="sm"
+                      fontWeight="medium"
+                      mb={3}
+                      color="gray.700"
+                      fontFamily="heading"
+                    >
+                      รูปภาพที่เลือก ({formData.images.length} ไฟล์)
+                    </Text>
+                    <HStack spacing={3} flexWrap="wrap">
+                      {formData.images.map((file, index) => (
+                        <Box
+                          key={index}
+                          position="relative"
+                          borderRadius="lg"
+                          overflow="hidden"
+                          border="1px solid"
+                          borderColor="gray.200"
+                          bg="white"
+                          shadow="sm"
+                        >
+                          <Image
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            boxSize="100px"
+                            objectFit="cover"
+                          />
+                          <Box
+                            position="absolute"
+                            top={1}
+                            right={1}
+                            bg="red.500"
+                            borderRadius="full"
+                            p={1}
+                            cursor="pointer"
+                            _hover={{ bg: "red.600" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeImage(index);
+                            }}
+                          >
+                            <FiTrash2 size={12} color="white" />
+                          </Box>
+                        </Box>
+                      ))}
+                    </HStack>
+                  </Box>
                 )}
               </FormControl>
 
@@ -680,6 +975,285 @@ const ProductsPage: NextPageWithLayout = () => {
                   <option value="inactive">ปิดใช้งาน</option>
                   <option value="out_of_stock">หมด</option>
                 </Select>
+              </FormControl>
+
+              {/* Variant Management Section */}
+              <FormControl>
+                <HStack justify="space-between" align="center" mb={3}>
+                  <FormLabel fontFamily="heading" mb={0}>
+                    รูปแบบสินค้า (Variants)
+                  </FormLabel>
+                  <Checkbox
+                    isChecked={formData.hasVariants}
+                    onChange={(e) => {
+                      const hasVariants = e.target.checked;
+                      setFormData((prev) => ({ ...prev, hasVariants }));
+                      if (!hasVariants) {
+                        resetVariantForm();
+                        setFormData((prev) => ({ ...prev, variants: [] }));
+                      }
+                    }}
+                    colorScheme="blue"
+                  >
+                    มีหลายรูปแบบ
+                  </Checkbox>
+                </HStack>
+                <FormHelperText fontSize="xs" mt={-2} mb={2}>
+                  เปิดใช้งานสำหรับสินค้าที่มีหลายตัวเลือก เช่น เสื้อผ้าหลายขนาด,
+                  เครื่องดื่มหลายรสชาติ
+                </FormHelperText>
+
+                {formData.hasVariants && (
+                  <VStack
+                    spacing={4}
+                    align="stretch"
+                    p={4}
+                    bg="gray.50"
+                    borderRadius="md"
+                  >
+                    {/* Add Variant Type */}
+                    <FormControl>
+                      <FormLabel
+                        fontSize="sm"
+                        fontWeight="medium"
+                        mb={2}
+                        fontFamily="heading"
+                      >
+                        ประเภทรูปแบบ (เช่น ขนาด, สี, รสชาติ)
+                      </FormLabel>
+                      <FormHelperText fontSize="xs" mt={-1} mb={2}>
+                        กำหนดประเภทรูปแบบของสินค้า เช่น ขนาด, สี, รสชาติ, วัสดุ
+                      </FormHelperText>
+                      <HStack>
+                        <Input
+                          placeholder="พิมพ์ชื่อประเภท เช่น ขนาด, สี, รสชาติ"
+                          value={newVariantType}
+                          onChange={(e) => setNewVariantType(e.target.value)}
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && addVariantType()
+                          }
+                          size="sm"
+                          fontFamily="body"
+                        />
+                        <IconButton
+                          aria-label="เพิ่มประเภท"
+                          icon={<IoAdd />}
+                          onClick={addVariantType}
+                          size="sm"
+                          colorScheme="blue"
+                        />
+                      </HStack>
+
+                      {variantTypes.length > 0 && (
+                        <HStack spacing={2} mt={2} wrap="wrap">
+                          {variantTypes.map((type) => (
+                            <Tag key={type} size="md" colorScheme="blue">
+                              <TagLabel>{type}</TagLabel>
+                              <TagCloseButton
+                                onClick={() => removeVariantType(type)}
+                              />
+                            </Tag>
+                          ))}
+                        </HStack>
+                      )}
+                    </FormControl>
+
+                    {/* Add Options for Each Type */}
+                    {variantTypes.map((type) => (
+                      <FormControl key={type}>
+                        <FormLabel
+                          fontSize="sm"
+                          fontWeight="medium"
+                          mb={2}
+                          fontFamily="heading"
+                        >
+                          ตัวเลือกสำหรับ "{type}"
+                        </FormLabel>
+                        <FormHelperText fontSize="xs" mt={-1} mb={2}>
+                          เพิ่มตัวเลือกทีละรายการ กดปุ่ม + หรือ Enter เพื่อเพิ่ม
+                        </FormHelperText>
+                        <HStack>
+                          <Input
+                            placeholder={`พิมพ์ตัวเลือก เช่น ${
+                              type === "ขนาด"
+                                ? "S, M, L"
+                                : type === "สี"
+                                ? "แดง, น้ำเงิน"
+                                : "ตัวเลือกต่างๆ"
+                            }`}
+                            value={newVariantOption[type] || ""}
+                            onChange={(e) =>
+                              setNewVariantOption((prev) => ({
+                                ...prev,
+                                [type]: e.target.value,
+                              }))
+                            }
+                            onKeyPress={(e) =>
+                              e.key === "Enter" && addVariantOption(type)
+                            }
+                            size="sm"
+                          />
+                          <IconButton
+                            aria-label="เพิ่มตัวเลือก"
+                            icon={<IoAdd />}
+                            onClick={() => addVariantOption(type)}
+                            size="sm"
+                            colorScheme="green"
+                          />
+                        </HStack>
+
+                        {variantOptions[type] &&
+                          variantOptions[type].length > 0 && (
+                            <HStack spacing={2} mt={2} wrap="wrap">
+                              {variantOptions[type].map((option) => (
+                                <Tag key={option} size="sm" colorScheme="green">
+                                  <TagLabel>{option}</TagLabel>
+                                  <TagCloseButton
+                                    onClick={() =>
+                                      removeVariantOption(type, option)
+                                    }
+                                  />
+                                </Tag>
+                              ))}
+                            </HStack>
+                          )}
+                      </FormControl>
+                    ))}
+
+                    {/* Generate Variants Button */}
+                    {variantTypes.length > 0 &&
+                      Object.values(variantOptions).some(
+                        (opts) => opts.length > 0
+                      ) && (
+                        <Button
+                          onClick={generateVariants}
+                          colorScheme="purple"
+                          size="sm"
+                          leftIcon={<IoAdd />}
+                        >
+                          สร้างรูปแบบสินค้าทั้งหมด
+                        </Button>
+                      )}
+
+                    {/* Display Generated Variants */}
+                    {formData.variants.length > 0 && (
+                      <Box>
+                        <Text fontSize="sm" fontWeight="medium" mb={1}>
+                          รูปแบบสินค้าที่สร้างแล้ว ({formData.variants.length}{" "}
+                          รูปแบบ)
+                        </Text>
+                        <FormHelperText fontSize="xs" mb={3}>
+                          ปรับราคาและสต็อกสำหรับแต่ละรูปแบบ (ราคาจะเป็น ราคาหลัก
+                          + ปรับราคา)
+                        </FormHelperText>
+                        <VStack
+                          spacing={2}
+                          align="stretch"
+                          maxH="200px"
+                          overflowY="auto"
+                        >
+                          {formData.variants.map((variant, index) => (
+                            <Box
+                              key={variant.id}
+                              p={3}
+                              bg="white"
+                              borderRadius="md"
+                              border="1px solid"
+                              borderColor="gray.200"
+                            >
+                              <HStack justify="space-between" align="start">
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <Text fontSize="sm" fontWeight="medium">
+                                    {Object.entries(
+                                      variant.variant_combinations
+                                    )
+                                      .map(
+                                        ([type, value]) => `${type}: ${value}`
+                                      )
+                                      .join(", ")}
+                                  </Text>
+                                  <HStack spacing={4}>
+                                    <VStack spacing={1} align="start">
+                                      <Text
+                                        fontSize="xs"
+                                        fontWeight="medium"
+                                        color="gray.600"
+                                      >
+                                        ปรับราคา (บาท)
+                                      </Text>
+                                      <NumberInput
+                                        size="sm"
+                                        value={variant.price_adjustment}
+                                        onChange={(value) => {
+                                          const newVariants = [
+                                            ...formData.variants,
+                                          ];
+                                          newVariants[index].price_adjustment =
+                                            Number(value);
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            variants: newVariants,
+                                          }));
+                                        }}
+                                        w="100px"
+                                      >
+                                        <NumberInputField placeholder="0" />
+                                      </NumberInput>
+                                    </VStack>
+                                    <VStack spacing={1} align="start">
+                                      <Text
+                                        fontSize="xs"
+                                        fontWeight="medium"
+                                        color="gray.600"
+                                      >
+                                        สต็อก (ชิ้น)
+                                      </Text>
+                                      <NumberInput
+                                        size="sm"
+                                        value={variant.stock}
+                                        onChange={(value) => {
+                                          const newVariants = [
+                                            ...formData.variants,
+                                          ];
+                                          newVariants[index].stock =
+                                            Number(value);
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            variants: newVariants,
+                                          }));
+                                        }}
+                                        w="80px"
+                                      >
+                                        <NumberInputField placeholder="0" />
+                                      </NumberInput>
+                                    </VStack>
+                                  </HStack>
+                                </VStack>
+                                <IconButton
+                                  aria-label="ลบรูปแบบ"
+                                  icon={<FiX />}
+                                  size="sm"
+                                  variant="ghost"
+                                  colorScheme="red"
+                                  onClick={() => {
+                                    const newVariants =
+                                      formData.variants.filter(
+                                        (_, i) => i !== index
+                                      );
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      variants: newVariants,
+                                    }));
+                                  }}
+                                />
+                              </HStack>
+                            </Box>
+                          ))}
+                        </VStack>
+                      </Box>
+                    )}
+                  </VStack>
+                )}
               </FormControl>
             </VStack>
           </ModalBody>
