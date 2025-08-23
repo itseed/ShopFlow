@@ -32,7 +32,7 @@ export class StorageService {
 
       return urlData.publicUrl;
     } catch (error) {
-      console.error("Upload error:", error);
+      // Error will be caught and handled by the calling component
       throw error;
     }
   }
@@ -45,7 +45,7 @@ export class StorageService {
       const uploadPromises = files.map((file) => this.uploadFile(file, path));
       return await Promise.all(uploadPromises);
     } catch (error) {
-      console.error("Multiple upload error:", error);
+      // Error will be caught and handled by the calling component
       throw error;
     }
   }
@@ -82,7 +82,7 @@ export class StorageService {
       const deletePromises = urls.map((url) => this.deleteFile(url));
       return await Promise.all(deletePromises);
     } catch (error) {
-      console.error("Multiple delete error:", error);
+      // Error will be caught and handled by the calling component
       throw error;
     }
   }

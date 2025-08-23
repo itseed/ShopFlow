@@ -14,6 +14,7 @@ import {
   Flex,
   Center,
   useColorModeValue,
+  useToast,
 } from "@chakra-ui/react";
 import { FiUpload, FiX, FiImage } from "react-icons/fi";
 import { useImageUpload, UploadProgress } from "../lib/hooks/useImageUpload";
@@ -32,6 +33,7 @@ export default function ImageUpload({
   disabled = false,
 }: ImageUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const toast = useToast();
   const {
     uploadFiles,
     deleteFiles,
@@ -48,21 +50,73 @@ export default function ImageUpload({
     (files: File[]) => {
       if (disabled) return;
 
-      const remainingSlots = maxImages - images.length;
-      const filesToUpload = files.slice(0, remainingSlots);
+      // Validate file types and sizes
+      const validFiles: File[] = [];
+      const invalidFiles: string[] = [];
+      const maxFileSize = 5 * 1024 * 1024; // 5MB
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-      if (filesToUpload.length < files.length) {
-        // Show warning about file limit
+      files.forEach((file) => {
+        if (!allowedTypes.includes(file.type)) {
+          invalidFiles.push(`${file.name} - ประเภทไฟล์ไม่ถูกต้อง`);
+        } else if (file.size > maxFileSize) {
+          invalidFiles.push(`${file.name} - ขนาดไฟล์เกิน 5MB`);
+        } else {
+          validFiles.push(file);
+        }
+      });
+
+      // Show error for invalid files
+      if (invalidFiles.length > 0) {
+        toast({
+          title: "ไฟล์ไม่ถูกต้อง",
+          description: invalidFiles.join(', '),
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
 
-      uploadFiles(filesToUpload, {
-        onSuccess: (urls: string[]) => {
-          onImagesChange([...images, ...urls]);
-          resetProgress();
-        },
-      });
+      const remainingSlots = maxImages - images.length;
+      const filesToUpload = validFiles.slice(0, remainingSlots);
+
+      if (filesToUpload.length < validFiles.length) {
+        const skippedCount = validFiles.length - filesToUpload.length;
+        toast({
+          title: "เกินจำนวนที่อนุญาต",
+          description: `สามารถอัพโหลดได้สูงสุด ${maxImages} รูปภาพ เลือกเฉพาะ ${filesToUpload.length} รูปแรก (ข้าม ${skippedCount} รูป)`,
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+
+      if (filesToUpload.length > 0) {
+        uploadFiles(filesToUpload, {
+          onSuccess: (urls: string[]) => {
+            onImagesChange([...images, ...urls]);
+            resetProgress();
+            toast({
+              title: "อัพโหลดสำเร็จ",
+              description: `อัพโหลดรูปภาพ ${urls.length} รูปเรียบร้อยแล้ว`,
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
+          },
+          onError: (error: string) => {
+            toast({
+              title: "เกิดข้อผิดพลาด",
+              description: `ไม่สามารถอัพโหลดได้: ${error}`,
+              status: "error",
+              duration: 5000,
+              isClosable: true,
+            });
+          },
+        });
+      }
     },
-    [images, maxImages, disabled, uploadFiles, onImagesChange, resetProgress]
+    [images, maxImages, disabled, uploadFiles, onImagesChange, resetProgress, toast]
   );
 
   const handleDragOver = useCallback(
@@ -116,8 +170,18 @@ export default function ImageUpload({
       const newImages = images.filter((_, i) => i !== index);
       onImagesChange(newImages);
 
-      // Delete from storage
-      deleteFiles([imageUrl]);
+      // Delete from storage with error handling
+      deleteFiles([imageUrl]).catch((error) => {
+        toast({
+          title: "เกิดข้อผิดพลาด",
+          description: `ไม่สามารถลบรูปภาพได้: ${error}`,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        // Restore the image in UI if deletion failed
+        onImagesChange([...newImages, imageUrl]);
+      });
     },
     [images, onImagesChange, deleteFiles]
   );

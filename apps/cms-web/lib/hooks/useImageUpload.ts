@@ -78,46 +78,36 @@ export function useImageUpload() {
 
       return results;
     },
-    onSuccess: (urls) => {
-      toast({
-        title: "อัพโหลดสำเร็จ",
-        description: `อัพโหลดรูปภาพ ${urls.length} ไฟล์เรียบร้อยแล้ว`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: StorageService.deleteFiles,
-    onSuccess: () => {
-      toast({
-        title: "ลบรูปภาพสำเร็จ",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "เกิดข้อผิดพลาดในการลบรูปภาพ",
-        description: error.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    },
   });
+
+  const uploadFiles = (
+    files: File[],
+    options?: {
+      onSuccess?: (urls: string[]) => void;
+      onError?: (error: string) => void;
+    }
+  ) => {
+    uploadMutation.mutate(files, {
+      onSuccess: (urls) => {
+        options?.onSuccess?.(urls);
+      },
+      onError: (error: Error) => {
+        options?.onError?.(error.message);
+      },
+    });
+  };
+
+  const deleteFiles = async (urls: string[]) => {
+    try {
+      await deleteMutation.mutateAsync(urls);
+    } catch (error) {
+      throw error;
+    }
+  };
 
   const resetProgress = () => {
     setUploadProgress([]);
@@ -128,8 +118,8 @@ export function useImageUpload() {
   };
 
   return {
-    uploadFiles: uploadMutation.mutate,
-    deleteFiles: deleteMutation.mutate,
+    uploadFiles,
+    deleteFiles,
     isUploading: uploadMutation.isPending,
     isDeleting: deleteMutation.isPending,
     uploadProgress,
