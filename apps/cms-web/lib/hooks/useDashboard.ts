@@ -132,7 +132,7 @@ export function useDashboard(
     branchId?: string;
   } = {}
 ) {
-  const { currentBranch } = useCurrentBranch();
+  const currentBranch = useCurrentBranch();
   const branchId =
     filters.branchId === "all"
       ? undefined
@@ -204,9 +204,9 @@ export function useDashboard(
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
         branchId,
-        groupBy: filters.timeRange === "today" ? "hour" : "day",
+        groupBy: filters.timeRange === "today" ? "day" : "day",
       });
-      if (!response.success) throw new Error(response.error);
+      if (!response.success) throw new Error(response.error || "Failed to fetch sales report");
       return response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -220,9 +220,9 @@ export function useDashboard(
         startDate: dateRange.compareStartDate,
         endDate: dateRange.compareEndDate,
         branchId,
-        groupBy: filters.timeRange === "today" ? "hour" : "day",
+        groupBy: filters.timeRange === "today" ? "day" : "day",
       });
-      if (!response.success) throw new Error(response.error);
+      if (!response.success) throw new Error(response.error || "Failed to fetch sales report");
       return response.data || [];
     },
     staleTime: 5 * 60 * 1000,
@@ -237,7 +237,7 @@ export function useDashboard(
         endDate: dateRange.endDate,
         branchId,
       });
-      if (!response.success) throw new Error(response.error);
+      if (!response.success) throw new Error(response.error || "Failed to fetch product report");
       return response.data || [];
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -252,7 +252,7 @@ export function useDashboard(
         endDate: dateRange.endDate,
         branchId,
       });
-      if (!response.success) throw new Error(response.error);
+      if (!response.success) throw new Error(response.error || "Failed to fetch customer report");
       return response.data || [];
     },
     staleTime: 10 * 60 * 1000,
@@ -263,7 +263,7 @@ export function useDashboard(
     queryKey: ["dashboard", "inventory", branchId],
     queryFn: async () => {
       const response = await reportService.getInventoryReport({ branchId });
-      if (!response.success) throw new Error(response.error);
+      if (!response.success) throw new Error(response.error || "Failed to fetch inventory report");
       return response.data || [];
     },
     staleTime: 15 * 60 * 1000, // 15 minutes
@@ -278,7 +278,7 @@ export function useDashboard(
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
       });
-      if (!response.success) throw new Error(response.error);
+      if (!response.success) throw new Error(response.error || "Failed to fetch branch comparison report");
       return response.data || [];
     },
     enabled: !branchId, // Only run when viewing all branches

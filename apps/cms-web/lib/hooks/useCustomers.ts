@@ -20,7 +20,7 @@ export function useCustomers(filters: CustomerFilters = {}) {
     queryFn: async () => {
       const result = await customerService.getAll(filters);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -45,7 +45,7 @@ export function useCustomerCount(filters: CustomerFilters = {}) {
     queryFn: async () => {
       const result = await customerService.count(filters);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -70,7 +70,7 @@ export function useCustomer(id: string) {
     queryFn: async () => {
       const result = await customerService.getById(id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -93,7 +93,7 @@ export function useCreateCustomer() {
     mutationFn: async (customerData: CreateCustomerData) => {
       const result = await customerService.create(customerData);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -123,7 +123,7 @@ export function useUpdateCustomer() {
     }) => {
       const result = await customerService.update(id, data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -131,7 +131,9 @@ export function useUpdateCustomer() {
       // Invalidate and refetch customers queries
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       // Update the specific customer in cache
-      queryClient.setQueryData(["customers", data.id], data);
+      if (data) {
+        queryClient.setQueryData(["customers", data.id], data);
+      }
     },
   });
 
@@ -149,7 +151,7 @@ export function useDeleteCustomer() {
     mutationFn: async (id: string) => {
       const result = await customerService.delete(id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -176,7 +178,7 @@ export function useCustomerStats() {
     queryFn: async () => {
       const result = await customerService.getStats();
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -207,7 +209,7 @@ export function useCustomerSearch(query: string, enabled = true) {
     queryFn: async () => {
       const result = await customerService.search(query);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -232,7 +234,7 @@ export function useTopCustomers(limit = 10) {
     queryFn: async () => {
       const result = await customerService.getTopCustomers(limit);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Unknown error");
       }
       return result.data;
     },
@@ -252,7 +254,7 @@ export function useCustomersWithFilters() {
   const getCustomers = async (filters: CustomerFilters) => {
     const result = await customerService.getAll(filters);
     if (!result.success) {
-      throw new Error(result.error);
+      throw new Error(result.error || "Unknown error");
     }
     return result.data;
   };
@@ -260,7 +262,7 @@ export function useCustomersWithFilters() {
   const searchCustomers = async (query: string) => {
     const result = await customerService.search(query);
     if (!result.success) {
-      throw new Error(result.error);
+      throw new Error(result.error || "Unknown error");
     }
     return result.data;
   };

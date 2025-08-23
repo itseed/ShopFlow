@@ -20,7 +20,7 @@ export function useSuppliers(filters: SupplierFilters = {}) {
     queryFn: async () => {
       const result = await supplierService.getAll(filters);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -45,7 +45,7 @@ export function useSupplierCount(filters: SupplierFilters = {}) {
     queryFn: async () => {
       const result = await supplierService.count(filters);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -70,7 +70,7 @@ export function useSupplier(id: string) {
     queryFn: async () => {
       const result = await supplierService.getById(id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -93,7 +93,7 @@ export function useCreateSupplier() {
     mutationFn: async (supplierData: CreateSupplierData) => {
       const result = await supplierService.create(supplierData);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -123,7 +123,7 @@ export function useUpdateSupplier() {
     }) => {
       const result = await supplierService.update(id, data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -131,7 +131,7 @@ export function useUpdateSupplier() {
       // Invalidate and refetch suppliers queries
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       // Update the specific supplier in cache
-      queryClient.setQueryData(["suppliers", data.id], data);
+      queryClient.setQueryData(["suppliers", data?.id], data);
     },
   });
 
@@ -149,7 +149,7 @@ export function useDeleteSupplier() {
     mutationFn: async (id: string) => {
       const result = await supplierService.delete(id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -176,7 +176,7 @@ export function useSupplierStats() {
     queryFn: async () => {
       const result = await supplierService.getStats();
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -208,7 +208,7 @@ export function useSupplierSearch(query: string, limit = 10) {
 
       const result = await supplierService.search(query, limit);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -234,7 +234,7 @@ export function useSuppliersWithStats() {
     queryFn: async () => {
       const result = await supplierService.getSuppliersWithStats();
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error occurred');
       }
       return result.data;
     },
@@ -265,7 +265,7 @@ export function useUpdateSupplierBalance() {
       }) => {
         const result = await supplierService.updateBalance(id, amount, type);
         if (!result.success) {
-          throw new Error(result.error);
+          throw new Error(result.error || 'Unknown error occurred');
         }
         return result.data;
       },
@@ -273,7 +273,7 @@ export function useUpdateSupplierBalance() {
         // Invalidate and refetch suppliers queries
         queryClient.invalidateQueries({ queryKey: ["suppliers"] });
         // Update the specific supplier in cache
-        queryClient.setQueryData(["suppliers", data.id], data);
+        queryClient.setQueryData(["suppliers", data?.id], data);
       },
     });
 

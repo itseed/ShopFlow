@@ -19,7 +19,7 @@ export function useEmployees(filters: UserFilters = {}) {
     queryFn: async () => {
       const result = await userService.getAll(filters);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to fetch employees");
       }
       return result.data;
     },
@@ -44,7 +44,7 @@ export function useEmployeeCount(filters: UserFilters = {}) {
     queryFn: async () => {
       const result = await userService.count(filters);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to fetch employee count");
       }
       return result.data;
     },
@@ -69,7 +69,7 @@ export function useEmployee(id: string) {
     queryFn: async () => {
       const result = await userService.getById(id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to fetch employee");
       }
       return result.data;
     },
@@ -92,7 +92,7 @@ export function useCreateEmployee() {
     mutationFn: async (employeeData: CreateUserData) => {
       const result = await userService.create(employeeData);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to create employee");
       }
       return result.data;
     },
@@ -116,7 +116,7 @@ export function useUpdateEmployee() {
     mutationFn: async ({ id, data }: { id: string; data: UpdateUserData }) => {
       const result = await userService.update(id, data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to update employee");
       }
       return result.data;
     },
@@ -124,7 +124,7 @@ export function useUpdateEmployee() {
       // Invalidate and refetch employees queries
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       // Update the specific employee in cache
-      queryClient.setQueryData(["employees", data.id], data);
+      queryClient.setQueryData(["employees", data?.id], data);
     },
   });
 
@@ -142,7 +142,7 @@ export function useDeleteEmployee() {
     mutationFn: async (id: string) => {
       const result = await userService.delete(id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to delete employee");
       }
       return result.data;
     },
@@ -170,7 +170,7 @@ export function useEmployeesByBranch(branchId: string) {
     queryFn: async () => {
       const result = await userService.getUsersByBranch(branchId);
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to fetch employees by branch");
       }
       return result.data;
     },
@@ -197,7 +197,7 @@ export function useActiveStaff() {
     queryFn: async () => {
       const result = await userService.getActiveStaff();
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to fetch active staff");
       }
       return result.data;
     },
@@ -223,31 +223,31 @@ export function useEmployeeStats() {
       // Get total count
       const totalResult = await userService.count();
       if (!totalResult.success) {
-        throw new Error(totalResult.error);
+        throw new Error(totalResult.error || "Failed to fetch total count");
       }
 
       // Get active count
       const activeResult = await userService.count({ isActive: true });
       if (!activeResult.success) {
-        throw new Error(activeResult.error);
+        throw new Error(activeResult.error || "Failed to fetch active count");
       }
 
       // Get inactive count
       const inactiveResult = await userService.count({ isActive: false });
       if (!inactiveResult.success) {
-        throw new Error(inactiveResult.error);
+        throw new Error(inactiveResult.error || "Failed to fetch inactive count");
       }
 
       // Get admin count
       const adminResult = await userService.count({ role: "admin" });
       if (!adminResult.success) {
-        throw new Error(adminResult.error);
+        throw new Error(adminResult.error || "Failed to fetch admin count");
       }
 
       // Get staff count
       const staffResult = await userService.count({ role: "staff" });
       if (!staffResult.success) {
-        throw new Error(staffResult.error);
+        throw new Error(staffResult.error || "Failed to fetch staff count");
       }
 
       return {
@@ -280,7 +280,7 @@ export function usePasswordManagement() {
       }) => {
         const result = await userService.changePassword(userId, newPassword);
         if (!result.success) {
-          throw new Error(result.error);
+          throw new Error(result.error || "Failed to change password");
         }
         return result.data;
       },
@@ -291,7 +291,7 @@ export function usePasswordManagement() {
       mutationFn: async (email: string) => {
         const result = await userService.resetPassword(email);
         if (!result.success) {
-          throw new Error(result.error);
+          throw new Error(result.error || "Failed to reset password");
         }
         return result.data;
       },
