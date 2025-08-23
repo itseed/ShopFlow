@@ -88,7 +88,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       // Don't close automatically, let user decide
     },
     onError: (error: string) => {
-      console.error("Barcode scan error:", error);
+      // Error is handled by the hook's toast notifications
     },
     enableKeyboardInput: true,
     enableSound: true,

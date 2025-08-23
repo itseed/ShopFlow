@@ -262,21 +262,107 @@ export const useBarcodeScanner = (
 
       // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }, // Use back camera if available
+        video: { 
+          facingMode: "environment", // Use back camera if available
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        }
       });
 
       streamRef.current = stream;
 
-      // TODO: Implement actual barcode detection using BarcodeDetector API or a library
-      // For now, we'll use keyboard input or mock data
+      // Check if BarcodeDetector is supported
+      if ('BarcodeDetector' in window) {
+        try {
+          const barcodeDetector = new (window as any).BarcodeDetector({
+            formats: [
+              'code_128',
+              'code_39', 
+              'code_93',
+              'codabar',
+              'ean_13',
+              'ean_8',
+              'itf',
+              'upc_a',
+              'upc_e',
+              'pdf417',
+              'qr_code',
+              'data_matrix'
+            ]
+          });
 
-      toast({
-        title: "เริ่มสแกนแล้ว",
-        description: "ใช้คีย์บอร์ดหรือสแกนเนอร์บาร์โค้ดเพื่อสแกน",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
+          // Create video element for processing
+          const video = document.createElement('video');
+          video.srcObject = stream;
+          video.play();
+
+          // Create canvas for image capture
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+
+          // Start detection loop
+          const detectLoop = async () => {
+            if (!isScanning || !video.videoWidth || !video.videoHeight) {
+              return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context?.drawImage(video, 0, 0);
+
+            try {
+              const barcodes = await barcodeDetector.detect(canvas);
+              
+              if (barcodes.length > 0) {
+                const barcode = barcodes[0];
+                processScan(barcode.rawValue);
+                stopScanning();
+                return;
+              }
+            } catch (detectError) {
+              console.warn('Barcode detection error:', detectError);
+            }
+
+            // Continue detection
+            if (isScanning) {
+              requestAnimationFrame(detectLoop);
+            }
+          };
+
+          // Wait for video to be ready
+          video.addEventListener('loadedmetadata', () => {
+            detectLoop();
+          });
+
+          toast({
+            title: "เริ่มสแกนแล้ว",
+            description: "นำกล้องไปที่บาร์โค้ดเพื่อสแกน",
+            status: "info",
+            duration: 3000,
+            isClosable: true,
+          });
+
+        } catch (barcodeError) {
+          console.warn('BarcodeDetector initialization failed:', barcodeError);
+          // Fallback to keyboard/manual input
+          toast({
+            title: "เริ่มสแกนแล้ว",
+            description: "ใช้คีย์บอร์ดหรือสแกนเนอร์บาร์โค้ดเพื่อสแกน",
+            status: "info",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      } else {
+        // BarcodeDetector not supported, fallback to manual input
+        toast({
+          title: "เริ่มสแกนแล้ว",
+          description: "ใช้คีย์บอร์ดหรือสแกนเนอร์บาร์โค้ดเพื่อสแกน",
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } catch (error) {
       setIsScanning(false);
       const errorMessage = "ไม่สามารถเข้าถึงกล้องได้";
@@ -289,7 +375,7 @@ export const useBarcodeScanner = (
         isClosable: true,
       });
     }
-  }, [isSupported, onError, processScan, toast]);
+  }, [isSupported, isScanning, onError, processScan, toast]);
 
   // Stop scanning
   const stopScanning = useCallback(() => {
