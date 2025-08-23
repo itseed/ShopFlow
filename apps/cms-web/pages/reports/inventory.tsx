@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ReactElement } from "react";
+import { ReactElement, useState } from "react";
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
+import { useInventoryReportComplete } from "../../lib/hooks/useInventoryReports";
 import {
   Box,
   Heading,
@@ -68,96 +69,39 @@ function InventoryReportPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Mock data
-  const inventoryData = [
-    {
-      name: "โค้ก 325ml",
-      current: 45,
-      reorder: 50,
-      max: 200,
-      value: 1125,
-      status: "low",
-    },
-    {
-      name: "น้ำเปล่า 600ml",
-      current: 89,
-      reorder: 30,
-      max: 150,
-      value: 890,
-      status: "good",
-    },
-    {
-      name: "ลายส์ธรรมดา",
-      current: 12,
-      reorder: 25,
-      max: 100,
-      value: 480,
-      status: "critical",
-    },
-    {
-      name: "มาม่า หมูสับ",
-      current: 156,
-      reorder: 80,
-      max: 300,
-      value: 1560,
-      status: "good",
-    },
-    {
-      name: "นมเย็น UHT",
-      current: 67,
-      reorder: 40,
-      max: 120,
-      value: 1340,
-      status: "good",
-    },
-    {
-      name: "ขนมปัง",
-      current: 23,
-      reorder: 30,
-      max: 80,
-      value: 460,
-      status: "low",
-    },
-    {
-      name: "กาแฟ 3in1",
-      current: 8,
-      reorder: 20,
-      max: 100,
-      value: 240,
-      status: "critical",
-    },
-    {
-      name: "ผงซักฟอก",
-      current: 34,
-      reorder: 25,
-      max: 60,
-      value: 680,
-      status: "good",
-    },
-  ];
+  // Use real API data
+  const {
+    inventory,
+    stats,
+    movement,
+    categories,
+    isLoading,
+    isError,
+    error,
+    refetchAll
+  } = useInventoryReportComplete({
+    branch_id: selectedBranch,
+    category_id: selectedCategory,
+    search: searchTerm,
+  });
 
-  const categoryData = [
-    { name: "เครื่องดื่ม", value: 45, color: "#3182CE" },
-    { name: "ขนม", value: 25, color: "#38A169" },
-    { name: "อาหารแห้ง", value: 20, color: "#D69E2E" },
-    { name: "ของใช้", value: 10, color: "#9F7AEA" },
-  ];
-
-  const stockMovement = [
-    { date: "01/07", inbound: 250, outbound: 180, net: 70 },
-    { date: "02/07", inbound: 180, outbound: 220, net: -40 },
-    { date: "03/07", inbound: 320, outbound: 200, net: 120 },
-    { date: "04/07", inbound: 150, outbound: 280, net: -130 },
-    { date: "05/07", inbound: 280, outbound: 190, net: 90 },
-    { date: "06/07", inbound: 200, outbound: 240, net: -40 },
-    { date: "07/07", inbound: 350, outbound: 210, net: 140 },
-  ];
+  // Get data with fallback
+  const inventoryData = inventory.data || [];
+  const statsData = stats.data || {
+    total_items: 0,
+    total_value: 0,
+    low_stock_items: 0,
+    critical_stock_items: 0,
+    out_of_stock_items: 0,
+  };
+  const stockMovement = movement.data || [];
+  const categoryData = categories.data || [];
 
   const lowStockItems = inventoryData.filter(
     (item) => item.status === "critical" || item.status === "low"
   );
-  const totalValue = inventoryData.reduce((sum, item) => sum + item.value, 0);
-  const totalItems = inventoryData.reduce((sum, item) => sum + item.current, 0);
+  const totalValue = statsData.total_value;
+  const totalItems = statsData.total_items;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -198,6 +142,15 @@ function InventoryReportPage() {
           </Text>
         </Box>
         <HStack spacing={4}>
+          <Button
+            leftIcon={<FiRefreshCw />}
+            onClick={refetchAll}
+            isLoading={isLoading}
+            loadingText="รีเฟรช..."
+            variant="outline"
+          >
+            รีเฟรช
+          </Button>
           <Select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
@@ -240,6 +193,27 @@ function InventoryReportPage() {
           </Button>
         </HStack>
       </Flex>
+
+      {/* Error State */}
+      {isError && (
+        <Alert status="error" borderRadius="xl" mb={6}>
+          <AlertIcon />
+          <Box>
+            <Text fontWeight="bold">เกิดข้อผิดพลาด</Text>
+            <Text fontSize="sm">
+              ไม่สามารถโหลดข้อมูลรายงานได้ กำลังใช้ข้อมูลจำลอง
+            </Text>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <Alert status="info" borderRadius="xl" mb={6}>
+          <AlertIcon />
+          <Text>กำลังโหลดข้อมูล...</Text>
+        </Alert>
+      )}
 
       {/* Stock Alerts */}
       {lowStockItems.length > 0 && (
@@ -485,11 +459,25 @@ function InventoryReportPage() {
             </Thead>
             <Tbody>
               {inventoryData.map((item, index) => (
-                <Tr key={index}>
-                  <Td fontWeight="medium">{item.name}</Td>
-                  <Td isNumeric>{item.current}</Td>
-                  <Td isNumeric>{item.reorder}</Td>
-                  <Td isNumeric>{item.max}</Td>
+                <Tr key={item.id || index}>
+                  <Td>
+                    <VStack align="start" spacing={1}>
+                      <Text fontWeight="medium">{item.name}</Text>
+                      {item.sku && (
+                        <Text fontSize="xs" color="gray.500">
+                          SKU: {item.sku}
+                        </Text>
+                      )}
+                      {item.category_name && (
+                        <Badge size="sm" colorScheme="blue" variant="outline">
+                          {item.category_name}
+                        </Badge>
+                      )}
+                    </VStack>
+                  </Td>
+                  <Td isNumeric>{item.current_stock}</Td>
+                  <Td isNumeric>{item.reorder_level}</Td>
+                  <Td isNumeric>{item.max_stock_level}</Td>
                   <Td isNumeric>฿{item.value.toLocaleString()}</Td>
                   <Td>
                     <Badge
