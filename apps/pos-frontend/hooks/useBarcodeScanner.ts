@@ -262,43 +262,43 @@ export const useBarcodeScanner = (
 
       // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
+        video: {
           facingMode: "environment", // Use back camera if available
           width: { ideal: 640 },
           height: { ideal: 480 },
-        }
+        },
       });
 
       streamRef.current = stream;
 
       // Check if BarcodeDetector is supported
-      if ('BarcodeDetector' in window) {
+      if ("BarcodeDetector" in window) {
         try {
           const barcodeDetector = new (window as any).BarcodeDetector({
             formats: [
-              'code_128',
-              'code_39', 
-              'code_93',
-              'codabar',
-              'ean_13',
-              'ean_8',
-              'itf',
-              'upc_a',
-              'upc_e',
-              'pdf417',
-              'qr_code',
-              'data_matrix'
-            ]
+              "code_128",
+              "code_39",
+              "code_93",
+              "codabar",
+              "ean_13",
+              "ean_8",
+              "itf",
+              "upc_a",
+              "upc_e",
+              "pdf417",
+              "qr_code",
+              "data_matrix",
+            ],
           });
 
           // Create video element for processing
-          const video = document.createElement('video');
+          const video = document.createElement("video");
           video.srcObject = stream;
           video.play();
 
           // Create canvas for image capture
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
 
           // Start detection loop
           const detectLoop = async () => {
@@ -312,7 +312,7 @@ export const useBarcodeScanner = (
 
             try {
               const barcodes = await barcodeDetector.detect(canvas);
-              
+
               if (barcodes.length > 0) {
                 const barcode = barcodes[0];
                 processScan(barcode.rawValue);
@@ -320,7 +320,7 @@ export const useBarcodeScanner = (
                 return;
               }
             } catch (detectError) {
-              console.warn('Barcode detection error:', detectError);
+              console.warn("Barcode detection error:", detectError);
             }
 
             // Continue detection
@@ -330,7 +330,7 @@ export const useBarcodeScanner = (
           };
 
           // Wait for video to be ready
-          video.addEventListener('loadedmetadata', () => {
+          video.addEventListener("loadedmetadata", () => {
             detectLoop();
           });
 
@@ -341,9 +341,8 @@ export const useBarcodeScanner = (
             duration: 3000,
             isClosable: true,
           });
-
         } catch (barcodeError) {
-          console.warn('BarcodeDetector initialization failed:', barcodeError);
+          console.warn("BarcodeDetector initialization failed:", barcodeError);
           // Fallback to keyboard/manual input
           toast({
             title: "เริ่มสแกนแล้ว",

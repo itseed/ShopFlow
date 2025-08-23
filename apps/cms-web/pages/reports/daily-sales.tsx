@@ -3,6 +3,10 @@ import { ReactElement } from "react";
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
 import {
+  useDailySalesReport,
+  useExportReport,
+} from "../../lib/hooks/useCMSReports";
+import {
   Box,
   Heading,
   Text,
@@ -61,57 +65,95 @@ function DailySalesReportPage() {
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Mock data
-  const hourlyData = [
-    { hour: "06:00", sales: 1200, orders: 8, customers: 6 },
-    { hour: "07:00", sales: 2800, orders: 15, customers: 12 },
-    { hour: "08:00", sales: 4200, orders: 23, customers: 18 },
-    { hour: "09:00", sales: 3600, orders: 19, customers: 15 },
-    { hour: "10:00", sales: 4800, orders: 28, customers: 22 },
-    { hour: "11:00", sales: 5200, orders: 32, customers: 25 },
-    { hour: "12:00", sales: 7800, orders: 45, customers: 35 },
-    { hour: "13:00", sales: 6400, orders: 38, customers: 30 },
-    { hour: "14:00", sales: 5600, orders: 34, customers: 28 },
-    { hour: "15:00", sales: 4200, orders: 26, customers: 20 },
-    { hour: "16:00", sales: 3800, orders: 24, customers: 18 },
-    { hour: "17:00", sales: 5400, orders: 31, customers: 24 },
-    { hour: "18:00", sales: 6800, orders: 39, customers: 32 },
-    { hour: "19:00", sales: 7200, orders: 42, customers: 36 },
-    { hour: "20:00", sales: 6200, orders: 35, customers: 28 },
-    { hour: "21:00", sales: 4800, orders: 28, customers: 22 },
-    { hour: "22:00", sales: 2400, orders: 16, customers: 14 },
-  ];
+  // Use real data hooks
+  const {
+    data: dailyData,
+    isLoading,
+    error,
+    refetch,
+  } = useDailySalesReport(
+    selectedDate,
+    selectedBranch === "all" ? undefined : selectedBranch
+  );
 
-  const topHours = [
-    { time: "12:00-13:00", sales: 7800, orders: 45, percentage: 12.5 },
-    { time: "19:00-20:00", sales: 7200, orders: 42, percentage: 11.8 },
-    { time: "18:00-19:00", sales: 6800, orders: 39, percentage: 11.2 },
-    { time: "13:00-14:00", sales: 6400, orders: 38, percentage: 10.5 },
-    { time: "17:00-18:00", sales: 5400, orders: 31, percentage: 8.9 },
-  ];
+  const exportMutation = useExportReport();
 
-  const topProducts = [
-    { name: "โค้ก 325ml", sales: 3280, quantity: 82, revenue: 8200 },
-    { name: "น้ำเปล่า 600ml", sales: 2840, quantity: 71, revenue: 3550 },
-    { name: "ลายส์ธรรมดา", sales: 2160, quantity: 54, revenue: 5400 },
-    { name: "มาม่า หมูสับ", sales: 1920, quantity: 48, revenue: 1920 },
-    { name: "นมเย็น UHT", sales: 1680, quantity: 42, revenue: 3360 },
-  ];
+  // Extract data with fallbacks
+  const hourlyData = dailyData?.hourlyData || [];
+  const topProducts = dailyData?.topProducts || [];
+  const recentTransactions = dailyData?.recentTransactions || [];
+  const summary = dailyData?.summary || {
+    totalSales: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+    topPaymentMethod: "cash",
+  };
 
-  const recentTransactions = [
-    { time: "14:23", amount: 185, items: 3, cashier: "สมหญิง ร." },
-    { time: "14:21", amount: 92, items: 2, cashier: "วิชัย ก." },
-    { time: "14:19", amount: 247, items: 5, cashier: "สมหญิง ร." },
-    { time: "14:17", amount: 68, items: 1, cashier: "นันท์ ส." },
-    { time: "14:15", amount: 156, items: 4, cashier: "วิชัย ก." },
-  ];
-
-  const totalSales = hourlyData.reduce((sum, item) => sum + item.sales, 0);
-  const totalOrders = hourlyData.reduce((sum, item) => sum + item.orders, 0);
+  const totalSales = summary.totalSales;
+  const totalOrders = summary.totalOrders;
   const totalCustomers = hourlyData.reduce(
     (sum, item) => sum + item.customers,
     0
   );
+
+  // Calculate top hours from hourly data
+  const topHours = hourlyData
+    .map((item) => ({
+      time: `${item.hour}-${(parseInt(item.hour.split(":")[0]) + 1)
+        .toString()
+        .padStart(2, "0")}:00`,
+      sales: item.sales,
+      orders: item.orders,
+      percentage: totalSales > 0 ? (item.sales / totalSales) * 100 : 0,
+    }))
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5);
+
+  const handleExport = () => {
+    exportMutation.mutate({
+      reportType: "sales",
+      filters: {
+        startDate: selectedDate + "T00:00:00.000Z",
+        endDate: selectedDate + "T23:59:59.999Z",
+        branchId: selectedBranch === "all" ? undefined : selectedBranch,
+      },
+    });
+  };
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <Box>
+        <Flex justify="center" align="center" minH="400px">
+          <VStack>
+            <Progress size="lg" isIndeterminate colorScheme="blue" />
+            <Text color="gray.600">กำลังโหลดข้อมูลรายงาน...</Text>
+          </VStack>
+        </Flex>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Flex justify="center" align="center" minH="400px">
+          <VStack>
+            <Text color="red.500" fontSize="lg">
+              เกิดข้อผิดพลาดในการโหลดข้อมูล
+            </Text>
+            <Text color="gray.600">{error.message}</Text>
+            <Button colorScheme="blue" onClick={handleRefresh}>
+              ลองใหม่
+            </Button>
+          </VStack>
+        </Flex>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -154,10 +196,18 @@ function DailySalesReportPage() {
             colorScheme="gray"
             size="md"
             variant="outline"
+            onClick={handleRefresh}
+            isLoading={isLoading}
           >
             รีเฟรช
           </Button>
-          <Button leftIcon={<FiDownload />} colorScheme="blue" size="md">
+          <Button
+            leftIcon={<FiDownload />}
+            colorScheme="blue"
+            size="md"
+            onClick={handleExport}
+            isLoading={exportMutation.isPending}
+          >
             ส่งออก
           </Button>
         </HStack>

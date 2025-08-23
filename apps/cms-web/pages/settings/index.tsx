@@ -54,10 +54,17 @@ import {
 } from "react-icons/fi";
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
+import {
+  PermissionGuard,
+  CanAccess,
+} from "../../components/auth/PermissionGuard";
+import { AdminOnly } from "../../components/auth/RoleGuard";
+import { useHasPermission } from "../../lib/hooks/useAuthEnhanced";
 import { NextPageWithLayout } from "../_app";
 
 function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const hasPermission = useHasPermission();
   const toast = useToast();
 
   const handleSave = () => {
@@ -245,11 +252,91 @@ function SettingsPage() {
 
       {/* Quick Settings Cards */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} mb={8}>
-        {settingsMenus.map((menu, index) => (
-          <Box key={index}>
-            {menu.hasSubmenu ? (
-              <Menu>
-                <MenuButton as={Box} w="full">
+        {settingsMenus
+          .filter((menu) => {
+            // Filter menu items based on permissions
+            if (menu.title === "จัดการสาขา" || menu.title === "จัดการพนักงาน") {
+              return (
+                hasPermission("users.view") && hasPermission("branches.view")
+              );
+            }
+            if (
+              menu.title === "ความปลอดภัย" ||
+              menu.title === "ระบบและเซิร์ฟเวอร์"
+            ) {
+              return hasPermission("settings.edit");
+            }
+            return hasPermission("settings.view");
+          })
+          .map((menu, index) => (
+            <Box key={index}>
+              {menu.hasSubmenu ? (
+                <Menu>
+                  <MenuButton as={Box} w="full">
+                    <Card
+                      cursor="pointer"
+                      transition="all 0.2s"
+                      _hover={{
+                        transform: "translateY(-2px)",
+                        boxShadow: "lg",
+                      }}
+                    >
+                      <CardBody>
+                        <VStack align="start" spacing={4}>
+                          <HStack justify="space-between" w="full">
+                            <Icon
+                              as={menu.icon}
+                              boxSize={8}
+                              color={`${menu.color}.500`}
+                            />
+                            <HStack spacing={2}>
+                              <Badge colorScheme={menu.color} variant="subtle">
+                                {menu.stats}
+                              </Badge>
+                              <Icon
+                                as={FiChevronDown}
+                                color="gray.400"
+                                transition="transform 0.2s"
+                              />
+                            </HStack>
+                          </HStack>
+
+                          <VStack align="start" spacing={2}>
+                            <Text fontWeight="semibold" fontSize="lg">
+                              {menu.title}
+                            </Text>
+                            <Text fontSize="sm" color="gray.600" noOfLines={2}>
+                              {menu.description}
+                            </Text>
+                          </VStack>
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </MenuButton>
+                  <MenuList>
+                    {menu.submenu?.map((subItem, subIndex) => (
+                      <Link key={subIndex} href={subItem.href}>
+                        <MenuItem
+                          icon={
+                            <Icon
+                              as={subItem.icon}
+                              color={`${subItem.color}.500`}
+                            />
+                          }
+                        >
+                          <VStack align="start" spacing={1}>
+                            <Text fontWeight="medium">{subItem.title}</Text>
+                            <Text fontSize="sm" color="gray.600">
+                              {subItem.description}
+                            </Text>
+                          </VStack>
+                        </MenuItem>
+                      </Link>
+                    ))}
+                  </MenuList>
+                </Menu>
+              ) : (
+                <Link href={menu.href}>
                   <Card
                     cursor="pointer"
                     transition="all 0.2s"
@@ -270,11 +357,7 @@ function SettingsPage() {
                             <Badge colorScheme={menu.color} variant="subtle">
                               {menu.stats}
                             </Badge>
-                            <Icon
-                              as={FiChevronDown}
-                              color="gray.400"
-                              transition="transform 0.2s"
-                            />
+                            <Icon as={FiArrowRight} color="gray.400" />
                           </HStack>
                         </HStack>
 
@@ -289,198 +372,140 @@ function SettingsPage() {
                       </VStack>
                     </CardBody>
                   </Card>
-                </MenuButton>
-                <MenuList>
-                  {menu.submenu?.map((subItem, subIndex) => (
-                    <Link key={subIndex} href={subItem.href}>
-                      <MenuItem
-                        icon={
-                          <Icon
-                            as={subItem.icon}
-                            color={`${subItem.color}.500`}
-                          />
-                        }
-                      >
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="medium">{subItem.title}</Text>
-                          <Text fontSize="sm" color="gray.600">
-                            {subItem.description}
-                          </Text>
-                        </VStack>
-                      </MenuItem>
-                    </Link>
-                  ))}
-                </MenuList>
-              </Menu>
-            ) : (
-              <Link href={menu.href}>
-                <Card
-                  cursor="pointer"
-                  transition="all 0.2s"
-                  _hover={{
-                    transform: "translateY(-2px)",
-                    boxShadow: "lg",
-                  }}
-                >
-                  <CardBody>
-                    <VStack align="start" spacing={4}>
-                      <HStack justify="space-between" w="full">
-                        <Icon
-                          as={menu.icon}
-                          boxSize={8}
-                          color={`${menu.color}.500`}
-                        />
-                        <HStack spacing={2}>
-                          <Badge colorScheme={menu.color} variant="subtle">
-                            {menu.stats}
-                          </Badge>
-                          <Icon as={FiArrowRight} color="gray.400" />
-                        </HStack>
-                      </HStack>
-
-                      <VStack align="start" spacing={2}>
-                        <Text fontWeight="semibold" fontSize="lg">
-                          {menu.title}
-                        </Text>
-                        <Text fontSize="sm" color="gray.600" noOfLines={2}>
-                          {menu.description}
-                        </Text>
-                      </VStack>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              </Link>
-            )}
-          </Box>
-        ))}
+                </Link>
+              )}
+            </Box>
+          ))}
       </SimpleGrid>
 
       {/* General Settings */}
-      <Card mb={6}>
-        <CardHeader>
-          <HStack>
-            <Icon as={FiSettings} boxSize={5} />
-            <Heading size="md">ข้อมูลบริษัทและการตั้งค่าทั่วไป</Heading>
-          </HStack>
-        </CardHeader>
-        <CardBody>
-          <VStack spacing={6} align="stretch">
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-              <FormControl>
-                <FormLabel>ชื่อบริษัท</FormLabel>
-                <Input defaultValue="บริษัท ShopFlow จำกัด" />
-              </FormControl>
+      <PermissionGuard permission="settings.edit">
+        <Card mb={6}>
+          <CardHeader>
+            <HStack>
+              <Icon as={FiSettings} boxSize={5} />
+              <Heading size="md">ข้อมูลบริษัทและการตั้งค่าทั่วไป</Heading>
+            </HStack>
+          </CardHeader>
+          <CardBody>
+            <VStack spacing={6} align="stretch">
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                <FormControl>
+                  <FormLabel>ชื่อบริษัท</FormLabel>
+                  <Input defaultValue="บริษัท ShopFlow จำกัด" />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>เลขประจำตัวผู้เสียภาษี</FormLabel>
+                  <Input defaultValue="0-1234-56789-01-2" />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>อีเมลติดต่อหลัก</FormLabel>
+                  <Input defaultValue="contact@shopflow.com" type="email" />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>เบอร์โทรศัพท์</FormLabel>
+                  <Input defaultValue="02-123-4567" />
+                </FormControl>
+              </SimpleGrid>
 
               <FormControl>
-                <FormLabel>เลขประจำตัวผู้เสียภาษี</FormLabel>
-                <Input defaultValue="0-1234-56789-01-2" />
+                <FormLabel>ที่อยู่บริษัท</FormLabel>
+                <Textarea
+                  defaultValue="123 ถนนสุขุมวิท แขวงคลองตัน เขตคลองตัน กรุงเทพฯ 10110"
+                  rows={3}
+                />
               </FormControl>
 
-              <FormControl>
-                <FormLabel>อีเมลติดต่อหลัก</FormLabel>
-                <Input defaultValue="contact@shopflow.com" type="email" />
-              </FormControl>
+              <Divider />
 
-              <FormControl>
-                <FormLabel>เบอร์โทรศัพท์</FormLabel>
-                <Input defaultValue="02-123-4567" />
-              </FormControl>
-            </SimpleGrid>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                <FormControl>
+                  <FormLabel>สกุลเงิน</FormLabel>
+                  <Select defaultValue="THB">
+                    <option value="THB">บาท (THB)</option>
+                    <option value="USD">ดอลลาร์ (USD)</option>
+                    <option value="EUR">ยูโร (EUR)</option>
+                  </Select>
+                </FormControl>
 
-            <FormControl>
-              <FormLabel>ที่อยู่บริษัท</FormLabel>
-              <Textarea
-                defaultValue="123 ถนนสุขุมวิท แขวงคลองตัน เขตคลองตัน กรุงเทพฯ 10110"
-                rows={3}
-              />
-            </FormControl>
+                <FormControl>
+                  <FormLabel>เขตเวลา</FormLabel>
+                  <Select defaultValue="Asia/Bangkok">
+                    <option value="Asia/Bangkok">GMT+7 (Asia/Bangkok)</option>
+                    <option value="UTC">GMT+0 (UTC)</option>
+                  </Select>
+                </FormControl>
 
-            <Divider />
+                <FormControl>
+                  <FormLabel>รูปแบบวันที่</FormLabel>
+                  <Select defaultValue="DD/MM/YYYY">
+                    <option value="DD/MM/YYYY">วัน/เดือน/ปี</option>
+                    <option value="MM/DD/YYYY">เดือน/วัน/ปี</option>
+                    <option value="YYYY-MM-DD">ปี-เดือน-วัน</option>
+                  </Select>
+                </FormControl>
 
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-              <FormControl>
-                <FormLabel>สกุลเงิน</FormLabel>
-                <Select defaultValue="THB">
-                  <option value="THB">บาท (THB)</option>
-                  <option value="USD">ดอลลาร์ (USD)</option>
-                  <option value="EUR">ยูโร (EUR)</option>
-                </Select>
-              </FormControl>
+                <FormControl>
+                  <FormLabel>ภาษาหลัก</FormLabel>
+                  <Select defaultValue="th">
+                    <option value="th">ไทย</option>
+                    <option value="en">English</option>
+                  </Select>
+                </FormControl>
+              </SimpleGrid>
 
-              <FormControl>
-                <FormLabel>เขตเวลา</FormLabel>
-                <Select defaultValue="Asia/Bangkok">
-                  <option value="Asia/Bangkok">GMT+7 (Asia/Bangkok)</option>
-                  <option value="UTC">GMT+0 (UTC)</option>
-                </Select>
-              </FormControl>
+              <Divider />
 
-              <FormControl>
-                <FormLabel>รูปแบบวันที่</FormLabel>
-                <Select defaultValue="DD/MM/YYYY">
-                  <option value="DD/MM/YYYY">วัน/เดือน/ปี</option>
-                  <option value="MM/DD/YYYY">เดือน/วัน/ปี</option>
-                  <option value="YYYY-MM-DD">ปี-เดือน-วัน</option>
-                </Select>
-              </FormControl>
+              <VStack spacing={4} align="stretch">
+                <Text fontWeight="semibold">การตั้งค่าระบบ</Text>
 
-              <FormControl>
-                <FormLabel>ภาษาหลัก</FormLabel>
-                <Select defaultValue="th">
-                  <option value="th">ไทย</option>
-                  <option value="en">English</option>
-                </Select>
-              </FormControl>
-            </SimpleGrid>
+                <HStack justify="space-between">
+                  <VStack align="start" spacing={1}>
+                    <Text>โหมดการพัฒนา (Development Mode)</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      เปิดใช้งานสำหรับการทดสอบระบบ
+                    </Text>
+                  </VStack>
+                  <Switch colorScheme="orange" />
+                </HStack>
 
-            <Divider />
+                <HStack justify="space-between">
+                  <VStack align="start" spacing={1}>
+                    <Text>การบันทึก Log อัตโนมัติ</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      บันทึกการทำงานของระบบสำหรับการวิเคราะห์
+                    </Text>
+                  </VStack>
+                  <Switch defaultChecked colorScheme="blue" />
+                </HStack>
 
-            <VStack spacing={4} align="stretch">
-              <Text fontWeight="semibold">การตั้งค่าระบบ</Text>
+                <HStack justify="space-between">
+                  <VStack align="start" spacing={1}>
+                    <Text>การสำรองข้อมูลอัตโนมัติ</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      สำรองข้อมูลทุกวันในเวลา 02:00 น.
+                    </Text>
+                  </VStack>
+                  <Switch defaultChecked colorScheme="green" />
+                </HStack>
 
-              <HStack justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Text>โหมดการพัฒนา (Development Mode)</Text>
-                  <Text fontSize="sm" color="gray.600">
-                    เปิดใช้งานสำหรับการทดสอบระบบ
-                  </Text>
-                </VStack>
-                <Switch colorScheme="orange" />
-              </HStack>
-
-              <HStack justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Text>การบันทึก Log อัตโนมัติ</Text>
-                  <Text fontSize="sm" color="gray.600">
-                    บันทึกการทำงานของระบบสำหรับการวิเคราะห์
-                  </Text>
-                </VStack>
-                <Switch defaultChecked colorScheme="blue" />
-              </HStack>
-
-              <HStack justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Text>การสำรองข้อมูลอัตโนมัติ</Text>
-                  <Text fontSize="sm" color="gray.600">
-                    สำรองข้อมูลทุกวันในเวลา 02:00 น.
-                  </Text>
-                </VStack>
-                <Switch defaultChecked colorScheme="green" />
-              </HStack>
-
-              <HStack justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Text>การแจ้งเตือนผ่าน Email</Text>
-                  <Text fontSize="sm" color="gray.600">
-                    ส่งการแจ้งเตือนสำคัญผ่านอีเมล
-                  </Text>
-                </VStack>
-                <Switch defaultChecked colorScheme="purple" />
-              </HStack>
+                <HStack justify="space-between">
+                  <VStack align="start" spacing={1}>
+                    <Text>การแจ้งเตือนผ่าน Email</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      ส่งการแจ้งเตือนสำคัญผ่านอีเมล
+                    </Text>
+                  </VStack>
+                  <Switch defaultChecked colorScheme="purple" />
+                </HStack>
+              </VStack>
             </VStack>
-          </VStack>
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
+      </PermissionGuard>
 
       {/* System Status */}
       <Card mb={6}>

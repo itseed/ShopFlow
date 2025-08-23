@@ -55,6 +55,13 @@ import {
   FiStar,
 } from "react-icons/fi";
 import { useAuth } from "../lib/auth";
+import {
+  useCurrentUser,
+  useCurrentBranch,
+  useBranchAccess,
+  useHasPermission,
+} from "../lib/hooks/useAuthEnhanced";
+import { RealtimeStatus } from "./realtime/RealtimeStatus";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -147,6 +154,10 @@ export default function Layout({
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { userProfile, signOut } = useAuth();
+  const { data: currentUser } = useCurrentUser();
+  const { data: branchAccess } = useBranchAccess();
+  const currentBranch = useCurrentBranch();
+  const hasPermission = useHasPermission();
   const [expandedMenus, setExpandedMenus] = useState<{
     [key: string]: boolean;
   }>({});
@@ -582,6 +593,13 @@ export default function Layout({
               })}
             </Text>
 
+            {/* Real-time Status */}
+            <RealtimeStatus
+              branchId={currentBranch?.id}
+              showNotifications={true}
+              showLowStockAlerts={true}
+            />
+
             {/* User Menu */}
             <Menu>
               <MenuButton>
@@ -595,9 +613,15 @@ export default function Layout({
                 >
                   <Avatar
                     size="sm"
-                    name={userProfile?.display_name || "User"}
+                    name={
+                      currentUser?.display_name ||
+                      userProfile?.display_name ||
+                      "User"
+                    }
                     src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      userProfile?.display_name || "User"
+                      currentUser?.display_name ||
+                        userProfile?.display_name ||
+                        "User"
                     )}&background=3182CE&color=fff&size=32`}
                   />
                   <VStack
@@ -611,27 +635,45 @@ export default function Layout({
                       color="gray.900"
                       lineHeight="short"
                     >
-                      {userProfile?.display_name || "ผู้ใช้"}
+                      {currentUser?.display_name ||
+                        userProfile?.display_name ||
+                        "ผู้ใช้"}
                     </Text>
                     <HStack spacing={1}>
                       <Badge
                         size="xs"
                         colorScheme={
-                          userProfile?.role === "admin" ? "purple" : "blue"
+                          (currentUser?.role || userProfile?.role) === "admin"
+                            ? "purple"
+                            : "blue"
                         }
                         variant="subtle"
                       >
-                        {userProfile?.role === "admin"
+                        {(currentUser?.role || userProfile?.role) === "admin"
                           ? "ผู้ดูแลระบบ"
-                          : userProfile?.role === "staff"
+                          : (currentUser?.role || userProfile?.role) === "staff"
                           ? "พนักงาน"
                           : "ผู้ใช้"}
                       </Badge>
-                      {userProfile?.branch && (
-                        <Text fontSize="xs" color="gray.500">
-                          {userProfile.branch.name}
-                        </Text>
+                      {(currentBranch ||
+                        currentUser?.branch ||
+                        userProfile?.branch) && (
+                        <Badge size="xs" colorScheme="green" variant="outline">
+                          {currentBranch?.name ||
+                            currentUser?.branch?.name ||
+                            userProfile?.branch?.name}
+                        </Badge>
                       )}
+                      {branchAccess?.isAdmin &&
+                        branchAccess?.accessible?.length > 1 && (
+                          <Badge
+                            size="xs"
+                            colorScheme="orange"
+                            variant="outline"
+                          >
+                            {branchAccess.accessible.length} สาขา
+                          </Badge>
+                        )}
                     </HStack>
                   </VStack>
                   {/* Dropdown Icon */}

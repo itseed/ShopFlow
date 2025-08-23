@@ -50,8 +50,9 @@ export class ReportService {
   }): Promise<InventoryReportData[]> {
     try {
       let query = supabase
-        .from('products')
-        .select(`
+        .from("products")
+        .select(
+          `
           id,
           name,
           sku,
@@ -67,26 +68,29 @@ export class ReportService {
             stock,
             branch:branches(name)
           )
-        `)
-        .eq('status', 'active');
+        `
+        )
+        .eq("status", "active");
 
       // Apply filters
-      if (filters?.branch_id && filters.branch_id !== 'all') {
-        query = query.eq('product_branches.branch_id', filters.branch_id);
+      if (filters?.branch_id && filters.branch_id !== "all") {
+        query = query.eq("product_branches.branch_id", filters.branch_id);
       }
 
-      if (filters?.category_id && filters.category_id !== 'all') {
-        query = query.eq('category_id', filters.category_id);
+      if (filters?.category_id && filters.category_id !== "all") {
+        query = query.eq("category_id", filters.category_id);
       }
 
       if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`);
+        query = query.or(
+          `name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`
+        );
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.warn('Failed to fetch inventory data:', error);
+        console.warn("Failed to fetch inventory data:", error);
         // Return mock data as fallback
         return this.getMockInventoryData();
       }
@@ -103,9 +107,9 @@ export class ReportService {
         const max_stock_level = item.max_stock_level || 100;
         const price = item.price || 0;
         const cost = item.cost || 0;
-        
+
         let status: "critical" | "low" | "good" | "overstock" = "good";
-        
+
         if (current_stock === 0) {
           status = "critical";
         } else if (current_stock <= reorder_level * 0.5) {
@@ -125,16 +129,15 @@ export class ReportService {
           max_stock_level,
           value: current_stock * (cost || price * 0.7), // Estimate cost if not available
           status,
-          category_name: item.category?.name || 'ไม่ระบุ',
+          category_name: item.category?.name || "ไม่ระบุ",
           price,
           cost,
           branch_id: item.branch?.[0]?.branch_id,
-          branch_name: item.branch?.[0]?.branch?.name || 'ทุกสาขา',
+          branch_name: item.branch?.[0]?.branch?.name || "ทุกสาขา",
         };
       });
-
     } catch (error) {
-      console.warn('Error in getInventoryReport:', error);
+      console.warn("Error in getInventoryReport:", error);
       // Return mock data as fallback
       return this.getMockInventoryData();
     }
@@ -146,18 +149,23 @@ export class ReportService {
   static async getInventoryStats(branch_id?: string): Promise<InventoryStats> {
     try {
       const inventoryData = await this.getInventoryReport({ branch_id });
-      
+
       const stats: InventoryStats = {
         total_items: inventoryData.length,
         total_value: inventoryData.reduce((sum, item) => sum + item.value, 0),
-        low_stock_items: inventoryData.filter(item => item.status === 'low').length,
-        critical_stock_items: inventoryData.filter(item => item.status === 'critical').length,
-        out_of_stock_items: inventoryData.filter(item => item.current_stock === 0).length,
+        low_stock_items: inventoryData.filter((item) => item.status === "low")
+          .length,
+        critical_stock_items: inventoryData.filter(
+          (item) => item.status === "critical"
+        ).length,
+        out_of_stock_items: inventoryData.filter(
+          (item) => item.current_stock === 0
+        ).length,
       };
 
       return stats;
     } catch (error) {
-      console.warn('Error getting inventory stats:', error);
+      console.warn("Error getting inventory stats:", error);
       return {
         total_items: 156,
         total_value: 2340000,
@@ -175,19 +183,19 @@ export class ReportService {
     // For now, return mock data since stock movement tracking would require additional tables
     const mockData: StockMovement[] = [];
     const today = new Date();
-    
+
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      
+
       mockData.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toISOString().split("T")[0],
         inbound: Math.floor(Math.random() * 100) + 50,
         outbound: Math.floor(Math.random() * 80) + 30,
         net: Math.floor(Math.random() * 40) - 20,
       });
     }
-    
+
     return mockData;
   }
 
@@ -197,20 +205,32 @@ export class ReportService {
   static async getCategoryData(): Promise<CategoryData[]> {
     try {
       const { data, error } = await supabase
-        .from('categories')
-        .select(`
+        .from("categories")
+        .select(
+          `
           id,
           name,
           products:products(count)
-        `)
-        .eq('is_active', true);
+        `
+        )
+        .eq("is_active", true);
 
       if (error || !data) {
         return this.getMockCategoryData();
       }
 
-      const total = data.reduce((sum, cat: any) => sum + (cat.products?.[0]?.count || 0), 0);
-      const colors = ['#3182CE', '#38A169', '#D69E2E', '#E53E3E', '#805AD5', '#DD6B20'];
+      const total = data.reduce(
+        (sum, cat: any) => sum + (cat.products?.[0]?.count || 0),
+        0
+      );
+      const colors = [
+        "#3182CE",
+        "#38A169",
+        "#D69E2E",
+        "#E53E3E",
+        "#805AD5",
+        "#DD6B20",
+      ];
 
       return data.map((category: any, index: number) => {
         const count = category.products?.[0]?.count || 0;
@@ -221,9 +241,8 @@ export class ReportService {
           color: colors[index % colors.length],
         };
       });
-
     } catch (error) {
-      console.warn('Error getting category data:', error);
+      console.warn("Error getting category data:", error);
       return this.getMockCategoryData();
     }
   }
@@ -248,7 +267,7 @@ export class ReportService {
       },
       {
         id: "2",
-        name: "น้ำเปล่า 600ml", 
+        name: "น้ำเปล่า 600ml",
         sku: "WATER001",
         current_stock: 89,
         reorder_level: 30,

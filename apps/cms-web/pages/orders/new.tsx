@@ -688,9 +688,11 @@ function OrdersPage() {
                     </Td>
                     <Td>
                       <Text fontSize="sm">
-                        {new Date(order.created_at!).toLocaleDateString(
-                          "th-TH"
-                        )}
+                        {order.created_at
+                          ? new Date(order.created_at).toLocaleDateString(
+                              "th-TH"
+                            )
+                          : "-"}
                       </Text>
                     </Td>
                     <Td>

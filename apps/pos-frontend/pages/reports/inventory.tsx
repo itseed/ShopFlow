@@ -125,24 +125,91 @@ const mockInventoryData = {
     { date: "2024-01-20", in: 1650, out: 1200, adjustment: 25, net: 475 },
   ],
   criticalItems: [
-    { id: "1", name: "น้ำดื่ม", sku: "DRINK001", currentStock: 2, minStock: 50, maxStock: 500, status: "critical", lastRestock: "2024-01-20" },
-    { id: "2", name: "กาแฟเย็น", sku: "DRINK002", currentStock: 8, minStock: 30, maxStock: 200, status: "critical", lastRestock: "2024-01-22" },
-    { id: "3", name: "ขนมปัง", sku: "FOOD001", currentStock: 0, minStock: 25, maxStock: 150, status: "out", lastRestock: "2024-01-19" },
-    { id: "4", name: "นม", sku: "DRINK003", currentStock: 5, minStock: 20, maxStock: 100, status: "critical", lastRestock: "2024-01-21" },
-    { id: "5", name: "แซนด์วิช", sku: "FOOD002", currentStock: 3, minStock: 15, maxStock: 80, status: "critical", lastRestock: "2024-01-23" },
+    {
+      id: "1",
+      name: "น้ำดื่ม",
+      sku: "DRINK001",
+      currentStock: 2,
+      minStock: 50,
+      maxStock: 500,
+      status: "critical",
+      lastRestock: "2024-01-20",
+    },
+    {
+      id: "2",
+      name: "กาแฟเย็น",
+      sku: "DRINK002",
+      currentStock: 8,
+      minStock: 30,
+      maxStock: 200,
+      status: "critical",
+      lastRestock: "2024-01-22",
+    },
+    {
+      id: "3",
+      name: "ขนมปัง",
+      sku: "FOOD001",
+      currentStock: 0,
+      minStock: 25,
+      maxStock: 150,
+      status: "out",
+      lastRestock: "2024-01-19",
+    },
+    {
+      id: "4",
+      name: "นม",
+      sku: "DRINK003",
+      currentStock: 5,
+      minStock: 20,
+      maxStock: 100,
+      status: "critical",
+      lastRestock: "2024-01-21",
+    },
+    {
+      id: "5",
+      name: "แซนด์วิช",
+      sku: "FOOD002",
+      currentStock: 3,
+      minStock: 15,
+      maxStock: 80,
+      status: "critical",
+      lastRestock: "2024-01-23",
+    },
   ],
   topMovingItems: [
-    { name: "กาแฟเย็น", sold: 324, restocked: 500, turnover: 12.5, trend: "up" },
+    {
+      name: "กาแฟเย็น",
+      sold: 324,
+      restocked: 500,
+      turnover: 12.5,
+      trend: "up",
+    },
     { name: "น้ำส้ม", sold: 289, restocked: 400, turnover: 10.8, trend: "up" },
     { name: "ขนมปัง", sold: 256, restocked: 350, turnover: 9.2, trend: "down" },
     { name: "แซนด์วิช", sold: 198, restocked: 250, turnover: 8.9, trend: "up" },
-    { name: "ชาเขียว", sold: 167, restocked: 200, turnover: 7.5, trend: "stable" },
+    {
+      name: "ชาเขียว",
+      sold: 167,
+      restocked: 200,
+      turnover: 7.5,
+      trend: "stable",
+    },
   ],
   warehouseZones: [
-    { zone: "เขต A - เครื่องดื่ม", utilization: 85, capacity: 2000, current: 1700 },
+    {
+      zone: "เขต A - เครื่องดื่ม",
+      utilization: 85,
+      capacity: 2000,
+      current: 1700,
+    },
     { zone: "เขต B - อาหารสด", utilization: 72, capacity: 1500, current: 1080 },
     { zone: "เขต C - ขนม", utilization: 68, capacity: 1200, current: 816 },
-    { zone: "เขต D - เครื่องใช้", utilization: 45, capacity: 800, current: 360 },
+    {
+      zone: "เขต D - เครื่องใช้",
+      utilization: 45,
+      capacity: 800,
+      current: 360,
+    },
   ],
 };
 
@@ -158,22 +225,22 @@ const InventoryReportPage: React.FC = () => {
     "linear-gradient(135deg, #2d3748 0%, #1a202c 100%)"
   );
 
-  const { 
-    overview, 
-    stockLevels, 
-    categoryBreakdown, 
-    movementHistory, 
-    criticalItems, 
+  const {
+    overview,
+    stockLevels,
+    categoryBreakdown,
+    movementHistory,
+    criticalItems,
     topMovingItems,
-    warehouseZones 
+    warehouseZones,
   } = mockInventoryData;
 
   // Chart data
   const stockLevelChart = {
-    labels: stockLevels.map(s => s.level),
+    labels: stockLevels.map((s) => s.level),
     datasets: [
       {
-        data: stockLevels.map(s => s.count),
+        data: stockLevels.map((s) => s.count),
         backgroundColor: [
           "rgba(34, 197, 94, 0.8)",
           "rgba(251, 146, 60, 0.8)",
@@ -186,11 +253,11 @@ const InventoryReportPage: React.FC = () => {
   };
 
   const categoryValueChart = {
-    labels: categoryBreakdown.map(c => c.category),
+    labels: categoryBreakdown.map((c) => c.category),
     datasets: [
       {
         label: "มูลค่าสต็อก",
-        data: categoryBreakdown.map(c => c.value),
+        data: categoryBreakdown.map((c) => c.value),
         backgroundColor: [
           "rgba(102, 126, 234, 0.8)",
           "rgba(255, 99, 132, 0.8)",
@@ -205,11 +272,16 @@ const InventoryReportPage: React.FC = () => {
   };
 
   const movementChart = {
-    labels: movementHistory.map(m => new Date(m.date).toLocaleDateString("th-TH", { day: "numeric", month: "short" })),
+    labels: movementHistory.map((m) =>
+      new Date(m.date).toLocaleDateString("th-TH", {
+        day: "numeric",
+        month: "short",
+      })
+    ),
     datasets: [
       {
         label: "สินค้าเข้า",
-        data: movementHistory.map(m => m.in),
+        data: movementHistory.map((m) => m.in),
         borderColor: "rgb(34, 197, 94)",
         backgroundColor: "rgba(34, 197, 94, 0.1)",
         borderWidth: 3,
@@ -217,7 +289,7 @@ const InventoryReportPage: React.FC = () => {
       },
       {
         label: "สินค้าออก",
-        data: movementHistory.map(m => m.out),
+        data: movementHistory.map((m) => m.out),
         borderColor: "rgb(239, 68, 68)",
         backgroundColor: "rgba(239, 68, 68, 0.1)",
         borderWidth: 3,
@@ -230,18 +302,18 @@ const InventoryReportPage: React.FC = () => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: true, position: 'top' as const },
+      legend: { display: true, position: "top" as const },
       title: { display: false },
     },
     scales: {
-      x: { 
+      x: {
         grid: { display: false },
-        ticks: { color: "#666" }
+        ticks: { color: "#666" },
       },
-      y: { 
-        beginAtZero: true, 
+      y: {
+        beginAtZero: true,
         grid: { color: "#e2e8f0" },
-        ticks: { color: "#666" }
+        ticks: { color: "#666" },
       },
     },
   };
@@ -251,7 +323,7 @@ const InventoryReportPage: React.FC = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'right' as const,
+        position: "right" as const,
         labels: {
           usePointStyle: true,
           padding: 20,
@@ -262,35 +334,49 @@ const InventoryReportPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "critical": return "red";
-      case "low": return "orange";
-      case "out": return "gray";
-      default: return "green";
+      case "critical":
+        return "red";
+      case "low":
+        return "orange";
+      case "out":
+        return "gray";
+      default:
+        return "green";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "critical": return "วิกฤต";
-      case "low": return "ต่ำ";
-      case "out": return "หมด";
-      default: return "ปกติ";
+      case "critical":
+        return "วิกฤต";
+      case "low":
+        return "ต่ำ";
+      case "out":
+        return "หมด";
+      default:
+        return "ปกติ";
     }
   };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case "up": return IoTrendingUp;
-      case "down": return IoTrendingDown;
-      default: return IoStatsChart;
+      case "up":
+        return IoTrendingUp;
+      case "down":
+        return IoTrendingDown;
+      default:
+        return IoStatsChart;
     }
   };
 
   const getTrendColor = (trend: string) => {
     switch (trend) {
-      case "up": return "green";
-      case "down": return "red";
-      default: return "gray";
+      case "up":
+        return "green";
+      case "down":
+        return "red";
+      default:
+        return "gray";
     }
   };
 
@@ -374,11 +460,21 @@ const InventoryReportPage: React.FC = () => {
                 _focus={{ bg: "rgba(255,255,255,0.3)" }}
                 w="150px"
               >
-                <option value="today" style={{ color: "black" }}>วันนี้</option>
-                <option value="week" style={{ color: "black" }}>สัปดาห์นี้</option>
-                <option value="month" style={{ color: "black" }}>เดือนนี้</option>
-                <option value="quarter" style={{ color: "black" }}>ไตรมาส</option>
-                <option value="year" style={{ color: "black" }}>ปีนี้</option>
+                <option value="today" style={{ color: "black" }}>
+                  วันนี้
+                </option>
+                <option value="week" style={{ color: "black" }}>
+                  สัปดาห์นี้
+                </option>
+                <option value="month" style={{ color: "black" }}>
+                  เดือนนี้
+                </option>
+                <option value="quarter" style={{ color: "black" }}>
+                  ไตรมาส
+                </option>
+                <option value="year" style={{ color: "black" }}>
+                  ปีนี้
+                </option>
               </Select>
               <Button
                 leftIcon={<Icon as={IoDownload} />}
@@ -403,9 +499,7 @@ const InventoryReportPage: React.FC = () => {
               <StatNumber fontSize="3xl">
                 {overview.totalProducts.toLocaleString()}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                รายการ
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">รายการ</StatHelpText>
             </Stat>
 
             <Stat>
@@ -413,9 +507,7 @@ const InventoryReportPage: React.FC = () => {
               <StatNumber fontSize="3xl">
                 {formatCurrency(overview.totalValue)}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                บาท
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">บาท</StatHelpText>
             </Stat>
 
             <Stat>
@@ -434,9 +526,7 @@ const InventoryReportPage: React.FC = () => {
               <StatNumber fontSize="3xl" color="orange.200">
                 {overview.reorderRequired}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                รายการ
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">รายการ</StatHelpText>
             </Stat>
           </SimpleGrid>
         </Box>
@@ -448,7 +538,8 @@ const InventoryReportPage: React.FC = () => {
             <Box flex="1">
               <AlertTitle>สินค้าต้องการความสนใจ!</AlertTitle>
               <AlertDescription>
-                มีสินค้าหมดสต็อก {overview.outOfStockItems} รายการ และสต็อกวิกฤต {overview.criticalItems} รายการ
+                มีสินค้าหมดสต็อก {overview.outOfStockItems} รายการ และสต็อกวิกฤต{" "}
+                {overview.criticalItems} รายการ
               </AlertDescription>
             </Box>
             <Button colorScheme="red" size="sm">
@@ -487,18 +578,25 @@ const InventoryReportPage: React.FC = () => {
               <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">ระดับสต็อกสินค้า</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      ระดับสต็อกสินค้า
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <Box height="300px">
-                      <Doughnut data={stockLevelChart} options={doughnutOptions} />
+                      <Doughnut
+                        data={stockLevelChart}
+                        options={doughnutOptions}
+                      />
                     </Box>
                   </CardBody>
                 </Card>
 
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">มูลค่าตามหมวดหมู่</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      มูลค่าตามหมวดหมู่
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <Box height="300px">
@@ -514,18 +612,35 @@ const InventoryReportPage: React.FC = () => {
               <VStack spacing={6} align="stretch">
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
                   {stockLevels.map((level, index) => (
-                    <Card key={index} bg={cardBg} borderWidth="1px" borderColor={borderColor}>
+                    <Card
+                      key={index}
+                      bg={cardBg}
+                      borderWidth="1px"
+                      borderColor={borderColor}
+                    >
                       <CardBody textAlign="center">
                         <VStack spacing={3}>
                           <Icon
-                            as={level.level === "หมดสต็อก" ? IoAlertCircle : 
-                                level.level === "สต็อกวิกฤต" ? IoWarning :
-                                level.level === "สต็อกต่ำ" ? IoWarning : IoCheckmarkCircle}
+                            as={
+                              level.level === "หมดสต็อก"
+                                ? IoAlertCircle
+                                : level.level === "สต็อกวิกฤต"
+                                ? IoWarning
+                                : level.level === "สต็อกต่ำ"
+                                ? IoWarning
+                                : IoCheckmarkCircle
+                            }
                             color={`${level.color}.500`}
                             boxSize={8}
                           />
-                          <Text fontSize="sm" color="gray.500">{level.level}</Text>
-                          <Text fontSize="3xl" fontWeight="bold" color={`${level.color}.600`}>
+                          <Text fontSize="sm" color="gray.500">
+                            {level.level}
+                          </Text>
+                          <Text
+                            fontSize="3xl"
+                            fontWeight="bold"
+                            color={`${level.color}.600`}
+                          >
                             {level.count}
                           </Text>
                           <Text fontSize="sm" color="gray.500">
@@ -539,11 +654,16 @@ const InventoryReportPage: React.FC = () => {
 
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">การกระจายระดับสต็อก</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      การกระจายระดับสต็อก
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <Box height="300px">
-                      <Doughnut data={stockLevelChart} options={doughnutOptions} />
+                      <Doughnut
+                        data={stockLevelChart}
+                        options={doughnutOptions}
+                      />
                     </Box>
                   </CardBody>
                 </Card>
@@ -555,7 +675,9 @@ const InventoryReportPage: React.FC = () => {
               <VStack spacing={6} align="stretch">
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">การเคลื่อนไหวสินค้า</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      การเคลื่อนไหวสินค้า
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <Box height="400px">
@@ -566,7 +688,9 @@ const InventoryReportPage: React.FC = () => {
 
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">ประวัติการเคลื่อนไหว</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      ประวัติการเคลื่อนไหว
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <TableContainer>
@@ -584,23 +708,44 @@ const InventoryReportPage: React.FC = () => {
                           {movementHistory.map((day, index) => (
                             <Tr key={index}>
                               <Td>
-                                {new Date(day.date).toLocaleDateString("th-TH", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
+                                {new Date(day.date).toLocaleDateString(
+                                  "th-TH",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )}
                               </Td>
-                              <Td isNumeric color="green.600" fontWeight="medium">
+                              <Td
+                                isNumeric
+                                color="green.600"
+                                fontWeight="medium"
+                              >
                                 +{day.in}
                               </Td>
                               <Td isNumeric color="red.600" fontWeight="medium">
                                 -{day.out}
                               </Td>
-                              <Td isNumeric color={day.adjustment >= 0 ? "blue.600" : "orange.600"} fontWeight="medium">
-                                {day.adjustment >= 0 ? "+" : ""}{day.adjustment}
+                              <Td
+                                isNumeric
+                                color={
+                                  day.adjustment >= 0
+                                    ? "blue.600"
+                                    : "orange.600"
+                                }
+                                fontWeight="medium"
+                              >
+                                {day.adjustment >= 0 ? "+" : ""}
+                                {day.adjustment}
                               </Td>
-                              <Td isNumeric fontWeight="bold" color={day.net >= 0 ? "green.600" : "red.600"}>
-                                {day.net >= 0 ? "+" : ""}{day.net}
+                              <Td
+                                isNumeric
+                                fontWeight="bold"
+                                color={day.net >= 0 ? "green.600" : "red.600"}
+                              >
+                                {day.net >= 0 ? "+" : ""}
+                                {day.net}
                               </Td>
                             </Tr>
                           ))}
@@ -617,7 +762,9 @@ const InventoryReportPage: React.FC = () => {
               <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                 <CardHeader>
                   <HStack justify="space-between">
-                    <Text fontSize="lg" fontWeight="bold">รายการสินค้าวิกฤต</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      รายการสินค้าวิกฤต
+                    </Text>
                     <InputGroup maxW="300px">
                       <InputLeftElement>
                         <Icon as={IoSearch} color="gray.400" />
@@ -650,21 +797,30 @@ const InventoryReportPage: React.FC = () => {
                             <Td fontWeight="medium">{item.name}</Td>
                             <Td>{item.sku}</Td>
                             <Td isNumeric>
-                              <Text 
-                                fontWeight="bold" 
-                                color={item.currentStock === 0 ? "red.600" : "orange.600"}
+                              <Text
+                                fontWeight="bold"
+                                color={
+                                  item.currentStock === 0
+                                    ? "red.600"
+                                    : "orange.600"
+                                }
                               >
                                 {item.currentStock}
                               </Text>
                             </Td>
                             <Td isNumeric>{item.minStock}</Td>
                             <Td>
-                              <Badge colorScheme={getStatusColor(item.status)} variant="solid">
+                              <Badge
+                                colorScheme={getStatusColor(item.status)}
+                                variant="solid"
+                              >
                                 {getStatusText(item.status)}
                               </Badge>
                             </Td>
                             <Td>
-                              {new Date(item.lastRestock).toLocaleDateString("th-TH")}
+                              {new Date(item.lastRestock).toLocaleDateString(
+                                "th-TH"
+                              )}
                             </Td>
                             <Td>
                               <Button size="sm" colorScheme="red">
@@ -676,15 +832,18 @@ const InventoryReportPage: React.FC = () => {
                       </Tbody>
                     </Table>
                   </TableContainer>
-                </Card>
-              </TabPanel>
+                </CardBody>
+              </Card>
+            </TabPanel>
 
             {/* Categories Tab */}
             <TabPanel>
               <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">มูลค่าตามหมวดหมู่</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      มูลค่าตามหมวดหมู่
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <Box height="300px">
@@ -695,12 +854,20 @@ const InventoryReportPage: React.FC = () => {
 
                 <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                   <CardHeader>
-                    <Text fontSize="lg" fontWeight="bold">รายละเอียดหมวดหมู่</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      รายละเอียดหมวดหมู่
+                    </Text>
                   </CardHeader>
                   <CardBody>
                     <VStack spacing={4} align="stretch">
                       {categoryBreakdown.map((category, index) => (
-                        <HStack key={index} justify="space-between" p={3} bg="gray.50" borderRadius="md">
+                        <HStack
+                          key={index}
+                          justify="space-between"
+                          p={3}
+                          bg="gray.50"
+                          borderRadius="md"
+                        >
                           <VStack align="start" spacing={1}>
                             <Text fontWeight="medium">{category.category}</Text>
                             <Text fontSize="sm" color="gray.500">
@@ -729,7 +896,9 @@ const InventoryReportPage: React.FC = () => {
             <TabPanel>
               <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                 <CardHeader>
-                  <Text fontSize="lg" fontWeight="bold">การใช้งานคลังสินค้า</Text>
+                  <Text fontSize="lg" fontWeight="bold">
+                    การใช้งานคลังสินค้า
+                  </Text>
                 </CardHeader>
                 <CardBody>
                   <VStack spacing={6} align="stretch">
@@ -743,7 +912,16 @@ const InventoryReportPage: React.FC = () => {
                             </Text>
                           </VStack>
                           <VStack align="end" spacing={0}>
-                            <Text fontWeight="bold" color={zone.utilization > 80 ? "red.600" : zone.utilization > 60 ? "orange.500" : "green.600"}>
+                            <Text
+                              fontWeight="bold"
+                              color={
+                                zone.utilization > 80
+                                  ? "red.600"
+                                  : zone.utilization > 60
+                                  ? "orange.500"
+                                  : "green.600"
+                              }
+                            >
                               {zone.utilization}%
                             </Text>
                             <Text fontSize="sm" color="gray.500">
@@ -753,7 +931,13 @@ const InventoryReportPage: React.FC = () => {
                         </HStack>
                         <Progress
                           value={zone.utilization}
-                          colorScheme={zone.utilization > 80 ? "red" : zone.utilization > 60 ? "orange" : "green"}
+                          colorScheme={
+                            zone.utilization > 80
+                              ? "red"
+                              : zone.utilization > 60
+                              ? "orange"
+                              : "green"
+                          }
                           size="lg"
                           borderRadius="full"
                         />

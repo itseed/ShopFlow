@@ -21,6 +21,7 @@ import {
   FiUsers,
   FiSettings,
 } from "react-icons/fi";
+import { POSRealtimeStatus } from "../realtime/POSRealtimeStatus";
 
 interface POSLayoutProps {
   children: React.ReactNode;
@@ -118,6 +119,10 @@ export const POSLayout = ({
               ))}
             </HStack>
             <Spacer />
+
+            {/* Real-time Status */}
+            <POSRealtimeStatus compact={true} />
+
             {/* Future: User menu, notifications, etc. */}
           </HStack>
         </Box>

@@ -125,7 +125,9 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const handleShareProduct = async (product: Product) => {
     const shareData = {
       title: product.name,
-      text: `${product.name}\nราคา: ${formatCurrency(product.price)}\nสต็อก: ${product.stock} ชิ้น\nSKU: ${product.sku || "N/A"}`,
+      text: `${product.name}\nราคา: ${formatCurrency(product.price)}\nสต็อก: ${
+        product.stock
+      } ชิ้น\nSKU: ${product.sku || "N/A"}`,
       url: window.location.href,
     };
 

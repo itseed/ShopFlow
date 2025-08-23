@@ -142,7 +142,12 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg" closeOnOverlayClick={false}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      closeOnOverlayClick={false}
+    >
       <ModalOverlay bg="blackAlpha.800" />
       <ModalContent>
         <ModalHeader>
@@ -348,7 +353,12 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
                     <List spacing={2} maxH="150px" overflowY="auto">
                       {scanHistory.slice(0, 10).map((barcode, index) => (
                         <ListItem key={`${barcode}-${index}`}>
-                          <HStack justify="space-between" p={2} bg="gray.50" borderRadius="md">
+                          <HStack
+                            justify="space-between"
+                            p={2}
+                            bg="gray.50"
+                            borderRadius="md"
+                          >
                             <HStack spacing={2}>
                               <Circle size="6px" bg="green.500" />
                               <Code fontSize="sm">{barcode}</Code>
@@ -389,7 +399,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
                 <Box>
                   <AlertTitle>ไม่รองรับการสแกนด้วยกล้อง</AlertTitle>
                   <AlertDescription fontSize="sm">
-                    อุปกรณ์ของคุณไม่รองรับการเข้าถึงกล้อง กรุณาใช้การป้อนรหัสด้วยตนเองหรือเครื่องสแกนบาร์โค้ดแทน
+                    อุปกรณ์ของคุณไม่รองรับการเข้าถึงกล้อง
+                    กรุณาใช้การป้อนรหัสด้วยตนเองหรือเครื่องสแกนบาร์โค้ดแทน
                   </AlertDescription>
                 </Box>
               </Alert>
@@ -405,9 +416,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
                   <Text color="blue.600">
                     • คลิก "เริ่มสแกน" เพื่อเปิดกล้อง
                   </Text>
-                  <Text color="blue.600">
-                    • วางบาร์โค้ดไว้ในกรอบสีแดง
-                  </Text>
+                  <Text color="blue.600">• วางบาร์โค้ดไว้ในกรอบสีแดง</Text>
                   <Text color="blue.600">
                     • หรือใช้เครื่องสแกนบาร์โค้ดที่เชื่อมต่อกับคอมพิวเตอร์
                   </Text>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { ReactElement, useState } from "react";
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
@@ -78,7 +78,7 @@ function InventoryReportPage() {
     isLoading,
     isError,
     error,
-    refetchAll
+    refetchAll,
   } = useInventoryReportComplete({
     branch_id: selectedBranch,
     category_id: selectedCategory,

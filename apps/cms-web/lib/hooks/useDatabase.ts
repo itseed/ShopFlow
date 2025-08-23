@@ -3,6 +3,7 @@ import { useToast } from "@chakra-ui/react";
 import {
   productService,
   categoryService,
+  orderService,
   type ProductFilters,
   type CreateProductData,
   type UpdateProductData,
@@ -17,6 +18,8 @@ export const QUERY_KEYS = {
   PRODUCT: "product",
   CATEGORIES: "categories",
   CATEGORY: "category",
+  ORDERS: "orders",
+  ORDER: "order",
   LOW_STOCK: "low-stock",
 } as const;
 
@@ -315,5 +318,20 @@ export function useDeleteCategory() {
         isClosable: true,
       });
     },
+  });
+}
+
+// Order Hooks
+export function useOrder(id: string) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.ORDER, id],
+    queryFn: async () => {
+      const response = await orderService.getById(id);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch order");
+      }
+      return response.data;
+    },
+    enabled: !!id,
   });
 }

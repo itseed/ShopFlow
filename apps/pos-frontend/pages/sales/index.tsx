@@ -118,9 +118,12 @@ import PaymentModal from "../../components/payment/PaymentModal";
 import ReceiptModal from "../../components/payment/ReceiptModal";
 import { formatCurrency, getProductCategories } from "../../lib/sales";
 import {
-  useSalesProducts,
-  useSearchSalesProducts,
-} from "../../lib/hooks/useSalesProducts";
+  usePOSProducts,
+  usePOSProductSearch,
+  usePOSBarcodeSearch,
+  usePOSCreateOrder,
+  createOrderFromCart,
+} from "../../lib/hooks/usePOSDatabase";
 import ProductGrid from "../../components/sales/ProductGrid";
 import ProductList from "../../components/sales/ProductList";
 import CartSummary from "../../components/sales/CartSummary";
@@ -149,21 +152,31 @@ const SalesTerminal = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [currentReceipt, setCurrentReceipt] = useState<any>(null);
 
-  // Use API hooks for products
-  const productsQuery = useSalesProducts(filters, {
-    limit: 100,
-    fallbackToMock: true,
+  // Use new database hooks for products
+  const {
+    data: allProducts = [],
+    isLoading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = usePOSProducts({
+    categoryId: selectedCategory || undefined,
+    inStock: true,
   });
 
-  const searchQuery = useSearchSalesProducts(searchTerm, {
-    limit: 50,
-    inStockOnly: true,
-    fallbackToMock: true,
-  });
+  const {
+    data: searchResults = [],
+    isLoading: searchLoading,
+    error: searchError,
+  } = usePOSProductSearch(searchTerm);
+
+  const createOrderMutation = usePOSCreateOrder();
 
   // Use search results if searching, otherwise use all products
-  const products =
-    searchTerm.length >= 2 ? searchQuery.data || [] : productsQuery.data || [];
+  const products = searchTerm.length >= 2 ? searchResults : allProducts;
+  const isLoadingProducts =
+    searchTerm.length >= 2 ? searchLoading : productsLoading;
+  const productsErrorMessage =
+    searchTerm.length >= 2 ? searchError?.message : productsError?.message;
 
   const toast = useToast();
 
@@ -386,50 +399,77 @@ const SalesTerminal = () => {
     onPaymentModalOpen();
   };
 
-  const handlePaymentComplete = (result: PaymentResult) => {
-    // Generate receipt from payment result - use any type to bypass strict type checking
-    const receipt: any = {
-      id: `receipt_${Date.now()}`,
-      transactionId: result.transactionId,
-      receiptNumber: `R${Date.now().toString().slice(-8)}`,
-      timestamp: result.timestamp,
-      items: cart.items,
-      subtotal: cart.subtotal,
-      discountAmount: cart.discountAmount,
-      taxAmount: cart.taxAmount,
-      total: cart.total,
-      paymentMethod: result.method,
-      paymentDetails: result,
-      cashier: {
-        name: "พนักงาน",
-        username: "cashier",
-      },
-      branch: {
-        name: "ShopFlow สาขาหลัก",
-        address: "123 ถนนสุขุมวิท กรุงเทพ 10110",
-        phone: "02-123-4567",
-        taxId: "0123456789012",
-      },
-      footer: "ขอบคุณที่ใช้บริการ",
-      isPrinted: false,
-      isEmailSent: false,
-      // Add dummy fields for type compatibility
-      order: {},
-      user: {},
-      printed_at: null,
-    };
+  const handlePaymentComplete = async (result: PaymentResult) => {
+    try {
+      // Create order data from cart
+      const orderData = createOrderFromCart(
+        cart.items || [],
+        result.method,
+        result.customer
+      );
 
-    setCurrentReceipt(receipt);
-    onPaymentModalClose();
-    onReceiptModalOpen();
-    clearCart();
-    toast({
-      title: "ชำระเงินสำเร็จ",
-      description: `ยอดรวม: ${formatCurrency(result.amount)}`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
+      // Save order to database
+      const savedOrder = await createOrderMutation.mutateAsync(orderData);
+
+      // Generate receipt from saved order
+      const receipt: any = {
+        id: `receipt_${Date.now()}`,
+        transactionId: result.transactionId,
+        receiptNumber:
+          savedOrder?.order_number || `R${Date.now().toString().slice(-8)}`,
+        timestamp: result.timestamp,
+        items: cart.items,
+        subtotal: cart.subtotal,
+        discountAmount: cart.discountAmount,
+        taxAmount: cart.taxAmount,
+        total: cart.total,
+        paymentMethod: result.method,
+        paymentDetails: result,
+        cashier: {
+          name: "พนักงาน",
+          username: "cashier",
+        },
+        branch: {
+          name: "ShopFlow สาขาหลัก",
+          address: "123 ถนนสุขุมวิท กรุงเทพ 10110",
+          phone: "02-123-4567",
+          taxId: "0123456789012",
+        },
+        footer: "ขอบคุณที่ใช้บริการ",
+        isPrinted: false,
+        isEmailSent: false,
+        order: savedOrder,
+        user: {},
+        printed_at: null,
+      };
+
+      setCurrentReceipt(receipt);
+      onPaymentModalClose();
+      onReceiptModalOpen();
+      clearCart();
+
+      // Refresh products to update stock
+      refetchProducts();
+
+      toast({
+        title: "ชำระเงินสำเร็จ",
+        description: `ยอดรวม: ${formatCurrency(result.amount)} - Order: ${
+          savedOrder?.order_number
+        }`,
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Order creation failed:", error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถบันทึกการขายได้ กรุณาลองใหม่อีกครั้ง",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleReceiptPrint = () => {
@@ -586,7 +626,47 @@ const SalesTerminal = () => {
 
           {/* Products Display */}
           <Box flex="1" overflow="auto">
-            {viewMode === "grid" ? (
+            {isLoadingProducts ? (
+              <Flex justify="center" align="center" minH="200px">
+                <VStack>
+                  <Progress
+                    size="lg"
+                    isIndeterminate
+                    colorScheme="blue"
+                    w="200px"
+                  />
+                  <Text color="gray.600">กำลังโหลดสินค้า...</Text>
+                </VStack>
+              </Flex>
+            ) : productsErrorMessage ? (
+              <Alert status="error" borderRadius="xl">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>เกิดข้อผิดพลาด!</AlertTitle>
+                  <AlertDescription>{productsErrorMessage}</AlertDescription>
+                </Box>
+                <Button
+                  ml="auto"
+                  size="sm"
+                  onClick={refetchProducts}
+                  leftIcon={<IoRefresh />}
+                >
+                  ลองใหม่
+                </Button>
+              </Alert>
+            ) : products.length === 0 ? (
+              <Alert status="info" borderRadius="xl">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>ไม่พบสินค้า</AlertTitle>
+                  <AlertDescription>
+                    {searchTerm.length >= 2
+                      ? `ไม่พบสินค้าที่ตรงกับ "${searchTerm}"`
+                      : "ไม่มีสินค้าในหมวดหมู่นี้"}
+                  </AlertDescription>
+                </Box>
+              </Alert>
+            ) : viewMode === "grid" ? (
               <VStack spacing={4}>
                 <ProductGrid
                   products={paginatedProducts}

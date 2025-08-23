@@ -54,7 +54,12 @@ export default function ImageUpload({
       const validFiles: File[] = [];
       const invalidFiles: string[] = [];
       const maxFileSize = 5 * 1024 * 1024; // 5MB
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
 
       files.forEach((file) => {
         if (!allowedTypes.includes(file.type)) {
@@ -70,7 +75,7 @@ export default function ImageUpload({
       if (invalidFiles.length > 0) {
         toast({
           title: "ไฟล์ไม่ถูกต้อง",
-          description: invalidFiles.join(', '),
+          description: invalidFiles.join(", "),
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -116,7 +121,15 @@ export default function ImageUpload({
         });
       }
     },
-    [images, maxImages, disabled, uploadFiles, onImagesChange, resetProgress, toast]
+    [
+      images,
+      maxImages,
+      disabled,
+      uploadFiles,
+      onImagesChange,
+      resetProgress,
+      toast,
+    ]
   );
 
   const handleDragOver = useCallback(

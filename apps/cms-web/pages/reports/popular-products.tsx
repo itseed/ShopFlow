@@ -3,6 +3,10 @@ import { ReactElement } from "react";
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
 import {
+  usePopularProductsReport,
+  useExportReport,
+} from "../../lib/hooks/useCMSReports";
+import {
   Box,
   Heading,
   Text,
@@ -90,157 +94,145 @@ function PopularProductsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState(0);
 
-  // Mock data
-  const stats = [
+  // Calculate date range based on timeRange
+  const getDateRange = () => {
+    const endDate = new Date().toISOString();
+    const startDate = new Date();
+
+    switch (timeRange) {
+      case "1d":
+        startDate.setDate(startDate.getDate() - 1);
+        break;
+      case "7d":
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(startDate.getDate() - 90);
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 7);
+    }
+
+    return {
+      startDate: startDate.toISOString(),
+      endDate,
+    };
+  };
+
+  const { startDate, endDate } = getDateRange();
+
+  // Use real data hooks
+  const {
+    data: reportData,
+    isLoading,
+    error,
+    refetch,
+  } = usePopularProductsReport({
+    startDate,
+    endDate,
+    branchId: selectedBranch === "all" ? undefined : selectedBranch,
+    categoryId: selectedCategory === "all" ? undefined : selectedCategory,
+  });
+
+  const exportMutation = useExportReport();
+
+  // Extract data with fallbacks
+  const defaultStats = [
     {
       label: "ยอดขายรวม",
-      value: "2,456,789",
-      change: 15.7,
-      changeType: "increase",
-      icon: FiDollarSign,
+      value: "0",
+      change: 0,
+      changeType: "increase" as const,
       color: "blue",
+      icon: FiDollarSign,
     },
     {
       label: "จำนวนสินค้าที่ขาย",
-      value: "1,234",
-      change: 8.2,
-      changeType: "increase",
-      icon: FiPackage,
+      value: "0",
+      change: 0,
+      changeType: "increase" as const,
       color: "green",
+      icon: FiPackage,
     },
     {
-      label: "ลูกค้าที่ซื้อ",
-      value: "856",
-      change: 12.4,
-      changeType: "increase",
-      icon: FiUsers,
+      label: "สินค้าขายดี",
+      value: "0",
+      change: 0,
+      changeType: "increase" as const,
       color: "purple",
+      icon: FiTrendingUp,
     },
     {
-      label: "อัตราการซื้อซ้ำ",
-      value: "68.3%",
-      change: 5.1,
-      changeType: "increase",
-      icon: FiPercent,
+      label: "มูลค่าสต็อก",
+      value: "0",
+      change: 0,
+      changeType: "increase" as const,
       color: "orange",
+      icon: FiBarChart,
     },
   ];
 
-  const topProducts = [
-    {
-      id: 1,
-      name: "iPhone 15 Pro Max",
-      category: "สมาร์ทโฟน",
-      image: "/api/placeholder/60/60",
-      sales: 156,
-      revenue: 248000,
-      growth: 23.5,
-      rating: 4.8,
-      views: 2456,
-      likes: 189,
-      stock: 45,
-      trend: "up",
-    },
-    {
-      id: 2,
-      name: "Samsung Galaxy S24 Ultra",
-      category: "สมาร์ทโฟน",
-      image: "/api/placeholder/60/60",
-      sales: 134,
-      revenue: 201000,
-      growth: 18.7,
-      rating: 4.7,
-      views: 2234,
-      likes: 167,
-      stock: 38,
-      trend: "up",
-    },
-    {
-      id: 3,
-      name: 'MacBook Pro 14"',
-      category: "คอมพิวเตอร์",
-      image: "/api/placeholder/60/60",
-      sales: 89,
-      revenue: 178000,
-      growth: 15.2,
-      rating: 4.9,
-      views: 1876,
-      likes: 234,
-      stock: 23,
-      trend: "up",
-    },
-    {
-      id: 4,
-      name: "AirPods Pro",
-      category: "อุปกรณ์เสียง",
-      image: "/api/placeholder/60/60",
-      sales: 234,
-      revenue: 156000,
-      growth: 12.8,
-      rating: 4.6,
-      views: 3456,
-      likes: 298,
-      stock: 67,
-      trend: "up",
-    },
-    {
-      id: 5,
-      name: 'iPad Pro 11"',
-      category: "แท็บเล็ต",
-      image: "/api/placeholder/60/60",
-      sales: 78,
-      revenue: 134000,
-      growth: -5.3,
-      rating: 4.5,
-      views: 1654,
-      likes: 123,
-      stock: 34,
-      trend: "down",
-    },
-    {
-      id: 6,
-      name: "Apple Watch Series 9",
-      category: "สมาร์ทวอทช์",
-      image: "/api/placeholder/60/60",
-      sales: 198,
-      revenue: 118000,
-      growth: 28.4,
-      rating: 4.7,
-      views: 2789,
-      likes: 267,
-      stock: 56,
-      trend: "up",
-    },
-    {
-      id: 7,
-      name: "Sony WH-1000XM5",
-      category: "หูฟัง",
-      image: "/api/placeholder/60/60",
-      sales: 145,
-      revenue: 87000,
-      growth: 19.6,
-      rating: 4.8,
-      views: 1987,
-      likes: 178,
-      stock: 42,
-      trend: "up",
-    },
-    {
-      id: 8,
-      name: "Dell XPS 13",
-      category: "คอมพิวเตอร์",
-      image: "/api/placeholder/60/60",
-      sales: 67,
-      revenue: 134000,
-      growth: 8.7,
-      rating: 4.4,
-      views: 1456,
-      likes: 109,
-      stock: 29,
-      trend: "up",
-    },
-  ];
+  const stats = reportData?.stats
+    ? reportData.stats.map((stat, index) => ({
+        ...stat,
+        color: defaultStats[index]?.color || "blue",
+        icon: defaultStats[index]?.icon || FiBarChart,
+      }))
+    : defaultStats;
 
+  const topProducts = reportData?.products || [];
+
+  const handleExport = () => {
+    exportMutation.mutate({
+      reportType: "products",
+      filters: {
+        startDate,
+        endDate,
+        branchId: selectedBranch === "all" ? undefined : selectedBranch,
+        categoryId: selectedCategory === "all" ? undefined : selectedCategory,
+      },
+    });
+  };
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <Box>
+        <Flex justify="center" align="center" minH="400px">
+          <VStack>
+            <Progress size="lg" isIndeterminate colorScheme="blue" />
+            <Text color="gray.600">กำลังโหลดข้อมูลสินค้ายอดนิยม...</Text>
+          </VStack>
+        </Flex>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Flex justify="center" align="center" minH="400px">
+          <VStack>
+            <Text color="red.500" fontSize="lg">
+              เกิดข้อผิดพลาดในการโหลดข้อมูล
+            </Text>
+            <Text color="gray.600">{error.message}</Text>
+            <Button colorScheme="blue" onClick={handleRefresh}>
+              ลองใหม่
+            </Button>
+          </VStack>
+        </Flex>
+      </Box>
+    );
+  }
+
+  // Mock chart data (keeping since it's for visualization)
   const categoryData = [
     { name: "สมาร์ทโฟน", value: 35, color: "#3182CE" },
     { name: "คอมพิวเตอร์", value: 25, color: "#38A169" },
@@ -333,10 +325,18 @@ function PopularProductsPage() {
             colorScheme="gray"
             size="md"
             variant="outline"
+            onClick={handleExport}
+            isLoading={exportMutation.isPending}
           >
             ส่งออก
           </Button>
-          <Button leftIcon={<FiRefreshCw />} colorScheme="blue" size="md">
+          <Button
+            leftIcon={<FiRefreshCw />}
+            colorScheme="blue"
+            size="md"
+            onClick={handleRefresh}
+            isLoading={isLoading}
+          >
             รีเฟรช
           </Button>
         </HStack>

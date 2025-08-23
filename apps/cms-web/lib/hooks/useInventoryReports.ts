@@ -1,5 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { ReportService, InventoryReportData, InventoryStats, StockMovement, CategoryData } from "../services/reportService";
+import {
+  ReportService,
+  InventoryReportData,
+  InventoryStats,
+  StockMovement,
+  CategoryData,
+} from "../services/reportService";
 
 interface UseInventoryReportOptions {
   branch_id?: string;
@@ -14,7 +20,7 @@ interface UseInventoryReportOptions {
  */
 export function useInventoryReport(options: UseInventoryReportOptions = {}) {
   return useQuery({
-    queryKey: ['inventory-report', options],
+    queryKey: ["inventory-report", options],
     queryFn: () => ReportService.getInventoryReport(options),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -27,7 +33,7 @@ export function useInventoryReport(options: UseInventoryReportOptions = {}) {
  */
 export function useInventoryStats(branch_id?: string) {
   return useQuery({
-    queryKey: ['inventory-stats', branch_id],
+    queryKey: ["inventory-stats", branch_id],
     queryFn: () => ReportService.getInventoryStats(branch_id),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -39,7 +45,7 @@ export function useInventoryStats(branch_id?: string) {
  */
 export function useStockMovement(days = 7) {
   return useQuery({
-    queryKey: ['stock-movement', days],
+    queryKey: ["stock-movement", days],
     queryFn: () => ReportService.getStockMovement(days),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
@@ -51,7 +57,7 @@ export function useStockMovement(days = 7) {
  */
 export function useCategoryData() {
   return useQuery({
-    queryKey: ['category-data'],
+    queryKey: ["category-data"],
     queryFn: () => ReportService.getCategoryData(),
     staleTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
@@ -61,7 +67,9 @@ export function useCategoryData() {
 /**
  * Hook for fetching all inventory report data at once
  */
-export function useInventoryReportComplete(options: UseInventoryReportOptions = {}) {
+export function useInventoryReportComplete(
+  options: UseInventoryReportOptions = {}
+) {
   const inventoryQuery = useInventoryReport(options);
   const statsQuery = useInventoryStats(options.branch_id);
   const movementQuery = useStockMovement();
@@ -72,9 +80,21 @@ export function useInventoryReportComplete(options: UseInventoryReportOptions = 
     stats: statsQuery,
     movement: movementQuery,
     categories: categoryQuery,
-    isLoading: inventoryQuery.isLoading || statsQuery.isLoading || movementQuery.isLoading || categoryQuery.isLoading,
-    isError: inventoryQuery.isError || statsQuery.isError || movementQuery.isError || categoryQuery.isError,
-    error: inventoryQuery.error || statsQuery.error || movementQuery.error || categoryQuery.error,
+    isLoading:
+      inventoryQuery.isLoading ||
+      statsQuery.isLoading ||
+      movementQuery.isLoading ||
+      categoryQuery.isLoading,
+    isError:
+      inventoryQuery.isError ||
+      statsQuery.isError ||
+      movementQuery.isError ||
+      categoryQuery.isError,
+    error:
+      inventoryQuery.error ||
+      statsQuery.error ||
+      movementQuery.error ||
+      categoryQuery.error,
     refetchAll: () => {
       inventoryQuery.refetch();
       statsQuery.refetch();

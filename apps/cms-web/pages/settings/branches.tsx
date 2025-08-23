@@ -495,9 +495,11 @@ function BranchSettingsPage() {
                     </Td>
                     <Td>
                       <Text fontSize="sm">
-                        {new Date(branch.created_at!).toLocaleDateString(
-                          "th-TH"
-                        )}
+                        {branch.created_at
+                          ? new Date(branch.created_at).toLocaleDateString(
+                              "th-TH"
+                            )
+                          : "-"}
                       </Text>
                     </Td>
                     <Td>

@@ -1,0 +1,95 @@
+# Optimized Multi-App Dockerfile for ShopFlow Monorepo
+# Supports both CMS-Web and POS-Frontend with shared packages
+
+# --- Build Arguments ---
+ARG APP_NAME=pos-frontend
+ARG NODE_VERSION=18
+
+# --- Stage 1: Dependencies Installation ---
+FROM node:${NODE_VERSION}-alpine AS deps
+
+WORKDIR /app
+
+# Copy package management files
+COPY package*.json ./
+COPY yarn.lock* ./
+
+# Copy workspace configurations
+COPY tsconfig.base.json ./
+
+# Copy all package.json files for dependency resolution
+COPY packages/*/package.json ./packages/
+COPY apps/*/package.json ./apps/
+
+# Install dependencies for the entire monorepo
+RUN npm ci --only=production && npm cache clean --force
+
+# --- Stage 2: Build Stage ---
+FROM node:${NODE_VERSION}-alpine AS builder
+
+ARG APP_NAME
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package*.json ./
+
+# Copy shared packages (this is why monorepo structure is valuable)
+COPY packages/ ./packages/
+
+# Copy the specific app we're building
+COPY apps/${APP_NAME}/ ./apps/${APP_NAME}/
+
+# Copy workspace configuration
+COPY tsconfig.base.json ./
+
+# Build the packages first (if they need building)
+RUN npm run build --if-present --workspace=packages/api
+RUN npm run build --if-present --workspace=packages/types
+RUN npm run build --if-present --workspace=packages/ui
+RUN npm run build --if-present --workspace=packages/utils
+
+# Build the specific app
+WORKDIR /app/apps/${APP_NAME}
+RUN npm run build
+
+# --- Stage 3: Runtime ---
+FROM node:${NODE_VERSION}-alpine AS runner
+
+ARG APP_NAME
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 shopflow
+RUN adduser --system --uid 1001 shopflow
+
+# Copy built app and dependencies
+COPY --from=builder /app/apps/${APP_NAME}/.next ./apps/${APP_NAME}/.next
+COPY --from=builder /app/apps/${APP_NAME}/package.json ./apps/${APP_NAME}/
+COPY --from=builder /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
+
+# Copy built packages
+COPY --from=builder /app/packages/ ./packages/
+
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package*.json ./
+
+# Set environment
+ENV NODE_ENV production
+ENV APP_NAME=${APP_NAME}
+ENV PORT 3000
+
+# Change ownership to shopflow user
+RUN chown -R shopflow:shopflow /app
+USER shopflow
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Start the application
+CMD ["sh", "-c", "cd apps/${APP_NAME} && npm start"]

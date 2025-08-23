@@ -7,6 +7,7 @@ import { AuthProvider } from "../lib/auth";
 import ErrorBoundary from "../components/ErrorBoundary";
 import theme from "../lib/simple-theme";
 import "../styles/globals.css";
+import "../styles/realtime.css";
 
 export type NextPageWithLayout = NextPage & {
   getLayout?: (page: ReactElement) => ReactNode;

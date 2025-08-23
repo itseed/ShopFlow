@@ -70,9 +70,19 @@ ShopFlow/
 │       │   └── layout/             # Layout Components
 │       └── lib/                    # Utilities & Services
 ├── packages/
+│   ├── api/                        # 🔄 Shared API Services (77KB+)
+│   │   ├── services/               # Database services
+│   │   ├── types/                  # API type definitions
+│   │   └── utils/                  # API utilities
 │   ├── ui/                         # Shared UI Components
 │   ├── types/                      # TypeScript Definitions
 │   └── utils/                      # Shared Utilities
+├── docs-md/                        # 📚 Documentation
+├── migrate/                        # 🗄️ Database Migrations
+│   ├── database-migration.sql      # Complete schema setup
+│   ├── database_schema.sql         # Core schema
+│   └── *.sql                       # Migration scripts
+└── scripts/                        # 🛠️ Build scripts
 └── README.md
 ```
 
@@ -143,6 +153,28 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 ```
 
 ## 📦 Build & Deployment
+
+### 🐳 Docker Deployment (Recommended)
+
+ShopFlow provides optimized Docker support for both applications:
+
+```bash
+# Quick start - Build and run both apps with local Supabase
+./scripts/docker-build.sh
+# Select option 4 for full stack deployment
+
+# Production deployment
+docker-compose -f docker-compose.production.yml up -d
+
+# Build individual apps
+docker build -f Dockerfile.optimized --build-arg APP_NAME=cms-web -t shopflow-cms .
+docker build -f Dockerfile.optimized --build-arg APP_NAME=pos-frontend -t shopflow-pos .
+```
+
+**Access URLs:**
+- CMS Dashboard: http://localhost:3001
+- POS Terminal: http://localhost:3000
+- Database: localhost:5432
 
 ### Build for Production
 ```bash

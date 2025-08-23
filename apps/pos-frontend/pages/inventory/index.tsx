@@ -82,6 +82,11 @@ import {
   IoDocumentText,
 } from "react-icons/io5";
 import { POSLayout } from "../../components";
+import {
+  usePOSInventory,
+  usePOSLowStock,
+  usePOSUpdateStock,
+} from "../../lib/hooks/usePOSDatabase";
 
 interface InventoryItem {
   id: string;
@@ -171,24 +176,70 @@ const mockTransactions: StockTransaction[] = [
 ];
 
 const InventoryPage = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>(mockInventory);
-  const [transactions, setTransactions] = useState<StockTransaction[]>(mockTransactions);
+  // Use real data hooks
+  const {
+    data: inventoryData = [],
+    isLoading: inventoryLoading,
+    error: inventoryError,
+    refetch: refetchInventory,
+  } = usePOSInventory({
+    search,
+    status: filter === "all" ? undefined : filter,
+  });
+
+  const { data: lowStockData = [], isLoading: lowStockLoading } =
+    usePOSLowStock();
+
+  const updateStockMutation = usePOSUpdateStock();
+
+  // Convert inventory data to local format
+  const inventory: InventoryItem[] = inventoryData.map((item) => ({
+    id: item.productId,
+    name: item.productName,
+    category: item.category || "ไม่ระบุ",
+    currentStock: item.currentStock,
+    minStock: item.minStock,
+    maxStock: item.minStock * 10, // Estimate max stock
+    unit: "ชิ้น",
+    cost: item.stockValue / Math.max(item.currentStock, 1), // Estimate cost
+    price: (item.stockValue / Math.max(item.currentStock, 1)) * 1.5, // Estimate price
+    lastUpdated: new Date(item.lastRestocked || Date.now()),
+    status: item.stockStatus,
+  }));
+
   const [search, setSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [filter, setFilter] = useState("all");
-  
-  const { isOpen: isStockInOpen, onOpen: onStockInOpen, onClose: onStockInClose } = useDisclosure();
-  const { isOpen: isStockOutOpen, onOpen: onStockOutOpen, onClose: onStockOutClose } = useDisclosure();
-  const { isOpen: isAdjustmentOpen, onOpen: onAdjustmentOpen, onClose: onAdjustmentClose } = useDisclosure();
-  const { isOpen: isHistoryOpen, onOpen: onHistoryOpen, onClose: onHistoryClose } = useDisclosure();
-  
+  const [transactions, setTransactions] = useState<StockTransaction[]>([]);
+
+  const {
+    isOpen: isStockInOpen,
+    onOpen: onStockInOpen,
+    onClose: onStockInClose,
+  } = useDisclosure();
+  const {
+    isOpen: isStockOutOpen,
+    onOpen: onStockOutOpen,
+    onClose: onStockOutClose,
+  } = useDisclosure();
+  const {
+    isOpen: isAdjustmentOpen,
+    onOpen: onAdjustmentOpen,
+    onClose: onAdjustmentClose,
+  } = useDisclosure();
+  const {
+    isOpen: isHistoryOpen,
+    onOpen: onHistoryOpen,
+    onClose: onHistoryClose,
+  } = useDisclosure();
+
   const [stockInQuantity, setStockInQuantity] = useState(0);
   const [stockInReason, setStockInReason] = useState("");
   const [stockOutQuantity, setStockOutQuantity] = useState(0);
   const [stockOutReason, setStockOutReason] = useState("");
   const [adjustmentQuantity, setAdjustmentQuantity] = useState(0);
   const [adjustmentReason, setAdjustmentReason] = useState("");
-  
+
   const toast = useToast();
 
   // Color mode values
@@ -202,149 +253,129 @@ const InventoryPage = () => {
   // Mock inventory stats
   const inventoryStats = {
     totalItems: inventory.length,
-    inStock: inventory.filter(item => item.status === "in-stock").length,
-    lowStock: inventory.filter(item => item.status === "low-stock").length,
-    outOfStock: inventory.filter(item => item.status === "out-of-stock").length,
-    totalValue: inventory.reduce((sum, item) => sum + (item.currentStock * item.cost), 0),
-    totalRevenue: inventory.reduce((sum, item) => sum + (item.currentStock * item.price), 0),
+    inStock: inventory.filter((item) => item.status === "in-stock").length,
+    lowStock: inventory.filter((item) => item.status === "low-stock").length,
+    outOfStock: inventory.filter((item) => item.status === "out-of-stock")
+      .length,
+    totalValue: inventory.reduce(
+      (sum, item) => sum + item.currentStock * item.cost,
+      0
+    ),
+    totalRevenue: inventory.reduce(
+      (sum, item) => sum + item.currentStock * item.price,
+      0
+    ),
     stockInToday: 150,
     stockOutToday: 89,
   };
 
-  const filteredInventory = inventory.filter(item => 
-    item.name.toLowerCase().includes(search.toLowerCase()) &&
-    (filter === "all" || item.status === filter)
+  const filteredInventory = inventory.filter(
+    (item) =>
+      item.name.toLowerCase().includes(search.toLowerCase()) &&
+      (filter === "all" || item.status === filter)
   );
 
-  const lowStockItems = inventory.filter(item => item.status === "low-stock");
-  const outOfStockItems = inventory.filter(item => item.status === "out-of-stock");
+  const lowStockItems = inventory.filter((item) => item.status === "low-stock");
+  const outOfStockItems = inventory.filter(
+    (item) => item.status === "out-of-stock"
+  );
 
-  const handleStockIn = () => {
+  const handleStockIn = async () => {
     if (!selectedItem || stockInQuantity <= 0) return;
-    
-    const updatedInventory = inventory.map(item => 
-      item.id === selectedItem.id 
-        ? { ...item, currentStock: item.currentStock + stockInQuantity, lastUpdated: new Date() }
-        : item
-    );
-    
-    setInventory(updatedInventory);
-    
-    const newTransaction: StockTransaction = {
-      id: `TXN${Date.now()}`,
-      itemId: selectedItem.id,
-      type: "in",
-      quantity: stockInQuantity,
-      reason: stockInReason,
-      date: new Date(),
-      userId: "user1",
-    };
-    
-    setTransactions([newTransaction, ...transactions]);
-    
-    toast({
-      title: "เพิ่มสต็อกสำเร็จ",
-      description: `เพิ่ม ${stockInQuantity} ${selectedItem.unit} ของ ${selectedItem.name}`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    
-    onStockInClose();
-    setStockInQuantity(0);
-    setStockInReason("");
-    setSelectedItem(null);
+
+    try {
+      await updateStockMutation.mutateAsync({
+        productId: selectedItem.id,
+        adjustment: stockInQuantity,
+        reason: stockInReason || "เพิ่มสต็อก",
+      });
+
+      // Refresh inventory data
+      refetchInventory();
+
+      onStockInClose();
+      setStockInQuantity(0);
+      setStockInReason("");
+      setSelectedItem(null);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
   };
 
-  const handleStockOut = () => {
-    if (!selectedItem || stockOutQuantity <= 0 || stockOutQuantity > selectedItem.currentStock) return;
-    
-    const updatedInventory = inventory.map(item => 
-      item.id === selectedItem.id 
-        ? { ...item, currentStock: item.currentStock - stockOutQuantity, lastUpdated: new Date() }
-        : item
-    );
-    
-    setInventory(updatedInventory);
-    
-    const newTransaction: StockTransaction = {
-      id: `TXN${Date.now()}`,
-      itemId: selectedItem.id,
-      type: "out",
-      quantity: stockOutQuantity,
-      reason: stockOutReason,
-      date: new Date(),
-      userId: "user1",
-    };
-    
-    setTransactions([newTransaction, ...transactions]);
-    
-    toast({
-      title: "ลดสต็อกสำเร็จ",
-      description: `ลด ${stockOutQuantity} ${selectedItem.unit} ของ ${selectedItem.name}`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    
-    onStockOutClose();
-    setStockOutQuantity(0);
-    setStockOutReason("");
-    setSelectedItem(null);
+  const handleStockOut = async () => {
+    if (
+      !selectedItem ||
+      stockOutQuantity <= 0 ||
+      stockOutQuantity > selectedItem.currentStock
+    )
+      return;
+
+    try {
+      await updateStockMutation.mutateAsync({
+        productId: selectedItem.id,
+        adjustment: -stockOutQuantity,
+        reason: stockOutReason || "ลดสต็อก",
+      });
+
+      // Refresh inventory data
+      refetchInventory();
+
+      onStockOutClose();
+      setStockOutQuantity(0);
+      setStockOutReason("");
+      setSelectedItem(null);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
   };
 
-  const handleAdjustment = () => {
+  const handleAdjustment = async () => {
     if (!selectedItem) return;
-    
-    const updatedInventory = inventory.map(item => 
-      item.id === selectedItem.id 
-        ? { ...item, currentStock: adjustmentQuantity, lastUpdated: new Date() }
-        : item
-    );
-    
-    setInventory(updatedInventory);
-    
-    const newTransaction: StockTransaction = {
-      id: `TXN${Date.now()}`,
-      itemId: selectedItem.id,
-      type: "adjustment",
-      quantity: adjustmentQuantity - selectedItem.currentStock,
-      reason: adjustmentReason,
-      date: new Date(),
-      userId: "user1",
-    };
-    
-    setTransactions([newTransaction, ...transactions]);
-    
-    toast({
-      title: "ปรับสต็อกสำเร็จ",
-      description: `ปรับสต็อก ${selectedItem.name} เป็น ${adjustmentQuantity} ${selectedItem.unit}`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    
-    onAdjustmentClose();
-    setAdjustmentQuantity(0);
-    setAdjustmentReason("");
-    setSelectedItem(null);
+
+    try {
+      const adjustment = adjustmentQuantity - selectedItem.currentStock;
+
+      await updateStockMutation.mutateAsync({
+        productId: selectedItem.id,
+        adjustment,
+        reason: adjustmentReason || "ปรับสต็อก",
+      });
+
+      // Refresh inventory data
+      refetchInventory();
+
+      onAdjustmentClose();
+      setAdjustmentQuantity(0);
+      setAdjustmentReason("");
+      setSelectedItem(null);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "in-stock": return "green";
-      case "low-stock": return "orange";
-      case "out-of-stock": return "red";
-      default: return "gray";
+      case "in-stock":
+        return "green";
+      case "low-stock":
+        return "orange";
+      case "out-of-stock":
+        return "red";
+      default:
+        return "gray";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "in-stock": return "มีสินค้า";
-      case "low-stock": return "ใกล้หมด";
-      case "out-of-stock": return "หมด";
-      default: return "ไม่ทราบ";
+      case "in-stock":
+        return "มีสินค้า";
+      case "low-stock":
+        return "ใกล้หมด";
+      case "out-of-stock":
+        return "หมด";
+      default:
+        return "ไม่ทราบ";
     }
   };
 
@@ -374,7 +405,12 @@ const InventoryPage = () => {
             backdropFilter: "blur(10px)",
           }}
         >
-          <Flex justify="space-between" align="center" position="relative" zIndex={1}>
+          <Flex
+            justify="space-between"
+            align="center"
+            position="relative"
+            zIndex={1}
+          >
             <VStack align="start" spacing={3}>
               <HStack spacing={3}>
                 <Box
@@ -442,13 +478,17 @@ const InventoryPage = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">สินค้าทั้งหมด</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    สินค้าทั้งหมด
+                  </Text>
                   <Icon as={IoBag} color="blue.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="blue.500">
                   {inventoryStats.totalItems}
                 </Text>
-                <Text fontSize="sm" color="gray.500">รายการ</Text>
+                <Text fontSize="sm" color="gray.500">
+                  รายการ
+                </Text>
                 <Progress value={80} colorScheme="blue" size="sm" w="full" />
               </VStack>
             </CardBody>
@@ -458,13 +498,17 @@ const InventoryPage = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">มูลค่าสต็อก</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    มูลค่าสต็อก
+                  </Text>
                   <Icon as={IoCash} color="green.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="green.500">
                   ฿{inventoryStats.totalValue.toLocaleString()}
                 </Text>
-                <Text fontSize="sm" color="gray.500">บาท</Text>
+                <Text fontSize="sm" color="gray.500">
+                  บาท
+                </Text>
                 <Progress value={65} colorScheme="green" size="sm" w="full" />
               </VStack>
             </CardBody>
@@ -474,13 +518,17 @@ const InventoryPage = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">สินค้าใกล้หมด</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    สินค้าใกล้หมด
+                  </Text>
                   <Icon as={IoWarning} color="orange.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="orange.500">
                   {inventoryStats.lowStock}
                 </Text>
-                <Text fontSize="sm" color="gray.500">รายการ</Text>
+                <Text fontSize="sm" color="gray.500">
+                  รายการ
+                </Text>
                 <Progress value={40} colorScheme="orange" size="sm" w="full" />
               </VStack>
             </CardBody>
@@ -490,13 +538,17 @@ const InventoryPage = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">สินค้าหมด</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    สินค้าหมด
+                  </Text>
                   <Icon as={IoAlertCircle} color="red.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="red.500">
                   {inventoryStats.outOfStock}
                 </Text>
-                <Text fontSize="sm" color="gray.500">รายการ</Text>
+                <Text fontSize="sm" color="gray.500">
+                  รายการ
+                </Text>
                 <Progress value={20} colorScheme="red" size="sm" w="full" />
               </VStack>
             </CardBody>
@@ -516,7 +568,8 @@ const InventoryPage = () => {
                   <Box>
                     <AlertTitle>สินค้าหมด!</AlertTitle>
                     <AlertDescription>
-                      มีสินค้า {outOfStockItems.length} รายการที่หมดสต็อก กรุณาเพิ่มสต็อกด่วน
+                      มีสินค้า {outOfStockItems.length} รายการที่หมดสต็อก
+                      กรุณาเพิ่มสต็อกด่วน
                     </AlertDescription>
                   </Box>
                 </Alert>
@@ -527,7 +580,8 @@ const InventoryPage = () => {
                   <Box>
                     <AlertTitle>สินค้าใกล้หมด!</AlertTitle>
                     <AlertDescription>
-                      มีสินค้า {lowStockItems.length} รายการที่ใกล้หมดสต็อก กรุณาตรวจสอบและเพิ่มสต็อก
+                      มีสินค้า {lowStockItems.length} รายการที่ใกล้หมดสต็อก
+                      กรุณาตรวจสอบและเพิ่มสต็อก
                     </AlertDescription>
                   </Box>
                 </Alert>
@@ -564,11 +618,7 @@ const InventoryPage = () => {
                   <option value="low-stock">ใกล้หมด</option>
                   <option value="out-of-stock">หมด</option>
                 </Select>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  leftIcon={<IoRefresh />}
-                >
+                <Button variant="secondary" size="lg" leftIcon={<IoRefresh />}>
                   รีเฟรช
                 </Button>
               </HStack>
@@ -611,7 +661,7 @@ const InventoryPage = () => {
                   </Button>
                 </HStack>
               </HStack>
-              
+
               <Box overflowX="auto" w="full">
                 <Table variant="simple">
                   <Thead>
@@ -642,8 +692,8 @@ const InventoryPage = () => {
                             <Text fontWeight="bold">
                               {item.currentStock} {item.unit}
                             </Text>
-                            <Progress 
-                              value={getStockPercentage(item)} 
+                            <Progress
+                              value={getStockPercentage(item)}
                               colorScheme={getStatusColor(item.status)}
                               size="sm"
                               w="100px"
@@ -651,7 +701,10 @@ const InventoryPage = () => {
                           </VStack>
                         </Td>
                         <Td>
-                          <Badge colorScheme={getStatusColor(item.status)} variant="subtle">
+                          <Badge
+                            colorScheme={getStatusColor(item.status)}
+                            variant="subtle"
+                          >
                             {getStatusText(item.status)}
                           </Badge>
                         </Td>
@@ -847,18 +900,35 @@ const InventoryPage = () => {
             <ModalBody>
               <VStack spacing={4} align="stretch">
                 {transactions
-                  .filter(txn => txn.itemId === selectedItem?.id)
+                  .filter((txn) => txn.itemId === selectedItem?.id)
                   .map((txn) => (
                     <Box key={txn.id} p={4} borderWidth={1} borderRadius="md">
                       <HStack justify="space-between">
                         <VStack align="start" spacing={1}>
                           <HStack>
-                            <Icon 
-                              as={txn.type === "in" ? IoArrowUp : txn.type === "out" ? IoArrowDown : IoSwapHorizontal}
-                              color={txn.type === "in" ? "green.500" : txn.type === "out" ? "red.500" : "blue.500"}
+                            <Icon
+                              as={
+                                txn.type === "in"
+                                  ? IoArrowUp
+                                  : txn.type === "out"
+                                  ? IoArrowDown
+                                  : IoSwapHorizontal
+                              }
+                              color={
+                                txn.type === "in"
+                                  ? "green.500"
+                                  : txn.type === "out"
+                                  ? "red.500"
+                                  : "blue.500"
+                              }
                             />
                             <Text fontWeight="bold">
-                              {txn.type === "in" ? "เพิ่ม" : txn.type === "out" ? "ลด" : "ปรับ"} {txn.quantity} {selectedItem?.unit}
+                              {txn.type === "in"
+                                ? "เพิ่ม"
+                                : txn.type === "out"
+                                ? "ลด"
+                                : "ปรับ"}{" "}
+                              {txn.quantity} {selectedItem?.unit}
                             </Text>
                           </HStack>
                           <Text fontSize="sm" color="gray.500">
