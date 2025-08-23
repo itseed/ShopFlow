@@ -122,6 +122,60 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     });
   };
 
+  const handleShareProduct = async (product: Product) => {
+    const shareData = {
+      title: product.name,
+      text: `${product.name}\nราคา: ${formatCurrency(product.price)}\nสต็อก: ${product.stock} ชิ้น\nSKU: ${product.sku || "N/A"}`,
+      url: window.location.href,
+    };
+
+    try {
+      // Check if Web Share API is supported
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({
+          title: "แชร์สำเร็จ",
+          description: "แชร์ข้อมูลสินค้าเรียบร้อยแล้ว",
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+      } else {
+        // Fallback: Copy to clipboard
+        const textToShare = `${shareData.title}\n${shareData.text}\n\nดูเพิ่มเติม: ${shareData.url}`;
+        await navigator.clipboard.writeText(textToShare);
+        toast({
+          title: "คัดลอกข้อมูลแล้ว",
+          description: "คัดลอกข้อมูลสินค้าไปยังคลิปบอร์ดแล้ว",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      // If sharing fails, try copying to clipboard as fallback
+      try {
+        const textToShare = `${shareData.title}\n${shareData.text}`;
+        await navigator.clipboard.writeText(textToShare);
+        toast({
+          title: "คัดลอกข้อมูลแล้ว",
+          description: "คัดลอกข้อมูลสินค้าไปยังคลิปบอร์ดแล้ว",
+          status: "info",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (clipboardError) {
+        toast({
+          title: "ไม่สามารถแชร์ได้",
+          description: "เบราว์เซอร์ของคุณไม่รองรับการแชร์หรือคัดลอก",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }
+  };
+
   const getGridColumns = () => {
     if (columns) return columns;
     switch (cardSize) {
@@ -305,7 +359,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                           icon={<IoShareOutline />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            // TODO: Implement share functionality
+                            handleShareProduct(product);
                           }}
                         >
                           แชร์
