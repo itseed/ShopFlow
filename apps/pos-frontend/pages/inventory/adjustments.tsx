@@ -71,9 +71,26 @@ import {
   IoSaveOutline,
   IoWarningOutline,
 } from "react-icons/io5";
-import { Product, StockAdjustment } from "@shopflow/types";
+import { Product } from "@shopflow/types";
 import { POSLayout } from "../../components";
 import { formatCurrency } from "../../lib/sales";
+
+// Local types for stock adjustment
+interface StockAdjustment {
+  id: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  type: "increase" | "decrease" | "set";
+  previousStock: number;
+  adjustmentQuantity: number;
+  newStock: number;
+  reason: string;
+  note?: string;
+  userId: string;
+  userName: string;
+  createdAt: Date;
+}
 
 // Mock data
 const mockProducts: Product[] = [
@@ -83,24 +100,9 @@ const mockProducts: Product[] = [
     name: "น้ำดื่ม",
     description: "น้ำดื่มขวด 600ml",
     price: 10,
-    cost: 7,
-    category: {
-      id: "1",
-      name: "เครื่องดื่ม",
-      description: "เครื่องดื่มทุกชนิด",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    stockQuantity: 150,
-    minStockLevel: 50,
-    maxStockLevel: 500,
-    isActive: true,
-    barcode: "1234567890123",
-    imageUrl: "",
-    tags: ["เครื่องดื่ม", "น้ำ"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    stock: 150,
+    status: "active",
+    category_id: "1",
   },
   // Add more products...
 ];
@@ -182,7 +184,8 @@ interface AdjustmentFormData {
 
 const StockAdjustmentsPage: React.FC = () => {
   const [products] = useState<Product[]>(mockProducts);
-  const [adjustments, setAdjustments] = useState<StockAdjustmentRecord[]>(mockAdjustments);
+  const [adjustments, setAdjustments] =
+    useState<StockAdjustmentRecord[]>(mockAdjustments);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
@@ -210,28 +213,33 @@ const StockAdjustmentsPage: React.FC = () => {
 
   // Filter adjustments
   const filteredAdjustments = useMemo(() => {
-    return adjustments.filter(adj => {
-      const matchesSearch = adj.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          adj.productSku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          adj.reason.toLowerCase().includes(searchTerm.toLowerCase());
+    return adjustments.filter((adj) => {
+      const matchesSearch =
+        adj.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adj.productSku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adj.reason.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = typeFilter === "all" || adj.type === typeFilter;
-      const matchesDate = dateFilter === "all" || (() => {
-        const adjDate = adj.createdAt;
-        const now = new Date();
-        switch (dateFilter) {
-          case "today":
-            return adjDate.toDateString() === now.toDateString();
-          case "week":
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            return adjDate >= weekAgo;
-          case "month":
-            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            return adjDate >= monthAgo;
-          default:
-            return true;
-        }
-      })();
-      
+      const matchesDate =
+        dateFilter === "all" ||
+        (() => {
+          const adjDate = adj.createdAt;
+          const now = new Date();
+          switch (dateFilter) {
+            case "today":
+              return adjDate.toDateString() === now.toDateString();
+            case "week":
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              return adjDate >= weekAgo;
+            case "month":
+              const monthAgo = new Date(
+                now.getTime() - 30 * 24 * 60 * 60 * 1000
+              );
+              return adjDate >= monthAgo;
+            default:
+              return true;
+          }
+        })();
+
       return matchesSearch && matchesType && matchesDate;
     });
   }, [adjustments, searchTerm, typeFilter, dateFilter]);
@@ -239,10 +247,13 @@ const StockAdjustmentsPage: React.FC = () => {
   // Calculate statistics
   const adjustmentStats = useMemo(() => {
     const total = adjustments.length;
-    const increases = adjustments.filter(a => a.type === "increase").length;
-    const decreases = adjustments.filter(a => a.type === "decrease").length;
-    const sets = adjustments.filter(a => a.type === "set").length;
-    const totalValue = adjustments.reduce((sum, a) => sum + Math.abs(a.totalValue), 0);
+    const increases = adjustments.filter((a) => a.type === "increase").length;
+    const decreases = adjustments.filter((a) => a.type === "decrease").length;
+    const sets = adjustments.filter((a) => a.type === "set").length;
+    const totalValue = adjustments.reduce(
+      (sum, a) => sum + Math.abs(a.totalValue),
+      0
+    );
     const netValue = adjustments.reduce((sum, a) => sum + a.totalValue, 0);
 
     return {
@@ -257,28 +268,40 @@ const StockAdjustmentsPage: React.FC = () => {
 
   const getTypeText = (type: string) => {
     switch (type) {
-      case "increase": return "เพิ่ม";
-      case "decrease": return "ลด";
-      case "set": return "กำหนด";
-      default: return type;
+      case "increase":
+        return "เพิ่ม";
+      case "decrease":
+        return "ลด";
+      case "set":
+        return "กำหนด";
+      default:
+        return type;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "increase": return "green";
-      case "decrease": return "red";
-      case "set": return "blue";
-      default: return "gray";
+      case "increase":
+        return "green";
+      case "decrease":
+        return "red";
+      case "set":
+        return "blue";
+      default:
+        return "gray";
     }
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case "increase": return IoArrowUpOutline;
-      case "decrease": return IoArrowDownOutline;
-      case "set": return IoSwapHorizontalOutline;
-      default: return IoDocumentTextOutline;
+      case "increase":
+        return IoArrowUpOutline;
+      case "decrease":
+        return IoArrowDownOutline;
+      case "set":
+        return IoSwapHorizontalOutline;
+      default:
+        return IoDocumentTextOutline;
     }
   };
 
@@ -304,7 +327,7 @@ const StockAdjustmentsPage: React.FC = () => {
       return;
     }
 
-    const product = products.find(p => p.id === formData.productId);
+    const product = products.find((p) => p.id === formData.productId);
     if (!product) return;
 
     let newQuantity: number;
@@ -312,16 +335,16 @@ const StockAdjustmentsPage: React.FC = () => {
 
     switch (formData.type) {
       case "increase":
-        newQuantity = product.stockQuantity + formData.quantity;
+        newQuantity = product.stock + formData.quantity;
         adjustmentQuantity = formData.quantity;
         break;
       case "decrease":
-        newQuantity = Math.max(0, product.stockQuantity - formData.quantity);
-        adjustmentQuantity = -(product.stockQuantity - newQuantity);
+        newQuantity = Math.max(0, product.stock - formData.quantity);
+        adjustmentQuantity = -(product.stock - newQuantity);
         break;
       case "set":
         newQuantity = formData.quantity;
-        adjustmentQuantity = formData.quantity - product.stockQuantity;
+        adjustmentQuantity = formData.quantity - product.stock;
         break;
       default:
         return;
@@ -331,24 +354,24 @@ const StockAdjustmentsPage: React.FC = () => {
       id: `ADJ${Date.now()}`,
       productId: product.id,
       productName: product.name,
-      productSku: product.sku,
+      productSku: product.sku || "",
       type: formData.type,
-      oldQuantity: product.stockQuantity,
+      oldQuantity: product.stock,
       newQuantity,
       adjustmentQuantity,
       reason: formData.reason,
       adjustedBy: "current_user",
       adjustedByName: "ผู้ใช้ปัจจุบัน",
       createdAt: new Date(),
-      cost: product.cost,
-      totalValue: adjustmentQuantity * product.cost,
+      cost: product.price || 0, // Use price instead of cost
+      totalValue: adjustmentQuantity * (product.price || 0),
     };
 
-    setAdjustments(prev => [newAdjustment, ...prev]);
+    setAdjustments((prev) => [newAdjustment, ...prev]);
 
     toast({
       title: "บันทึกการปรับปรุงสต็อกสำเร็จ",
-      description: `ปรับปรุงสต็อก ${product.name} จาก ${product.stockQuantity} เป็น ${newQuantity}`,
+      description: `ปรับปรุงสต็อก ${product.name} จาก ${product.stock} เป็น ${newQuantity}`,
       status: "success",
       duration: 5000,
       isClosable: true,
@@ -358,12 +381,12 @@ const StockAdjustmentsPage: React.FC = () => {
   };
 
   const formatDateTime = (date: Date) => {
-    return date.toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -459,12 +482,8 @@ const StockAdjustmentsPage: React.FC = () => {
           >
             <Stat>
               <StatLabel color="whiteAlpha.800">รายการทั้งหมด</StatLabel>
-              <StatNumber fontSize="3xl">
-                {adjustmentStats.total}
-              </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                การปรับปรุง
-              </StatHelpText>
+              <StatNumber fontSize="3xl">{adjustmentStats.total}</StatNumber>
+              <StatHelpText color="whiteAlpha.800">การปรับปรุง</StatHelpText>
             </Stat>
 
             <Stat>
@@ -472,9 +491,7 @@ const StockAdjustmentsPage: React.FC = () => {
               <StatNumber fontSize="3xl" color="green.200">
                 {adjustmentStats.increases}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                รายการ
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">รายการ</StatHelpText>
             </Stat>
 
             <Stat>
@@ -482,22 +499,18 @@ const StockAdjustmentsPage: React.FC = () => {
               <StatNumber fontSize="3xl" color="red.200">
                 {adjustmentStats.decreases}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                รายการ
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">รายการ</StatHelpText>
             </Stat>
 
             <Stat>
               <StatLabel color="whiteAlpha.800">มูลค่าสุทธิ</StatLabel>
-              <StatNumber 
-                fontSize="3xl" 
+              <StatNumber
+                fontSize="3xl"
                 color={adjustmentStats.netValue >= 0 ? "green.200" : "red.200"}
               >
                 {formatCurrency(adjustmentStats.netValue)}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                บาท
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">บาท</StatHelpText>
             </Stat>
           </SimpleGrid>
         </Box>
@@ -582,12 +595,12 @@ const StockAdjustmentsPage: React.FC = () => {
                     <Tr key={adjustment.id}>
                       <Td>
                         <HStack spacing={2}>
-                          <Icon 
-                            as={getTypeIcon(adjustment.type)} 
+                          <Icon
+                            as={getTypeIcon(adjustment.type)}
                             color={getTypeColor(adjustment.type) + ".500"}
                           />
-                          <Badge 
-                            colorScheme={getTypeColor(adjustment.type)} 
+                          <Badge
+                            colorScheme={getTypeColor(adjustment.type)}
                             variant="solid"
                           >
                             {getTypeText(adjustment.type)}
@@ -596,14 +609,18 @@ const StockAdjustmentsPage: React.FC = () => {
                       </Td>
                       <Td>
                         <VStack align="start" spacing={1}>
-                          <Text fontWeight="bold">{adjustment.productName}</Text>
+                          <Text fontWeight="bold">
+                            {adjustment.productName}
+                          </Text>
                           <Text fontSize="sm" color="gray.500">
                             SKU: {adjustment.productSku}
                           </Text>
                         </VStack>
                       </Td>
                       <Td>
-                        <Text fontWeight="medium">{adjustment.oldQuantity}</Text>
+                        <Text fontWeight="medium">
+                          {adjustment.oldQuantity}
+                        </Text>
                       </Td>
                       <Td>
                         <Text fontWeight="medium" color="blue.600">
@@ -611,18 +628,24 @@ const StockAdjustmentsPage: React.FC = () => {
                         </Text>
                       </Td>
                       <Td>
-                        <Text 
+                        <Text
                           fontWeight="bold"
-                          color={adjustment.adjustmentQuantity >= 0 ? "green.600" : "red.600"}
+                          color={
+                            adjustment.adjustmentQuantity >= 0
+                              ? "green.600"
+                              : "red.600"
+                          }
                         >
                           {adjustment.adjustmentQuantity >= 0 ? "+" : ""}
                           {adjustment.adjustmentQuantity}
                         </Text>
                       </Td>
                       <Td>
-                        <Text 
+                        <Text
                           fontWeight="bold"
-                          color={adjustment.totalValue >= 0 ? "green.600" : "red.600"}
+                          color={
+                            adjustment.totalValue >= 0 ? "green.600" : "red.600"
+                          }
                         >
                           {formatCurrency(adjustment.totalValue)}
                         </Text>
@@ -648,10 +671,14 @@ const StockAdjustmentsPage: React.FC = () => {
                 </Tbody>
               </Table>
             </TableContainer>
-            
+
             {filteredAdjustments.length === 0 && (
               <VStack spacing={4} py={8}>
-                <Icon as={IoDocumentTextOutline} boxSize={12} color="gray.400" />
+                <Icon
+                  as={IoDocumentTextOutline}
+                  boxSize={12}
+                  color="gray.400"
+                />
                 <Text color="gray.500">ไม่มีประวัติการปรับปรุงสต็อก</Text>
               </VStack>
             )}
@@ -669,7 +696,7 @@ const StockAdjustmentsPage: React.FC = () => {
               </HStack>
             </ModalHeader>
             <ModalCloseButton />
-            
+
             <ModalBody>
               <VStack spacing={4} align="stretch">
                 <FormControl isRequired>
@@ -677,14 +704,17 @@ const StockAdjustmentsPage: React.FC = () => {
                   <Select
                     placeholder="เลือกสินค้าที่ต้องการปรับปรุง"
                     value={formData.productId}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      productId: e.target.value
-                    }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        productId: e.target.value,
+                      }))
+                    }
                   >
-                    {products.map(product => (
+                    {products.map((product) => (
                       <option key={product.id} value={product.id}>
-                        {product.name} (SKU: {product.sku}) - สต็อก: {product.stockQuantity}
+                        {product.name} (SKU: {product.sku}) - สต็อก:{" "}
+                        {product.stock}
                       </option>
                     ))}
                   </Select>
@@ -693,17 +723,27 @@ const StockAdjustmentsPage: React.FC = () => {
                 {formData.productId && (
                   <Box p={3} bg="gray.50" borderRadius="md">
                     {(() => {
-                      const product = products.find(p => p.id === formData.productId);
+                      const product = products.find(
+                        (p) => p.id === formData.productId
+                      );
                       if (!product) return null;
                       return (
                         <VStack align="stretch" spacing={2}>
                           <HStack justify="space-between">
-                            <Text fontSize="sm" color="gray.600">สต็อกปัจจุบัน:</Text>
-                            <Text fontSize="sm" fontWeight="bold">{product.stockQuantity}</Text>
+                            <Text fontSize="sm" color="gray.600">
+                              สต็อกปัจจุบัน:
+                            </Text>
+                            <Text fontSize="sm" fontWeight="bold">
+                              {product.stock}
+                            </Text>
                           </HStack>
                           <HStack justify="space-between">
-                            <Text fontSize="sm" color="gray.600">ต้นทุนต่อหน่วย:</Text>
-                            <Text fontSize="sm" fontWeight="bold">{formatCurrency(product.cost)}</Text>
+                            <Text fontSize="sm" color="gray.600">
+                              ต้นทุนต่อหน่วย:
+                            </Text>
+                            <Text fontSize="sm" fontWeight="bold">
+                              {formatCurrency(product.price || 0)}
+                            </Text>
                           </HStack>
                         </VStack>
                       );
@@ -715,10 +755,12 @@ const StockAdjustmentsPage: React.FC = () => {
                   <FormLabel>ประเภทการปรับปรุง</FormLabel>
                   <Select
                     value={formData.type}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      type: e.target.value as any
-                    }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        type: e.target.value as any,
+                      }))
+                    }
                   >
                     <option value="set">กำหนดจำนวนใหม่</option>
                     <option value="increase">เพิ่มจำนวน</option>
@@ -728,13 +770,16 @@ const StockAdjustmentsPage: React.FC = () => {
 
                 <FormControl isRequired>
                   <FormLabel>
-                    {formData.type === "set" ? "จำนวนใหม่" : 
-                     formData.type === "increase" ? "จำนวนที่เพิ่ม" : "จำนวนที่ลด"}
+                    {formData.type === "set"
+                      ? "จำนวนใหม่"
+                      : formData.type === "increase"
+                      ? "จำนวนที่เพิ่ม"
+                      : "จำนวนที่ลด"}
                   </FormLabel>
                   <NumberInput
                     value={formData.quantity}
-                    onChange={(_, value) => 
-                      setFormData(prev => ({ ...prev, quantity: value }))
+                    onChange={(_, value) =>
+                      setFormData((prev) => ({ ...prev, quantity: value }))
                     }
                     min={0}
                   >
@@ -751,10 +796,12 @@ const StockAdjustmentsPage: React.FC = () => {
                   <Textarea
                     placeholder="ระบุเหตุผลในการปรับปรุงสต็อก เช่น สินค้าเสียหาย, ตรวจนับสต็อก, รับสินค้าเพิ่ม"
                     value={formData.reason}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      reason: e.target.value
-                    }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        reason: e.target.value,
+                      }))
+                    }
                     rows={3}
                   />
                 </FormControl>
@@ -763,57 +810,75 @@ const StockAdjustmentsPage: React.FC = () => {
                   <>
                     <Divider />
                     <Box p={3} bg="blue.50" borderRadius="md">
-                      <Text fontSize="sm" fontWeight="bold" mb={2}>ตัวอย่างการปรับปรุง:</Text>
+                      <Text fontSize="sm" fontWeight="bold" mb={2}>
+                        ตัวอย่างการปรับปรุง:
+                      </Text>
                       {(() => {
-                        const product = products.find(p => p.id === formData.productId);
+                        const product = products.find(
+                          (p) => p.id === formData.productId
+                        );
                         if (!product) return null;
 
                         let newQuantity: number;
                         let adjustmentQuantity: number;
-                        
+
                         switch (formData.type) {
                           case "increase":
-                            newQuantity = product.stockQuantity + formData.quantity;
+                            newQuantity = product.stock + formData.quantity;
                             adjustmentQuantity = formData.quantity;
                             break;
                           case "decrease":
-                            newQuantity = Math.max(0, product.stockQuantity - formData.quantity);
-                            adjustmentQuantity = -(product.stockQuantity - newQuantity);
+                            newQuantity = Math.max(
+                              0,
+                              product.stock - formData.quantity
+                            );
+                            adjustmentQuantity = -(product.stock - newQuantity);
                             break;
                           case "set":
                             newQuantity = formData.quantity;
-                            adjustmentQuantity = formData.quantity - product.stockQuantity;
+                            adjustmentQuantity =
+                              formData.quantity - product.stock;
                             break;
                           default:
                             return null;
                         }
 
-                        const totalValue = adjustmentQuantity * product.cost;
+                        const totalValue =
+                          adjustmentQuantity * (product.price || 0);
 
                         return (
                           <VStack spacing={2} fontSize="sm">
                             <HStack justify="space-between" w="full">
                               <Text>สต็อกเดิม:</Text>
-                              <Text fontWeight="bold">{product.stockQuantity}</Text>
+                              <Text fontWeight="bold">{product.stock}</Text>
                             </HStack>
                             <HStack justify="space-between" w="full">
                               <Text>สต็อกใหม่:</Text>
-                              <Text fontWeight="bold" color="blue.600">{newQuantity}</Text>
+                              <Text fontWeight="bold" color="blue.600">
+                                {newQuantity}
+                              </Text>
                             </HStack>
                             <HStack justify="space-between" w="full">
                               <Text>การเปลี่ยนแปลง:</Text>
-                              <Text 
-                                fontWeight="bold" 
-                                color={adjustmentQuantity >= 0 ? "green.600" : "red.600"}
+                              <Text
+                                fontWeight="bold"
+                                color={
+                                  adjustmentQuantity >= 0
+                                    ? "green.600"
+                                    : "red.600"
+                                }
                               >
-                                {adjustmentQuantity >= 0 ? "+" : ""}{adjustmentQuantity}
+                                {adjustmentQuantity >= 0 ? "+" : ""}
+                                {adjustmentQuantity}
                               </Text>
                             </HStack>
                             <HStack justify="space-between" w="full">
                               <Text>มูลค่า:</Text>
-                              <Text 
-                                fontWeight="bold" 
-                                color={totalValue >= 0 ? "green.600" : "red.600"}
+                              <Text
+                                fontWeight="bold"
+                                color={
+                                  totalValue >= 0 ? "green.600" : "red.600"
+                                }
                               >
                                 {formatCurrency(totalValue)}
                               </Text>
@@ -831,8 +896,8 @@ const StockAdjustmentsPage: React.FC = () => {
               <Button variant="ghost" mr={3} onClick={onAdjustmentClose}>
                 ยกเลิก
               </Button>
-              <Button 
-                colorScheme="blue" 
+              <Button
+                colorScheme="blue"
                 onClick={handleSubmitAdjustment}
                 leftIcon={<IoSaveOutline />}
               >

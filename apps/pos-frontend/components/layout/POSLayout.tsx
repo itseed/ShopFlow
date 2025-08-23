@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import {
   Box,
   Flex,
@@ -11,11 +11,19 @@ import {
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FiHome, FiShoppingCart, FiClipboard, FiBox, FiLayers, FiBarChart2, FiUsers, FiSettings } from "react-icons/fi";
-import { ReactNode } from "react";
+import {
+  FiHome,
+  FiShoppingCart,
+  FiClipboard,
+  FiBox,
+  FiLayers,
+  FiBarChart2,
+  FiUsers,
+  FiSettings,
+} from "react-icons/fi";
 
 interface POSLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
   title?: string;
   showHeader?: boolean;
   showFooter?: boolean;
@@ -63,8 +71,15 @@ export const POSLayout = ({
             {/* Logo/Brand */}
             <Link href="/" passHref legacyBehavior>
               <HStack as="a" spacing={2} _hover={{ opacity: 0.85 }}>
-                <Box fontSize="2xl" color="pos.primary.600">🏪</Box>
-                <Text fontWeight="bold" fontSize="xl" letterSpacing="tight" color="pos.primary.700">
+                <Box fontSize="2xl" color="pos.primary.600">
+                  🏪
+                </Box>
+                <Text
+                  fontWeight="bold"
+                  fontSize="xl"
+                  letterSpacing="tight"
+                  color="pos.primary.700"
+                >
                   ShopFlow POS
                 </Text>
               </HStack>
@@ -77,10 +92,20 @@ export const POSLayout = ({
                     as="a"
                     leftIcon={link.icon}
                     variant="ghost"
-                    bg={router.pathname === link.href ? navActiveBg : "transparent"}
-                    color={router.pathname === link.href ? navActiveColor : headerTextColor}
+                    bg={
+                      router.pathname === link.href
+                        ? navActiveBg
+                        : "transparent"
+                    }
+                    color={
+                      router.pathname === link.href
+                        ? navActiveColor
+                        : headerTextColor
+                    }
                     _hover={{ bg: navHoverBg, color: navActiveColor }}
-                    fontWeight={router.pathname === link.href ? "bold" : "normal"}
+                    fontWeight={
+                      router.pathname === link.href ? "bold" : "normal"
+                    }
                     size="sm"
                     px={3}
                     py={2}
@@ -99,7 +124,7 @@ export const POSLayout = ({
       )}
 
       <Box flex="1" p={4} overflow="auto" bg="pos.background">
-        {children}
+        {children as any}
       </Box>
 
       {showFooter && (

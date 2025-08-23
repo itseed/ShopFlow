@@ -206,25 +206,43 @@ const LowStockPage: React.FC = () => {
 
   // Filter and categorize products
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = categoryFilter === "all" || product.category.name === categoryFilter;
-      const matchesStatus = statusFilter === "all" ||
-                          (statusFilter === "critical" && product.stockQuantity === 0) ||
-                          (statusFilter === "low" && product.stockQuantity > 0 && product.stockQuantity <= product.minStockLevel) ||
-                          (statusFilter === "normal" && product.stockQuantity > product.minStockLevel);
-      
+    return products.filter((product) => {
+      const matchesSearch =
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        categoryFilter === "all" || product.category.name === categoryFilter;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "critical" && product.stockQuantity === 0) ||
+        (statusFilter === "low" &&
+          product.stockQuantity > 0 &&
+          product.stockQuantity <= product.minStockLevel) ||
+        (statusFilter === "normal" &&
+          product.stockQuantity > product.minStockLevel);
+
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [products, searchTerm, categoryFilter, statusFilter]);
 
   const stockStats = useMemo(() => {
-    const outOfStock = products.filter(p => p.stockQuantity === 0);
-    const critical = products.filter(p => p.stockQuantity > 0 && p.stockQuantity <= (p.minStockLevel * 0.5));
-    const low = products.filter(p => p.stockQuantity > (p.minStockLevel * 0.5) && p.stockQuantity <= p.minStockLevel);
-    const totalValue = products.reduce((sum, p) => sum + (p.stockQuantity * p.cost), 0);
-    const potentialLoss = outOfStock.reduce((sum, p) => sum + (p.minStockLevel * p.cost), 0);
+    const outOfStock = products.filter((p) => p.stockQuantity === 0);
+    const critical = products.filter(
+      (p) => p.stockQuantity > 0 && p.stockQuantity <= p.minStockLevel * 0.5
+    );
+    const low = products.filter(
+      (p) =>
+        p.stockQuantity > p.minStockLevel * 0.5 &&
+        p.stockQuantity <= p.minStockLevel
+    );
+    const totalValue = products.reduce(
+      (sum, p) => sum + p.stockQuantity * p.cost,
+      0
+    );
+    const potentialLoss = outOfStock.reduce(
+      (sum, p) => sum + p.minStockLevel * p.cost,
+      0
+    );
 
     return {
       total: products.length,
@@ -233,14 +251,17 @@ const LowStockPage: React.FC = () => {
       low: low.length,
       totalValue,
       potentialLoss,
-      categories: [...new Set(products.map(p => p.category.name))],
+      categories: [...new Set(products.map((p) => p.category.name))],
     };
   }, [products]);
 
   const getStockStatus = (product: Product) => {
-    if (product.stockQuantity === 0) return { status: "out", color: "red", text: "หมด", priority: 4 };
-    if (product.stockQuantity <= (product.minStockLevel * 0.5)) return { status: "critical", color: "red", text: "วิกฤต", priority: 3 };
-    if (product.stockQuantity <= product.minStockLevel) return { status: "low", color: "orange", text: "ต่ำ", priority: 2 };
+    if (product.stockQuantity === 0)
+      return { status: "out", color: "red", text: "หมด", priority: 4 };
+    if (product.stockQuantity <= product.minStockLevel * 0.5)
+      return { status: "critical", color: "red", text: "วิกฤต", priority: 3 };
+    if (product.stockQuantity <= product.minStockLevel)
+      return { status: "low", color: "orange", text: "ต่ำ", priority: 2 };
     return { status: "normal", color: "green", text: "ปกติ", priority: 1 };
   };
 
@@ -250,16 +271,24 @@ const LowStockPage: React.FC = () => {
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case "critical": return "red";
-      case "high": return "orange";
-      case "medium": return "yellow";
-      case "low": return "blue";
-      default: return "gray";
+      case "critical":
+        return "red";
+      case "high":
+        return "orange";
+      case "medium":
+        return "yellow";
+      case "low":
+        return "blue";
+      default:
+        return "gray";
     }
   };
 
   const calculateRestockQuantity = (product: Product) => {
-    return Math.max(product.maxStockLevel - product.stockQuantity, product.minStockLevel);
+    return Math.max(
+      product.maxStockLevel - product.stockQuantity,
+      product.minStockLevel
+    );
   };
 
   const calculateRestockCost = (product: Product, quantity: number) => {
@@ -268,8 +297,12 @@ const LowStockPage: React.FC = () => {
 
   const handleRestockProduct = (product: Product) => {
     const recommendedQuantity = calculateRestockQuantity(product);
-    const urgency = product.stockQuantity === 0 ? "critical" : 
-                   product.stockQuantity <= (product.minStockLevel * 0.5) ? "high" : "medium";
+    const urgency =
+      product.stockQuantity === 0
+        ? "critical"
+        : product.stockQuantity <= product.minStockLevel * 0.5
+        ? "high"
+        : "medium";
 
     setRestockData({
       productId: product.id,
@@ -316,13 +349,13 @@ const LowStockPage: React.FC = () => {
       return;
     }
 
-    const product = products.find(p => p.id === restockData.productId);
+    const product = products.find((p) => p.id === restockData.productId);
     if (!product) return;
 
     // Simulate updating stock
-    setProducts(prev => 
-      prev.map(p => 
-        p.id === restockData.productId 
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === restockData.productId
           ? { ...p, stockQuantity: p.stockQuantity + restockData.quantity }
           : p
       )
@@ -340,9 +373,9 @@ const LowStockPage: React.FC = () => {
   };
 
   const handleSelectProduct = (productId: string) => {
-    setSelectedProducts(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
+    setSelectedProducts((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
         : [...prev, productId]
     );
   };
@@ -351,7 +384,7 @@ const LowStockPage: React.FC = () => {
     if (selectedProducts.length === filteredProducts.length) {
       setSelectedProducts([]);
     } else {
-      setSelectedProducts(filteredProducts.map(p => p.id));
+      setSelectedProducts(filteredProducts.map((p) => p.id));
     }
   };
 
@@ -444,8 +477,9 @@ const LowStockPage: React.FC = () => {
             <Box flex="1">
               <AlertTitle>สินค้าหมดสต็อก!</AlertTitle>
               <AlertDescription>
-                มีสินค้าหมดสต็อก {stockStats.outOfStock} รายการ ควรเติมสต็อกทันที
-                ขาดทุนโอกาสประมาณ {formatCurrency(stockStats.potentialLoss)}
+                มีสินค้าหมดสต็อก {stockStats.outOfStock} รายการ
+                ควรเติมสต็อกทันที ขาดทุนโอกาสประมาณ{" "}
+                {formatCurrency(stockStats.potentialLoss)}
               </AlertDescription>
             </Box>
             <Button colorScheme="red" size="sm" ml={4}>
@@ -460,13 +494,17 @@ const LowStockPage: React.FC = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">สินค้าหมดสต็อก</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    สินค้าหมดสต็อก
+                  </Text>
                   <Icon as={IoAlertCircleOutline} color="red.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="red.500">
                   {stockStats.outOfStock}
                 </Text>
-                <Text fontSize="sm" color="gray.500">รายการ</Text>
+                <Text fontSize="sm" color="gray.500">
+                  รายการ
+                </Text>
               </VStack>
             </CardBody>
           </Card>
@@ -475,13 +513,17 @@ const LowStockPage: React.FC = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">สต็อกวิกฤต</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    สต็อกวิกฤต
+                  </Text>
                   <Icon as={IoWarningOutline} color="red.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="red.500">
                   {stockStats.critical}
                 </Text>
-                <Text fontSize="sm" color="gray.500">รายการ</Text>
+                <Text fontSize="sm" color="gray.500">
+                  รายการ
+                </Text>
               </VStack>
             </CardBody>
           </Card>
@@ -490,13 +532,17 @@ const LowStockPage: React.FC = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">สต็อกต่ำ</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    สต็อกต่ำ
+                  </Text>
                   <Icon as={IoWarningOutline} color="orange.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="orange.500">
                   {stockStats.low}
                 </Text>
-                <Text fontSize="sm" color="gray.500">รายการ</Text>
+                <Text fontSize="sm" color="gray.500">
+                  รายการ
+                </Text>
               </VStack>
             </CardBody>
           </Card>
@@ -505,13 +551,17 @@ const LowStockPage: React.FC = () => {
             <CardBody>
               <VStack spacing={3}>
                 <HStack justify="space-between" w="full">
-                  <Text fontSize="sm" color="gray.500">มูลค่าสต็อกคงเหลือ</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    มูลค่าสต็อกคงเหลือ
+                  </Text>
                   <Icon as={IoStatsChartOutline} color="blue.500" />
                 </HStack>
                 <Text fontSize="3xl" fontWeight="bold" color="blue.500">
                   {formatCurrency(stockStats.totalValue)}
                 </Text>
-                <Text fontSize="sm" color="gray.500">บาท</Text>
+                <Text fontSize="sm" color="gray.500">
+                  บาท
+                </Text>
               </VStack>
             </CardBody>
           </Card>
@@ -540,8 +590,10 @@ const LowStockPage: React.FC = () => {
                     w="200px"
                   >
                     <option value="all">ทุกหมวดหมู่</option>
-                    {stockStats.categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
+                    {stockStats.categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
                     ))}
                   </Select>
                 </HStack>
@@ -570,7 +622,13 @@ const LowStockPage: React.FC = () => {
               </HStack>
 
               {selectedProducts.length > 0 && (
-                <HStack w="full" justify="space-between" p={3} bg="blue.50" borderRadius="md">
+                <HStack
+                  w="full"
+                  justify="space-between"
+                  p={3}
+                  bg="blue.50"
+                  borderRadius="md"
+                >
                   <Text fontSize="sm">
                     เลือกแล้ว {selectedProducts.length} รายการ
                   </Text>
@@ -596,8 +654,14 @@ const LowStockPage: React.FC = () => {
                 รายการสินค้า ({filteredProducts.length})
               </Text>
               <Checkbox
-                isChecked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
-                isIndeterminate={selectedProducts.length > 0 && selectedProducts.length < filteredProducts.length}
+                isChecked={
+                  selectedProducts.length === filteredProducts.length &&
+                  filteredProducts.length > 0
+                }
+                isIndeterminate={
+                  selectedProducts.length > 0 &&
+                  selectedProducts.length < filteredProducts.length
+                }
                 onChange={handleSelectAll}
               >
                 เลือกทั้งหมด
@@ -622,8 +686,12 @@ const LowStockPage: React.FC = () => {
                 <Tbody>
                   {filteredProducts.map((product) => {
                     const stockStatus = getStockStatus(product);
-                    const recommendedQuantity = calculateRestockQuantity(product);
-                    const restockCost = calculateRestockCost(product, recommendedQuantity);
+                    const recommendedQuantity =
+                      calculateRestockQuantity(product);
+                    const restockCost = calculateRestockCost(
+                      product,
+                      recommendedQuantity
+                    );
 
                     return (
                       <Tr key={product.id}>
@@ -652,7 +720,10 @@ const LowStockPage: React.FC = () => {
                         <Td>
                           <VStack align="start" spacing={2}>
                             <HStack spacing={2}>
-                              <Text fontWeight="bold" color={stockStatus.color + ".500"}>
+                              <Text
+                                fontWeight="bold"
+                                color={stockStatus.color + ".500"}
+                              >
                                 {product.stockQuantity}
                               </Text>
                               <Text fontSize="sm" color="gray.500">
@@ -668,7 +739,10 @@ const LowStockPage: React.FC = () => {
                           </VStack>
                         </Td>
                         <Td>
-                          <Badge colorScheme={stockStatus.color} variant="solid">
+                          <Badge
+                            colorScheme={stockStatus.color}
+                            variant="solid"
+                          >
                             {stockStatus.text}
                           </Badge>
                         </Td>
@@ -690,7 +764,9 @@ const LowStockPage: React.FC = () => {
                         <Td>
                           <Button
                             size="sm"
-                            colorScheme={stockStatus.status === "out" ? "red" : "orange"}
+                            colorScheme={
+                              stockStatus.status === "out" ? "red" : "orange"
+                            }
                             leftIcon={<IoBagAdd />}
                             onClick={() => handleRestockProduct(product)}
                           >
@@ -717,12 +793,14 @@ const LowStockPage: React.FC = () => {
               </HStack>
             </ModalHeader>
             <ModalCloseButton />
-            
+
             <ModalBody>
               {restockData.productId && (
                 <VStack spacing={4} align="stretch">
                   {(() => {
-                    const product = products.find(p => p.id === restockData.productId);
+                    const product = products.find(
+                      (p) => p.id === restockData.productId
+                    );
                     if (!product) return null;
 
                     return (
@@ -731,22 +809,30 @@ const LowStockPage: React.FC = () => {
                           <VStack align="stretch" spacing={3}>
                             <HStack justify="space-between">
                               <Text fontWeight="bold">{product.name}</Text>
-                              <Badge colorScheme={getStockStatus(product).color}>
+                              <Badge
+                                colorScheme={getStockStatus(product).color}
+                              >
                                 {getStockStatus(product).text}
                               </Badge>
                             </HStack>
                             <SimpleGrid columns={3} spacing={4} fontSize="sm">
                               <VStack align="start" spacing={0}>
                                 <Text color="gray.500">สต็อกปัจจุบัน</Text>
-                                <Text fontWeight="bold">{product.stockQuantity}</Text>
+                                <Text fontWeight="bold">
+                                  {product.stockQuantity}
+                                </Text>
                               </VStack>
                               <VStack align="start" spacing={0}>
                                 <Text color="gray.500">ขั้นต่ำ</Text>
-                                <Text fontWeight="bold">{product.minStockLevel}</Text>
+                                <Text fontWeight="bold">
+                                  {product.minStockLevel}
+                                </Text>
                               </VStack>
                               <VStack align="start" spacing={0}>
                                 <Text color="gray.500">สูงสุด</Text>
-                                <Text fontWeight="bold">{product.maxStockLevel}</Text>
+                                <Text fontWeight="bold">
+                                  {product.maxStockLevel}
+                                </Text>
                               </VStack>
                             </SimpleGrid>
                           </VStack>
@@ -754,11 +840,16 @@ const LowStockPage: React.FC = () => {
 
                         <VStack align="stretch" spacing={4}>
                           <Box>
-                            <Text mb={2} fontWeight="medium">จำนวนที่ต้องการเติม</Text>
+                            <Text mb={2} fontWeight="medium">
+                              จำนวนที่ต้องการเติม
+                            </Text>
                             <NumberInput
                               value={restockData.quantity}
-                              onChange={(_, value) => 
-                                setRestockData(prev => ({ ...prev, quantity: value }))
+                              onChange={(_, value) =>
+                                setRestockData((prev) => ({
+                                  ...prev,
+                                  quantity: value,
+                                }))
                               }
                               min={1}
                               max={product.maxStockLevel}
@@ -775,26 +866,42 @@ const LowStockPage: React.FC = () => {
                           </Box>
 
                           <Box>
-                            <Text mb={2} fontWeight="medium">ระดับความเร่งด่วน</Text>
+                            <Text mb={2} fontWeight="medium">
+                              ระดับความเร่งด่วน
+                            </Text>
                             <Select
                               value={restockData.urgency}
-                              onChange={(e) => 
-                                setRestockData(prev => ({ ...prev, urgency: e.target.value as any }))
+                              onChange={(e) =>
+                                setRestockData((prev) => ({
+                                  ...prev,
+                                  urgency: e.target.value as any,
+                                }))
                               }
                             >
                               <option value="low">ต่ำ - ไม่เร่งด่วน</option>
-                              <option value="medium">ปานกลาง - เติมภายใน 1-2 วัน</option>
-                              <option value="high">สูง - เติมภายในวันนี้</option>
-                              <option value="critical">วิกฤต - เติมทันที</option>
+                              <option value="medium">
+                                ปานกลาง - เติมภายใน 1-2 วัน
+                              </option>
+                              <option value="high">
+                                สูง - เติมภายในวันนี้
+                              </option>
+                              <option value="critical">
+                                วิกฤต - เติมทันที
+                              </option>
                             </Select>
                           </Box>
 
                           <Box>
-                            <Text mb={2} fontWeight="medium">หมายเหตุ</Text>
+                            <Text mb={2} fontWeight="medium">
+                              หมายเหตุ
+                            </Text>
                             <Textarea
                               value={restockData.note}
-                              onChange={(e) => 
-                                setRestockData(prev => ({ ...prev, note: e.target.value }))
+                              onChange={(e) =>
+                                setRestockData((prev) => ({
+                                  ...prev,
+                                  note: e.target.value,
+                                }))
                               }
                               placeholder="เพิ่มหมายเหตุ (ไม่บังคับ)"
                               rows={3}
@@ -813,13 +920,26 @@ const LowStockPage: React.FC = () => {
                               </HStack>
                               <HStack justify="space-between" w="full">
                                 <Text fontSize="sm">ค่าใช้จ่าย:</Text>
-                                <Text fontSize="sm" fontWeight="bold" color="green.600">
-                                  {formatCurrency(calculateRestockCost(product, restockData.quantity))}
+                                <Text
+                                  fontSize="sm"
+                                  fontWeight="bold"
+                                  color="green.600"
+                                >
+                                  {formatCurrency(
+                                    calculateRestockCost(
+                                      product,
+                                      restockData.quantity
+                                    )
+                                  )}
                                 </Text>
                               </HStack>
                               <HStack justify="space-between" w="full">
                                 <Text fontSize="sm">สต็อกหลังเติม:</Text>
-                                <Text fontSize="sm" fontWeight="bold" color="blue.600">
+                                <Text
+                                  fontSize="sm"
+                                  fontWeight="bold"
+                                  color="blue.600"
+                                >
                                   {product.stockQuantity + restockData.quantity}
                                 </Text>
                               </HStack>
@@ -837,8 +957,8 @@ const LowStockPage: React.FC = () => {
               <Button variant="ghost" mr={3} onClick={onRestockClose}>
                 ยกเลิก
               </Button>
-              <Button 
-                colorScheme="blue" 
+              <Button
+                colorScheme="blue"
                 onClick={handleSubmitRestock}
                 leftIcon={<IoCheckmarkCircleOutline />}
               >

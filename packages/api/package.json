@@ -1,0 +1,43 @@
+{
+  "name": "@shopflow/api",
+  "version": "1.0.0",
+  "description": "Shared API services for ShopFlow POS and CMS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --ext .ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "@shopflow/types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "typescript": "^5.5.2"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-query": "^3.39.3"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./services/*": {
+      "import": "./dist/services/*.js",
+      "require": "./dist/services/*.js",
+      "types": "./dist/services/*.d.ts"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "package.json",
+    "README.md"
+  ]
+}

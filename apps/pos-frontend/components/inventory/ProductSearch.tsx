@@ -81,7 +81,9 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
   const hoverBg = useColorModeValue("gray.50", "gray.700");
 
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(products.map(p => p.category.name))];
+    const uniqueCategories = [
+      ...new Set(products.map((p) => p.category?.name).filter(Boolean)),
+    ];
     return uniqueCategories;
   }, [products]);
 
@@ -91,24 +93,25 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
     // Text search
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchLower) ||
-        product.sku.toLowerCase().includes(searchLower) ||
-        product.barcode?.toLowerCase().includes(searchLower) ||
-        product.tags?.some(tag => tag.toLowerCase().includes(searchLower))
+      filtered = filtered.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchLower) ||
+          product.sku?.toLowerCase().includes(searchLower)
       );
     }
 
     // Category filter
     if (filters.category !== "all") {
-      filtered = filtered.filter(product => product.category.name === filters.category);
+      filtered = filtered.filter(
+        (product) => product.category?.name === filters.category
+      );
     }
 
     // Stock status filters
-    filtered = filtered.filter(product => {
-      const isInStock = product.stockQuantity > product.minStockLevel;
-      const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= product.minStockLevel;
-      const isOutOfStock = product.stockQuantity === 0;
+    filtered = filtered.filter((product) => {
+      const isInStock = product.stock > 5; // simplified since minStockLevel not available
+      const isLowStock = product.stock > 0 && product.stock <= 5;
+      const isOutOfStock = product.stock === 0;
 
       return (
         (filters.inStock && isInStock) ||
@@ -118,25 +121,32 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
     });
 
     // Price range filter
-    filtered = filtered.filter(product =>
-      product.price >= filters.priceRange.min &&
-      product.price <= filters.priceRange.max
+    filtered = filtered.filter(
+      (product) =>
+        product.price >= filters.priceRange.min &&
+        product.price <= filters.priceRange.max
     );
 
     return filtered.slice(0, 10); // Limit results for performance
   }, [products, searchTerm, filters]);
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
-    setShowResults(value.length > 0);
-    onSearchChange?.(value);
-  }, [onSearchChange]);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      setShowResults(value.length > 0);
+      onSearchChange?.(value);
+    },
+    [onSearchChange]
+  );
 
-  const handleProductSelect = useCallback((product: Product) => {
-    onProductSelect(product);
-    setSearchTerm(product.name);
-    setShowResults(false);
-  }, [onProductSelect]);
+  const handleProductSelect = useCallback(
+    (product: Product) => {
+      onProductSelect(product);
+      setSearchTerm(product.name);
+      setShowResults(false);
+    },
+    [onProductSelect]
+  );
 
   const clearSearch = useCallback(() => {
     setSearchTerm("");
@@ -145,8 +155,8 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
   }, [onSearchChange]);
 
   const getStockStatus = (product: Product) => {
-    if (product.stockQuantity === 0) return { text: "หมด", color: "red" };
-    if (product.stockQuantity <= product.minStockLevel) return { text: "ใกล้หมด", color: "orange" };
+    if (product.stock === 0) return { text: "หมด", color: "red" };
+    if (product.stock <= 5) return { text: "ใกล้หมด", color: "orange" };
     return { text: "มีสินค้า", color: "green" };
   };
 
@@ -232,37 +242,63 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
                   </Flex>
 
                   <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={2}>หมวดหมู่</Text>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      หมวดหมู่
+                    </Text>
                     <Select
                       value={filters.category}
-                      onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          category: e.target.value,
+                        }))
+                      }
                       size="sm"
                     >
                       <option value="all">ทุกหมวดหมู่</option>
-                      {categories.map(category => (
-                        <option key={category} value={category}>{category}</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
                       ))}
                     </Select>
                   </Box>
 
                   <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={2}>สถานะสต็อก</Text>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      สถานะสต็อก
+                    </Text>
                     <VStack align="start" spacing={1}>
                       <Checkbox
                         isChecked={filters.inStock}
-                        onChange={(e) => setFilters(prev => ({ ...prev, inStock: e.target.checked }))}
+                        onChange={(e) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            inStock: e.target.checked,
+                          }))
+                        }
                       >
                         มีสินค้า
                       </Checkbox>
                       <Checkbox
                         isChecked={filters.lowStock}
-                        onChange={(e) => setFilters(prev => ({ ...prev, lowStock: e.target.checked }))}
+                        onChange={(e) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            lowStock: e.target.checked,
+                          }))
+                        }
                       >
                         ใกล้หมด
                       </Checkbox>
                       <Checkbox
                         isChecked={filters.outOfStock}
-                        onChange={(e) => setFilters(prev => ({ ...prev, outOfStock: e.target.checked }))}
+                        onChange={(e) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            outOfStock: e.target.checked,
+                          }))
+                        }
                       >
                         หมดสต็อก
                       </Checkbox>
@@ -270,16 +306,23 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
                   </Box>
 
                   <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={2}>ช่วงราคา</Text>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      ช่วงราคา
+                    </Text>
                     <HStack spacing={2}>
                       <Input
                         type="number"
                         placeholder="ต่ำสุด"
                         value={filters.priceRange.min}
-                        onChange={(e) => setFilters(prev => ({
-                          ...prev,
-                          priceRange: { ...prev.priceRange, min: Number(e.target.value) }
-                        }))}
+                        onChange={(e) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            priceRange: {
+                              ...prev.priceRange,
+                              min: Number(e.target.value),
+                            },
+                          }))
+                        }
                         size="sm"
                       />
                       <Text>-</Text>
@@ -287,10 +330,15 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
                         type="number"
                         placeholder="สูงสุด"
                         value={filters.priceRange.max}
-                        onChange={(e) => setFilters(prev => ({
-                          ...prev,
-                          priceRange: { ...prev.priceRange, max: Number(e.target.value) }
-                        }))}
+                        onChange={(e) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            priceRange: {
+                              ...prev.priceRange,
+                              max: Number(e.target.value),
+                            },
+                          }))
+                        }
                         size="sm"
                       />
                     </HStack>
@@ -312,7 +360,12 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
         />
 
         {showViewToggle && (
-          <HStack spacing={0} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
+          <HStack
+            spacing={0}
+            borderWidth="1px"
+            borderRadius="md"
+            borderColor={borderColor}
+          >
             <IconButton
               aria-label="Grid view"
               icon={<IoGridOutline />}
@@ -360,7 +413,9 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
                   key={product.id}
                   p={3}
                   cursor="pointer"
-                  borderBottomWidth={index < filteredProducts.length - 1 ? "1px" : "0"}
+                  borderBottomWidth={
+                    index < filteredProducts.length - 1 ? "1px" : "0"
+                  }
                   borderColor={borderColor}
                   _hover={{ bg: hoverBg }}
                   onClick={() => handleProductSelect(product)}
@@ -375,25 +430,17 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
                       </HStack>
                       <HStack spacing={4} fontSize="sm" color="gray.500">
                         <Text>SKU: {product.sku}</Text>
-                        <Text>หมวด: {product.category.name}</Text>
-                        <Text>สต็อก: {product.stockQuantity}</Text>
+                        <Text>หมวด: {product.category?.name || "ไม่ระบุ"}</Text>
+                        <Text>สต็อก: {product.stock}</Text>
                       </HStack>
-                      {product.tags && product.tags.length > 0 && (
-                        <HStack spacing={1}>
-                          {product.tags.slice(0, 3).map(tag => (
-                            <Badge key={tag} size="sm" variant="outline">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </HStack>
-                      )}
+                      {/* Tags removed since not available in shared Product type */}
                     </VStack>
                     <VStack align="end" spacing={0}>
                       <Text fontWeight="bold" color="green.500">
                         ฿{product.price.toLocaleString()}
                       </Text>
                       <Text fontSize="sm" color="gray.500">
-                        ต้นทุน: ฿{product.cost}
+                        ต้นทุน: ฿0 {/* cost not available in shared type */}
                       </Text>
                     </VStack>
                   </HStack>
@@ -405,25 +452,28 @@ export const ProductSearch: React.FC<ProductSearchProps> = ({
       )}
 
       {/* No results */}
-      {showResults && searchTerm && filteredProducts.length === 0 && !isLoading && (
-        <Box
-          position="absolute"
-          top="100%"
-          left={0}
-          right={0}
-          zIndex={1000}
-          bg={cardBg}
-          borderWidth="1px"
-          borderColor={borderColor}
-          borderRadius="md"
-          shadow="lg"
-          mt={1}
-          p={4}
-          textAlign="center"
-        >
-          <Text color="gray.500">ไม่พบสินค้าที่ค้นหา</Text>
-        </Box>
-      )}
+      {showResults &&
+        searchTerm &&
+        filteredProducts.length === 0 &&
+        !isLoading && (
+          <Box
+            position="absolute"
+            top="100%"
+            left={0}
+            right={0}
+            zIndex={1000}
+            bg={cardBg}
+            borderWidth="1px"
+            borderColor={borderColor}
+            borderRadius="md"
+            shadow="lg"
+            mt={1}
+            p={4}
+            textAlign="center"
+          >
+            <Text color="gray.500">ไม่พบสินค้าที่ค้นหา</Text>
+          </Box>
+        )}
     </Box>
   );
 };

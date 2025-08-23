@@ -132,67 +132,76 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
-  const segmentChart = useMemo(() => ({
-    labels: segments.map(s => s.segment),
-    datasets: [
-      {
-        data: segments.map(s => s.count),
-        backgroundColor: [
-          "rgba(59, 130, 246, 0.8)",
-          "rgba(34, 197, 94, 0.8)",
-          "rgba(251, 146, 60, 0.8)",
-          "rgba(147, 51, 234, 0.8)",
-        ],
-        borderWidth: 2,
-      },
-    ],
-  }), [segments]);
+  const segmentChart = useMemo(
+    () => ({
+      labels: segments.map((s) => s.segment),
+      datasets: [
+        {
+          data: segments.map((s) => s.count),
+          backgroundColor: [
+            "rgba(59, 130, 246, 0.8)",
+            "rgba(34, 197, 94, 0.8)",
+            "rgba(251, 146, 60, 0.8)",
+            "rgba(147, 51, 234, 0.8)",
+          ],
+          borderWidth: 2,
+        },
+      ],
+    }),
+    [segments]
+  );
 
-  const customerTrendChart = useMemo(() => ({
-    labels: trends.map(t => t.period),
-    datasets: [
-      {
-        label: "ลูกค้าใหม่",
-        data: trends.map(t => t.newCustomers),
-        borderColor: "rgb(34, 197, 94)",
-        backgroundColor: "rgba(34, 197, 94, 0.1)",
-        borderWidth: 3,
-        fill: false,
-        tension: 0.4,
-      },
-      {
-        label: "ลูกค้าเก่า",
-        data: trends.map(t => t.returningCustomers),
-        borderColor: "rgb(59, 130, 246)",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        borderWidth: 3,
-        fill: false,
-        tension: 0.4,
-      },
-    ],
-  }), [trends]);
+  const customerTrendChart = useMemo(
+    () => ({
+      labels: trends.map((t) => t.period),
+      datasets: [
+        {
+          label: "ลูกค้าใหม่",
+          data: trends.map((t) => t.newCustomers),
+          borderColor: "rgb(34, 197, 94)",
+          backgroundColor: "rgba(34, 197, 94, 0.1)",
+          borderWidth: 3,
+          fill: false,
+          tension: 0.4,
+        },
+        {
+          label: "ลูกค้าเก่า",
+          data: trends.map((t) => t.returningCustomers),
+          borderColor: "rgb(59, 130, 246)",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          borderWidth: 3,
+          fill: false,
+          tension: 0.4,
+        },
+      ],
+    }),
+    [trends]
+  );
 
-  const retentionChart = useMemo(() => ({
-    labels: trends.map(t => t.period),
-    datasets: [
-      {
-        label: "อัตราการกลับมา (%)",
-        data: trends.map(t => t.retentionRate),
-        backgroundColor: "rgba(147, 51, 234, 0.8)",
-        borderColor: "rgba(147, 51, 234, 1)",
-        borderWidth: 2,
-        borderRadius: 6,
-      },
-    ],
-  }), [trends]);
+  const retentionChart = useMemo(
+    () => ({
+      labels: trends.map((t) => t.period),
+      datasets: [
+        {
+          label: "อัตราการกลับมา (%)",
+          data: trends.map((t) => t.retentionRate),
+          backgroundColor: "rgba(147, 51, 234, 0.8)",
+          borderColor: "rgba(147, 51, 234, 1)",
+          borderWidth: 2,
+          borderRadius: 6,
+        },
+      ],
+    }),
+    [trends]
+  );
 
   const lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { 
-        display: true, 
-        position: 'top' as const 
+      legend: {
+        display: true,
+        position: "top" as const,
       },
       title: { display: false },
     },
@@ -226,9 +235,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
         grid: { color: "#e2e8f0" },
         ticks: {
           color: "#666",
-          callback: function(value: any) {
-            return value + '%';
-          }
+          callback: function (value: any) {
+            return value + "%";
+          },
         },
       },
     },
@@ -239,7 +248,7 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'right' as const,
+        position: "right" as const,
         labels: {
           usePointStyle: true,
           padding: 20,
@@ -250,30 +259,43 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
 
   const getLoyaltyTierColor = (tier: string) => {
     switch (tier) {
-      case "Platinum": return "purple";
-      case "Gold": return "yellow";
-      case "Silver": return "gray";
-      case "Bronze": return "orange";
-      default: return "gray";
+      case "Platinum":
+        return "purple";
+      case "Gold":
+        return "yellow";
+      case "Silver":
+        return "gray";
+      case "Bronze":
+        return "orange";
+      default:
+        return "gray";
     }
   };
 
   const getLoyaltyTierIcon = (tier: string) => {
     switch (tier) {
-      case "Platinum": 
-      case "Gold": return IoStar;
-      case "Silver": return IoGift;
-      case "Bronze": return IoHeart;
-      default: return IoPeople;
+      case "Platinum":
+      case "Gold":
+        return IoStar;
+      case "Silver":
+        return IoGift;
+      case "Bronze":
+        return IoHeart;
+      default:
+        return IoPeople;
     }
   };
 
   const getPeriodLabel = () => {
     switch (period) {
-      case "daily": return "รายวัน";
-      case "weekly": return "รายสัปดาห์";
-      case "monthly": return "รายเดือน";
-      default: return "รายสัปดาห์";
+      case "daily":
+        return "รายวัน";
+      case "weekly":
+        return "รายสัปดาห์";
+      case "monthly":
+        return "รายเดือน";
+      default:
+        return "รายสัปดาห์";
     }
   };
 
@@ -287,7 +309,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
             {totalCustomers.toLocaleString()}
           </StatNumber>
           <StatHelpText>
-            <StatArrow type={customerGrowthRate >= 0 ? "increase" : "decrease"} />
+            <StatArrow
+              type={customerGrowthRate >= 0 ? "increase" : "decrease"}
+            />
             {Math.abs(customerGrowthRate).toFixed(1)}%
           </StatHelpText>
         </Stat>
@@ -334,7 +358,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                 <CardHeader>
                   <HStack spacing={3}>
                     <Icon as={IoPieChart} boxSize={5} color="blue.500" />
-                    <Text fontSize="lg" fontWeight="bold">กลุ่มลูกค้า</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      กลุ่มลูกค้า
+                    </Text>
                   </HStack>
                 </CardHeader>
                 <CardBody>
@@ -348,7 +374,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                 <CardHeader>
                   <HStack spacing={3}>
                     <Icon as={IoBarChart} boxSize={5} color="purple.500" />
-                    <Text fontSize="lg" fontWeight="bold">อัตราการกลับมา</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      อัตราการกลับมา
+                    </Text>
                   </HStack>
                 </CardHeader>
                 <CardBody>
@@ -368,7 +396,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                   <HStack justify="space-between">
                     <HStack spacing={3}>
                       <Icon as={IoStatsChart} boxSize={5} color="green.500" />
-                      <Text fontSize="lg" fontWeight="bold">แนวโน้มลูกค้า{getPeriodLabel()}</Text>
+                      <Text fontSize="lg" fontWeight="bold">
+                        แนวโน้มลูกค้า{getPeriodLabel()}
+                      </Text>
                     </HStack>
                     <Badge colorScheme="green" variant="subtle">
                       การเติบโต {customerGrowthRate.toFixed(1)}%
@@ -377,44 +407,71 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                 </CardHeader>
                 <CardBody>
                   <Box height="400px">
-                    <Line data={customerTrendChart} options={lineChartOptions} />
+                    <Line
+                      data={customerTrendChart}
+                      options={lineChartOptions}
+                    />
                   </Box>
                 </CardBody>
               </Card>
 
               <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} textAlign="center">
+                <Card
+                  bg={cardBg}
+                  borderWidth="1px"
+                  borderColor={borderColor}
+                  textAlign="center"
+                >
                   <CardBody>
                     <VStack spacing={2}>
                       <Icon as={IoPersonAdd} boxSize={8} color="green.500" />
                       <Text fontSize="2xl" fontWeight="bold" color="green.600">
                         {trends.reduce((sum, t) => sum + t.newCustomers, 0)}
                       </Text>
-                      <Text fontSize="sm" color="gray.500">ลูกค้าใหม่รวม</Text>
+                      <Text fontSize="sm" color="gray.500">
+                        ลูกค้าใหม่รวม
+                      </Text>
                     </VStack>
                   </CardBody>
                 </Card>
 
-                <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} textAlign="center">
+                <Card
+                  bg={cardBg}
+                  borderWidth="1px"
+                  borderColor={borderColor}
+                  textAlign="center"
+                >
                   <CardBody>
                     <VStack spacing={2}>
                       <Icon as={IoHeart} boxSize={8} color="blue.500" />
                       <Text fontSize="2xl" fontWeight="bold" color="blue.600">
-                        {trends.reduce((sum, t) => sum + t.returningCustomers, 0)}
+                        {trends.reduce(
+                          (sum, t) => sum + t.returningCustomers,
+                          0
+                        )}
                       </Text>
-                      <Text fontSize="sm" color="gray.500">ลูกค้าเก่า</Text>
+                      <Text fontSize="sm" color="gray.500">
+                        ลูกค้าเก่า
+                      </Text>
                     </VStack>
                   </CardBody>
                 </Card>
 
-                <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} textAlign="center">
+                <Card
+                  bg={cardBg}
+                  borderWidth="1px"
+                  borderColor={borderColor}
+                  textAlign="center"
+                >
                   <CardBody>
                     <VStack spacing={2}>
                       <Icon as={IoTime} boxSize={8} color="purple.500" />
                       <Text fontSize="2xl" fontWeight="bold" color="purple.600">
                         {avgCustomerLifetime.toFixed(0)}
                       </Text>
-                      <Text fontSize="sm" color="gray.500">วันเฉลี่ย</Text>
+                      <Text fontSize="sm" color="gray.500">
+                        วันเฉลี่ย
+                      </Text>
                     </VStack>
                   </CardBody>
                 </Card>
@@ -429,7 +486,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                 <CardHeader>
                   <HStack spacing={3}>
                     <Icon as={IoPieChart} boxSize={5} color="orange.500" />
-                    <Text fontSize="lg" fontWeight="bold">การแบ่งกลุ่มลูกค้า</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      การแบ่งกลุ่มลูกค้า
+                    </Text>
                   </HStack>
                 </CardHeader>
                 <CardBody>
@@ -441,28 +500,41 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
 
               <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
                 <CardHeader>
-                  <Text fontSize="lg" fontWeight="bold">รายละเอียดกลุ่มลูกค้า</Text>
+                  <Text fontSize="lg" fontWeight="bold">
+                    รายละเอียดกลุ่มลูกค้า
+                  </Text>
                 </CardHeader>
                 <CardBody>
                   <VStack spacing={4} align="stretch">
                     {segments.map((segment, index) => (
-                      <VStack key={index} align="stretch" spacing={3} p={4} bg="gray.50" borderRadius="lg">
+                      <VStack
+                        key={index}
+                        align="stretch"
+                        spacing={3}
+                        p={4}
+                        bg="gray.50"
+                        borderRadius="lg"
+                      >
                         <HStack justify="space-between">
                           <Text fontWeight="bold">{segment.segment}</Text>
                           <Badge colorScheme={segment.color} variant="solid">
                             {segment.count} คน
                           </Badge>
                         </HStack>
-                        
+
                         <SimpleGrid columns={2} spacing={4}>
                           <Box>
-                            <Text fontSize="sm" color="gray.500">ค่าเฉลี่ยต่อออเดอร์</Text>
+                            <Text fontSize="sm" color="gray.500">
+                              ค่าเฉลี่ยต่อออเดอร์
+                            </Text>
                             <Text fontWeight="medium" color="green.600">
                               {formatCurrency(segment.avgOrderValue)}
                             </Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="gray.500">รายได้รวม</Text>
+                            <Text fontSize="sm" color="gray.500">
+                              รายได้รวม
+                            </Text>
                             <Text fontWeight="medium" color="blue.600">
                               {formatCurrency(segment.totalRevenue)}
                             </Text>
@@ -493,7 +565,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                 <HStack justify="space-between">
                   <HStack spacing={3}>
                     <Icon as={IoStar} boxSize={5} color="gold" />
-                    <Text fontSize="lg" fontWeight="bold">ลูกค้าชั้นนำ</Text>
+                    <Text fontSize="lg" fontWeight="bold">
+                      ลูกค้าชั้นนำ
+                    </Text>
                   </HStack>
                   <AvatarGroup size="sm" max={3}>
                     {topCustomers.slice(0, 3).map((customer, index) => (
@@ -530,12 +604,19 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                             </HStack>
                           </Td>
                           <Td>
-                            <Badge 
-                              colorScheme={getLoyaltyTierColor(customer.loyaltyTier)}
+                            <Badge
+                              colorScheme={getLoyaltyTierColor(
+                                customer.loyaltyTier
+                              )}
                               variant="solid"
-                              leftIcon={<Icon as={getLoyaltyTierIcon(customer.loyaltyTier)} />}
                             >
-                              {customer.loyaltyTier}
+                              <HStack spacing={1}>
+                                <Icon
+                                  as={getLoyaltyTierIcon(customer.loyaltyTier)}
+                                  boxSize="3"
+                                />
+                                <Text>{customer.loyaltyTier}</Text>
+                              </HStack>
                             </Badge>
                           </Td>
                           <Td isNumeric fontWeight="bold" color="green.600">
@@ -547,7 +628,9 @@ export const CustomerAnalytics: React.FC<CustomerAnalyticsProps> = ({
                           </Td>
                           <Td>
                             <Text fontSize="sm">
-                              {new Date(customer.lastVisit).toLocaleDateString("th-TH")}
+                              {new Date(customer.lastVisit).toLocaleDateString(
+                                "th-TH"
+                              )}
                             </Text>
                           </Td>
                         </Tr>

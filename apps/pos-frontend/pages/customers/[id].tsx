@@ -178,7 +178,7 @@ const mockTransactions: CustomerTransaction[] = [
   {
     id: "4",
     customerId: "1",
-    type: "refund",
+    type: "return",
     amount: -800,
     description: "คืนเงินสินค้าชิ้นหนึ่ง",
     createdAt: new Date("2023-12-15"),
@@ -205,7 +205,7 @@ const mockActivities: CustomerActivity[] = [
   {
     id: "3",
     customerId: "1",
-    type: "membership_update",
+    type: "membership_upgrade",
     title: "อัปเกรดสมาชิก",
     description: "อัปเกรดเป็นสมาชิก Gold",
     createdAt: new Date("2023-06-15"),
@@ -236,14 +236,8 @@ const CustomerDetailPage: React.FC = () => {
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
   // Use customer hooks
-  const {
-    customer,
-    stats,
-    transactions,
-    activities,
-    loading,
-    error,
-  } = useCustomer(id as string);
+  const { customer, stats, transactions, activities, loading, error } =
+    useCustomer(id as string);
 
   const { updateCustomer, deleteCustomer } = useCustomers({ autoLoad: false });
 
@@ -260,7 +254,7 @@ const CustomerDetailPage: React.FC = () => {
     if (window.confirm(`ต้องการลบลูกค้า ${customer.name} หรือไม่?`)) {
       try {
         await deleteCustomer(customer.id);
-        
+
         toast({
           title: "ลบลูกค้าสำเร็จ",
           description: `ลบข้อมูลลูกค้า ${customer.name} แล้ว`,
@@ -268,7 +262,7 @@ const CustomerDetailPage: React.FC = () => {
           duration: 3000,
           isClosable: true,
         });
-        
+
         router.push("/customers");
       } catch (error: any) {
         toast({
@@ -383,12 +377,7 @@ const CustomerDetailPage: React.FC = () => {
               {/* Header Actions */}
               <Flex justify="space-between" align="center">
                 <HStack spacing={4}>
-                  <Box
-                    p={3}
-                    borderRadius="lg"
-                    bg="blue.100"
-                    color="blue.600"
-                  >
+                  <Box p={3} borderRadius="lg" bg="blue.100" color="blue.600">
                     <Icon as={IoPersonOutline} boxSize={6} />
                   </Box>
                   <VStack align="start" spacing={0}>

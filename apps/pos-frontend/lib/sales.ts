@@ -6,307 +6,15 @@ import {
   SalesPayment,
   SalesProductSearchFilters,
 } from "@shopflow/types";
+import { createMockSalesProducts } from "./productAdapter";
 
-// Mock Products for development
-export const mockProducts: SalesProduct[] = [
-  {
-    id: "1",
-    name: "Coca Cola - 330ml",
-    description: "Refreshing cola drink",
-    price: 1.5,
-    barcode: "1234567890123",
-    category: "Beverages",
-    stock: 100,
-    isActive: true,
-    taxRate: 0.1,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "9",
-    name: "กาแฟเย็น",
-    description: "กาแฟเย็นสดชื่น เลือกขนาดได้",
-    price: 40,
-    barcode: "9999999999999",
-    category: "Drinks",
-    stock: 50,
-    isActive: true,
-    taxRate: 0.07,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-    hasVariants: true,
-    variants: [
-      {
-        id: "9a",
-        product_id: "9",
-        variant_combinations: { size: "S" },
-        price_adjustment: -5,
-        stock: 10,
-        is_active: true,
-      },
-      {
-        id: "9b",
-        product_id: "9",
-        variant_combinations: { size: "M" },
-        price_adjustment: 0,
-        stock: 20,
-        is_active: true,
-      },
-      {
-        id: "9c",
-        product_id: "9",
-        variant_combinations: { size: "L" },
-        price_adjustment: 10,
-        stock: 20,
-        is_active: true,
-      },
-    ],
-  },
-  {
-    id: "10",
-    name: "เสื้อยืด",
-    description: "เสื้อยืดผ้าฝ้าย 100%",
-    price: 250,
-    barcode: "1000000000001",
-    category: "Clothing",
-    stock: 100,
-    isActive: true,
-    taxRate: 0.07,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-    hasVariants: true,
-    variants: [
-      {
-        id: "10a",
-        product_id: "10",
-        variant_combinations: { size: "S", color: "แดง" },
-        price_adjustment: 0,
-        stock: 5,
-        is_active: true,
-      },
-      {
-        id: "10b",
-        product_id: "10",
-        variant_combinations: { size: "M", color: "แดง" },
-        price_adjustment: 0,
-        stock: 10,
-        is_active: true,
-      },
-      {
-        id: "10c",
-        product_id: "10",
-        variant_combinations: { size: "L", color: "แดง" },
-        price_adjustment: 20,
-        stock: 8,
-        is_active: true,
-      },
-      {
-        id: "10d",
-        product_id: "10",
-        variant_combinations: { size: "S", color: "น้ำเงิน" },
-        price_adjustment: 0,
-        stock: 7,
-        is_active: true,
-      },
-      {
-        id: "10e",
-        product_id: "10",
-        variant_combinations: { size: "M", color: "น้ำเงิน" },
-        price_adjustment: 0,
-        stock: 12,
-        is_active: true,
-      },
-      {
-        id: "10f",
-        product_id: "10",
-        variant_combinations: { size: "L", color: "น้ำเงิน" },
-        price_adjustment: 20,
-        stock: 6,
-        is_active: true,
-      },
-      {
-        id: "10g",
-        product_id: "10",
-        variant_combinations: { size: "S", color: "ขาว" },
-        price_adjustment: 0,
-        stock: 9,
-        is_active: true,
-      },
-      {
-        id: "10h",
-        product_id: "10",
-        variant_combinations: { size: "M", color: "ขาว" },
-        price_adjustment: 0,
-        stock: 15,
-        is_active: true,
-      },
-      {
-        id: "10i",
-        product_id: "10",
-        variant_combinations: { size: "L", color: "ขาว" },
-        price_adjustment: 20,
-        stock: 8,
-        is_active: true,
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "Fresh Bread - White",
-    description: "Freshly baked white bread",
-    price: 2.25,
-    barcode: "2345678901234",
-    category: "Bakery",
-    stock: 50,
-    isActive: true,
-    taxRate: 0.0,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "3",
-    name: "Milk - 1L",
-    description: "Fresh whole milk",
-    price: 3.0,
-    barcode: "3456789012345",
-    category: "Dairy",
-    stock: 30,
-    isActive: true,
-    taxRate: 0.0,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "4",
-    name: "Bananas - 1kg",
-    description: "Fresh yellow bananas",
-    price: 2.5,
-    barcode: "4567890123456",
-    category: "Fruits",
-    stock: 75,
-    isActive: true,
-    taxRate: 0.0,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "5",
-    name: "Chicken Breast - 500g",
-    description: "Fresh chicken breast",
-    price: 8.99,
-    barcode: "5678901234567",
-    category: "Meat",
-    stock: 25,
-    isActive: true,
-    taxRate: 0.0,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "6",
-    name: "Rice - 2kg",
-    description: "Premium jasmine rice",
-    price: 6.75,
-    barcode: "6789012345678",
-    category: "Pantry",
-    stock: 40,
-    isActive: true,
-    taxRate: 0.0,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "7",
-    name: "Chocolate Bar",
-    description: "Milk chocolate bar",
-    price: 2.99,
-    barcode: "7890123456789",
-    category: "Snacks",
-    stock: 60,
-    isActive: true,
-    taxRate: 0.1,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "8",
-    name: "Apples - 1kg",
-    description: "Fresh red apples",
-    price: 3.99,
-    barcode: "8901234567890",
-    category: "Fruits",
-    stock: 45,
-    isActive: true,
-    taxRate: 0.1,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-  },
-  {
-    id: "10",
-    name: "ชาเย็น",
-    description: "ชาเย็นไทย เลือกขนาดและความหวานได้",
-    price: 35,
-    barcode: "8888888888888",
-    category: "Drinks",
-    stock: 40,
-    isActive: true,
-    taxRate: 0.07,
-    discountEligible: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-    hasVariants: true,
-    variants: [
-      {
-        id: "10a",
-        product_id: "10",
-        variant_combinations: { size: "S", sweetness: "หวานน้อย" },
-        price_adjustment: 0,
-        stock: 10,
-        is_active: true,
-      },
-      {
-        id: "10b",
-        product_id: "10",
-        variant_combinations: { size: "S", sweetness: "ปกติ" },
-        price_adjustment: 0,
-        stock: 10,
-        is_active: true,
-      },
-      {
-        id: "10c",
-        product_id: "10",
-        variant_combinations: { size: "M", sweetness: "หวานน้อย" },
-        price_adjustment: 5,
-        stock: 10,
-        is_active: true,
-      },
-      {
-        id: "10d",
-        product_id: "10",
-        variant_combinations: { size: "M", sweetness: "ปกติ" },
-        price_adjustment: 5,
-        stock: 10,
-        is_active: true,
-      },
-    ],
-  },
-];
+// Use mock products from adapter for development
+export const mockProducts: SalesProduct[] = createMockSalesProducts();
 
-// Storage keys
 const CART_KEY = "pos_cart";
 const TRANSACTION_KEY = "pos_current_transaction";
 
-// Cart utilities
+// Cart management functions
 export const createEmptyCart = (): SalesCart => ({
   id: `cart_${Date.now()}`,
   items: [],
@@ -322,9 +30,9 @@ export const createEmptyCart = (): SalesCart => ({
 export const calculateCartItemTotal = (item: SalesCartItem): SalesCartItem => {
   const subtotal = item.unitPrice * item.quantity;
   const discountAmount =
-    item.discountPercentage > 0
+    item.product.discountEligible && item.discountPercentage
       ? subtotal * (item.discountPercentage / 100)
-      : item.discountAmount;
+      : 0;
   const discountedSubtotal = subtotal - discountAmount;
   const taxAmount = discountedSubtotal * item.product.taxRate;
   const total = discountedSubtotal + taxAmount;
@@ -362,7 +70,7 @@ export const calculateCartTotals = (cart: SalesCart): SalesCart => {
   };
 };
 
-// Product search and filtering
+// Product search and filtering (legacy function for compatibility)
 export const searchProducts = async (
   filters: SalesProductSearchFilters,
   sortBy: "name" | "price" | "category" = "name"
@@ -385,7 +93,7 @@ export const searchProducts = async (
   }
 
   // Filter by category
-  if (filters.category) {
+  if (filters.category && filters.category !== "all") {
     results = results.filter(
       (product) => product.category === filters.category
     );
@@ -398,17 +106,11 @@ export const searchProducts = async (
 
   // Filter by stock status
   if (filters.inStock !== undefined) {
-    results = results.filter((product) =>
-      filters.inStock ? product.stock > 0 : product.stock <= 0
-    );
-  }
-
-  // Filter by price range
-  if (filters.priceRange) {
-    const { min, max } = filters.priceRange;
-    results = results.filter(
-      (product) => product.price >= min && product.price <= max
-    );
+    if (filters.inStock) {
+      results = results.filter((product) => product.stock > 0);
+    } else {
+      results = results.filter((product) => product.stock === 0);
+    }
   }
 
   // Sort results
@@ -428,18 +130,7 @@ export const searchProducts = async (
   return results;
 };
 
-export const getProductCategories = (): string[] => {
-  const categories = [
-    ...new Set(mockProducts.map((product) => product.category)),
-  ];
-  return categories.sort();
-};
-
-export const findProductByBarcode = (barcode: string): SalesProduct | null => {
-  return mockProducts.find((product) => product.barcode === barcode) || null;
-};
-
-// Cart storage utilities
+// Local Storage utilities
 export const getStoredCart = (): SalesCart | null => {
   if (typeof window === "undefined") return null;
 
@@ -543,4 +234,14 @@ export const applyDiscount = (
   discountPercentage: number
 ): number => {
   return amount * (1 - discountPercentage / 100);
+};
+
+// Get unique product categories
+export const getProductCategories = (): string[] => {
+  const categories = mockProducts
+    .map((product) => product.category)
+    .filter((category, index, array) => array.indexOf(category) === index)
+    .sort();
+
+  return categories;
 };

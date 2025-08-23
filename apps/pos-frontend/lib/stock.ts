@@ -9,7 +9,12 @@ export interface StockAlert {
   productId: string;
   productName: string;
   productSku: string;
-  type: "low_stock" | "out_of_stock" | "critical_stock" | "reorder_point" | "expiring_soon";
+  type:
+    | "low_stock"
+    | "out_of_stock"
+    | "critical_stock"
+    | "reorder_point"
+    | "expiring_soon";
   level: AlertLevel;
   message: string;
   currentStock: number;
@@ -59,42 +64,81 @@ export interface ReorderSuggestion {
 // Stock Status Calculator
 export class StockCalculator {
   static getStockStatus(product: Product): StockStatus {
-    const { stockQuantity, minStockLevel } = product;
-    
-    if (stockQuantity === 0) return "out";
-    if (stockQuantity <= minStockLevel * 0.5) return "critical";
-    if (stockQuantity <= minStockLevel) return "low";
+    const stock = product.stock;
+    const minStockLevel = 10; // Default minimum stock level
+
+    if (stock === 0) return "out";
+    if (stock <= minStockLevel * 0.5) return "critical";
+    if (stock <= minStockLevel) return "low";
     return "healthy";
   }
 
   static getStockPercentage(product: Product): number {
-    return product.maxStockLevel > 0 
-      ? Math.min((product.stockQuantity / product.maxStockLevel) * 100, 100)
+    const maxStockLevel = 100; // Default maximum stock level
+    return maxStockLevel > 0
+      ? Math.min((product.stock / maxStockLevel) * 100, 100)
       : 0;
   }
 
-  static getDaysUntilStockOut(product: Product, averageDailySales: number = 1): number {
-    return averageDailySales > 0 ? Math.floor(product.stockQuantity / averageDailySales) : 0;
+  static calculateDaysOfStock(
+    product: Product,
+    averageDailySales: number
+  ): number {
+    return averageDailySales > 0
+      ? Math.floor(product.stock / averageDailySales)
+      : 0;
   }
 
-  static getReorderQuantity(product: Product, leadTimeDays: number = 7, averageDailySales: number = 1): number {
-    const safetyStock = product.minStockLevel;
+  static calculateReorderQuantity(
+    product: Product,
+    leadTimeDays: number,
+    averageDailySales: number
+  ): number {
+    const safetyStock = 10; // Default minimum stock level
     const leadTimeStock = averageDailySales * leadTimeDays;
-    const currentStock = product.stockQuantity;
-    const targetStock = Math.min(product.maxStockLevel, safetyStock + leadTimeStock);
-    
+    const currentStock = product.stock;
+    const targetStock = Math.min(100, safetyStock + leadTimeStock); // Default max stock 100
+
     return Math.max(0, targetStock - currentStock);
   }
 
-  static getStockValue(products: Product[]): number {
-    return products.reduce((total, product) => 
-      total + (product.stockQuantity * product.cost), 0
+  static calculateTotalStockValue(products: Product[]): number {
+    return products.reduce(
+      (total, product) => total + product.stock * product.price,
+      0
     );
   }
 
-  static getStockTurnover(product: Product, salesLastPeriod: number, periodDays: number = 30): number {
-    const averageStock = (product.stockQuantity + product.minStockLevel) / 2;
-    return averageStock > 0 ? (salesLastPeriod / averageStock) * (365 / periodDays) : 0;
+  static calculateTurnoverRate(
+    product: Product,
+    averageDailySales: number
+  ): number {
+    const averageStock = (product.stock + 10) / 2; // Using default min stock level
+    return averageStock > 0 ? (averageDailySales * 365) / averageStock : 0;
+  }
+
+  // Additional methods for backwards compatibility
+  static getDaysUntilStockOut(
+    product: Product,
+    averageDailySales: number
+  ): number {
+    return this.calculateDaysOfStock(product, averageDailySales);
+  }
+
+  static getReorderQuantity(
+    product: Product,
+    leadTimeDays: number,
+    averageDailySales: number
+  ): number {
+    return this.calculateReorderQuantity(
+      product,
+      leadTimeDays,
+      averageDailySales
+    );
+  }
+
+  static getStockValue(products: Product[]): number {
+    return this.calculateTotalStockValue(products);
   }
 }
 
@@ -103,9 +147,11 @@ export class StockAlertsManager {
   static generateAlerts(products: Product[]): StockAlert[] {
     const alerts: StockAlert[] = [];
 
-    products.forEach(product => {
+    products.forEach((product) => {
       const status = StockCalculator.getStockStatus(product);
       const alertId = `alert_${product.id}_${Date.now()}`;
+      const minStockLevel = 10; // Default minimum stock level
+      const maxStockLevel = 100; // Default maximum stock level
 
       switch (status) {
         case "out":
@@ -113,13 +159,13 @@ export class StockAlertsManager {
             id: alertId,
             productId: product.id,
             productName: product.name,
-            productSku: product.sku,
+            productSku: product.sku || "",
             type: "out_of_stock",
             level: "critical",
             message: `${product.name} หมดสต็อก - ต้องเติมทันที`,
-            currentStock: product.stockQuantity,
-            minStockLevel: product.minStockLevel,
-            maxStockLevel: product.maxStockLevel,
+            currentStock: product.stock,
+            minStockLevel,
+            maxStockLevel,
             createdAt: new Date(),
             acknowledged: false,
           });
@@ -130,13 +176,13 @@ export class StockAlertsManager {
             id: alertId,
             productId: product.id,
             productName: product.name,
-            productSku: product.sku,
+            productSku: product.sku || "",
             type: "critical_stock",
             level: "error",
-            message: `${product.name} สต็อกวิกฤต (${product.stockQuantity} เหลือ) - เติมด่วน`,
-            currentStock: product.stockQuantity,
-            minStockLevel: product.minStockLevel,
-            maxStockLevel: product.maxStockLevel,
+            message: `${product.name} สต็อกวิกฤต (${product.stock} เหลือ) - เติมด่วน`,
+            currentStock: product.stock,
+            minStockLevel,
+            maxStockLevel,
             createdAt: new Date(),
             acknowledged: false,
           });
@@ -147,13 +193,13 @@ export class StockAlertsManager {
             id: alertId,
             productId: product.id,
             productName: product.name,
-            productSku: product.sku,
+            productSku: product.sku || "",
             type: "low_stock",
             level: "warning",
-            message: `${product.name} สต็อกต่ำ (${product.stockQuantity} เหลือ) - ควรเติมสต็อก`,
-            currentStock: product.stockQuantity,
-            minStockLevel: product.minStockLevel,
-            maxStockLevel: product.maxStockLevel,
+            message: `${product.name} สต็อกต่ำ (${product.stock} เหลือ) - ควรเติมสต็อก`,
+            currentStock: product.stock,
+            minStockLevel,
+            maxStockLevel,
             createdAt: new Date(),
             acknowledged: false,
           });
@@ -161,18 +207,18 @@ export class StockAlertsManager {
       }
 
       // Check for reorder point
-      if (product.stockQuantity <= product.minStockLevel && product.stockQuantity > 0) {
+      if (product.stock <= minStockLevel && product.stock > 0) {
         alerts.push({
           id: `reorder_${product.id}_${Date.now()}`,
           productId: product.id,
           productName: product.name,
-          productSku: product.sku,
+          productSku: product.sku || "",
           type: "reorder_point",
           level: "warning",
           message: `${product.name} ถึงจุดสั่งซื้อ - ควรสั่งซื้อเพิ่ม`,
-          currentStock: product.stockQuantity,
-          minStockLevel: product.minStockLevel,
-          maxStockLevel: product.maxStockLevel,
+          currentStock: product.stock,
+          minStockLevel,
+          maxStockLevel,
           createdAt: new Date(),
           acknowledged: false,
         });
@@ -183,7 +229,7 @@ export class StockAlertsManager {
   }
 
   static filterAlerts(
-    alerts: StockAlert[], 
+    alerts: StockAlert[],
     filters: {
       level?: AlertLevel;
       type?: StockAlert["type"];
@@ -191,16 +237,25 @@ export class StockAlertsManager {
       productId?: string;
     }
   ): StockAlert[] {
-    return alerts.filter(alert => {
+    return alerts.filter((alert) => {
       if (filters.level && alert.level !== filters.level) return false;
       if (filters.type && alert.type !== filters.type) return false;
-      if (filters.acknowledged !== undefined && alert.acknowledged !== filters.acknowledged) return false;
-      if (filters.productId && alert.productId !== filters.productId) return false;
+      if (
+        filters.acknowledged !== undefined &&
+        alert.acknowledged !== filters.acknowledged
+      )
+        return false;
+      if (filters.productId && alert.productId !== filters.productId)
+        return false;
       return true;
     });
   }
 
-  static acknowledgeAlert(alert: StockAlert, userId: string, userName: string): StockAlert {
+  static acknowledgeAlert(
+    alert: StockAlert,
+    userId: string,
+    userName: string
+  ): StockAlert {
     return {
       ...alert,
       acknowledged: true,
@@ -247,7 +302,7 @@ export class StockMovementTracker {
       productId: product.id,
       type,
       quantity,
-      previousStock: product.stockQuantity,
+      previousStock: product.stock,
       newStock,
       reason,
       note,
@@ -258,19 +313,23 @@ export class StockMovementTracker {
     };
   }
 
-  static getMovementsByProduct(movements: StockMovement[], productId: string): StockMovement[] {
+  static getMovementsByProduct(
+    movements: StockMovement[],
+    productId: string
+  ): StockMovement[] {
     return movements
-      .filter(movement => movement.productId === productId)
+      .filter((movement) => movement.productId === productId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   static getMovementsByDateRange(
-    movements: StockMovement[], 
-    startDate: Date, 
+    movements: StockMovement[],
+    startDate: Date,
     endDate: Date
   ): StockMovement[] {
-    return movements.filter(movement => 
-      movement.createdAt >= startDate && movement.createdAt <= endDate
+    return movements.filter(
+      (movement) =>
+        movement.createdAt >= startDate && movement.createdAt <= endDate
     );
   }
 
@@ -303,15 +362,22 @@ export class ReorderSuggestionsGenerator {
   ): ReorderSuggestion[] {
     const suggestions: ReorderSuggestion[] = [];
 
-    products.forEach(product => {
+    products.forEach((product) => {
       const averageDailySales = salesData[product.id] || 1;
-      const daysUntilStockOut = StockCalculator.getDaysUntilStockOut(product, averageDailySales);
-      const suggestedQuantity = StockCalculator.getReorderQuantity(product, leadTimeDays, averageDailySales);
+      const daysUntilStockOut = StockCalculator.getDaysUntilStockOut(
+        product,
+        averageDailySales
+      );
+      const suggestedQuantity = StockCalculator.getReorderQuantity(
+        product,
+        leadTimeDays,
+        averageDailySales
+      );
 
       if (suggestedQuantity > 0) {
         let urgencyLevel: ReorderSuggestion["urgencyLevel"] = "low";
-        
-        if (product.stockQuantity === 0) urgencyLevel = "critical";
+
+        if (product.stock === 0) urgencyLevel = "critical";
         else if (daysUntilStockOut <= 3) urgencyLevel = "high";
         else if (daysUntilStockOut <= 7) urgencyLevel = "medium";
 
@@ -319,7 +385,7 @@ export class ReorderSuggestionsGenerator {
           product,
           suggestedQuantity,
           urgencyLevel,
-          estimatedCost: suggestedQuantity * product.cost,
+          estimatedCost: suggestedQuantity * (product.price || 0), // Use price instead of cost
           daysUntilStockOut,
           averageDailySales,
         });
@@ -329,14 +395,17 @@ export class ReorderSuggestionsGenerator {
     // Sort by urgency and days until stock out
     return suggestions.sort((a, b) => {
       const urgencyOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      const urgencyDiff = urgencyOrder[b.urgencyLevel] - urgencyOrder[a.urgencyLevel];
-      
+      const urgencyDiff =
+        urgencyOrder[b.urgencyLevel] - urgencyOrder[a.urgencyLevel];
+
       if (urgencyDiff !== 0) return urgencyDiff;
       return a.daysUntilStockOut - b.daysUntilStockOut;
     });
   }
 
-  static groupSuggestionsByUrgency(suggestions: ReorderSuggestion[]): Record<ReorderSuggestion["urgencyLevel"], ReorderSuggestion[]> {
+  static groupSuggestionsByUrgency(
+    suggestions: ReorderSuggestion[]
+  ): Record<ReorderSuggestion["urgencyLevel"], ReorderSuggestion[]> {
     return suggestions.reduce((groups, suggestion) => {
       const urgency = suggestion.urgencyLevel;
       if (!groups[urgency]) groups[urgency] = [];
@@ -346,7 +415,10 @@ export class ReorderSuggestionsGenerator {
   }
 
   static calculateTotalReorderCost(suggestions: ReorderSuggestion[]): number {
-    return suggestions.reduce((total, suggestion) => total + suggestion.estimatedCost, 0);
+    return suggestions.reduce(
+      (total, suggestion) => total + suggestion.estimatedCost,
+      0
+    );
   }
 }
 
@@ -358,23 +430,33 @@ export class StockSummaryGenerator {
     alerts: StockAlert[] = []
   ): StockSummary {
     const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    const todayMovements = movements.filter(movement => 
-      movement.createdAt >= todayStart
+    const todayStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
     );
 
-    const unacknowledgedAlerts = alerts.filter(alert => !alert.acknowledged);
+    const todayMovements = movements.filter(
+      (movement) => movement.createdAt >= todayStart
+    );
+
+    const unacknowledgedAlerts = alerts.filter((alert) => !alert.acknowledged);
 
     return {
       totalProducts: products.length,
       totalValue: StockCalculator.getStockValue(products),
-      lowStockItems: products.filter(p => StockCalculator.getStockStatus(p) === "low").length,
-      outOfStockItems: products.filter(p => StockCalculator.getStockStatus(p) === "out").length,
-      criticalStockItems: products.filter(p => StockCalculator.getStockStatus(p) === "critical").length,
+      lowStockItems: products.filter(
+        (p) => StockCalculator.getStockStatus(p) === "low"
+      ).length,
+      outOfStockItems: products.filter(
+        (p) => StockCalculator.getStockStatus(p) === "out"
+      ).length,
+      criticalStockItems: products.filter(
+        (p) => StockCalculator.getStockStatus(p) === "critical"
+      ).length,
       movementsToday: todayMovements.length,
       alertsCount: unacknowledgedAlerts.length,
-      reorderRequired: products.filter(p => p.stockQuantity <= p.minStockLevel).length,
+      reorderRequired: products.filter((p) => p.stock <= 10).length, // Use default min stock level
     };
   }
 }

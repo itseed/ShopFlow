@@ -5,6 +5,7 @@ export interface Branch {
   address?: string;
   phone?: string;
   email?: string;
+  taxId?: string;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;

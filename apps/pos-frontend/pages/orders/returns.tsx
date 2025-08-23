@@ -257,6 +257,8 @@ const ReturnsPage = () => {
         const aValue = a[filters.sortBy as keyof RefundTransaction];
         const bValue = b[filters.sortBy as keyof RefundTransaction];
 
+        if (!aValue || !bValue) return 0;
+
         if (filters.sortOrder === "asc") {
           return aValue > bValue ? 1 : -1;
         } else {

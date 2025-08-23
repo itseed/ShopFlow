@@ -31,7 +31,7 @@ import {
   FaQrcode,
   FaWallet,
 } from "react-icons/fa";
-import { SalesCart, SalesPaymentMethod, PaymentResult } from "@shopflow/types";
+import { SalesCart, PaymentMethod, PaymentResult } from "@shopflow/types";
 import { formatCurrency } from "../../lib/sales";
 import CashPayment from "./CashPayment";
 import CardPayment from "./CardPayment";
@@ -50,8 +50,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   cart,
   onPaymentComplete,
 }) => {
-  const [selectedMethod, setSelectedMethod] =
-    useState<SalesPaymentMethod | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(
+    null
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [splitPayment, setSplitPayment] = useState(false);
   const [splitAmount, setSplitAmount] = useState(0);
@@ -66,32 +67,32 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const paymentMethods = [
     {
-      id: "cash" as SalesPaymentMethod,
+      id: "cash" as PaymentMethod,
       name: "เงินสด",
       icon: FaMoneyBillWave,
       color: "green",
       description: "ชำระด้วยเงินสด",
     },
     {
-      id: "card" as SalesPaymentMethod,
+      id: "card" as PaymentMethod,
       name: "บัตรเครดิต/เดบิต",
       icon: FaCreditCard,
       color: "blue",
       description: "ชำระด้วยบัตร",
     },
     {
-      id: "qr" as SalesPaymentMethod,
-      name: "QR Code",
+      id: "e_wallet" as PaymentMethod,
+      name: "QR Code / E-Wallet",
       icon: FaQrcode,
       color: "purple",
-      description: "PromptPay / QR Payment",
+      description: "PromptPay / TrueMoney / ShopeePay",
     },
     {
-      id: "wallet" as SalesPaymentMethod,
-      name: "E-Wallet",
+      id: "bank_transfer" as PaymentMethod,
+      name: "โอนเงิน",
       icon: FaWallet,
       color: "orange",
-      description: "TrueMoney / ShopeePay",
+      description: "โอนเงินผ่านธนาคาร",
     },
   ];
 
@@ -106,7 +107,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [isOpen, cart.total]);
 
-  const handleMethodSelect = (method: SalesPaymentMethod) => {
+  const handleMethodSelect = (method: PaymentMethod) => {
     setSelectedMethod(method);
   };
 
@@ -159,7 +160,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             onCancel={() => setSelectedMethod(null)}
           />
         );
-      case "qr":
+      case "e_wallet":
         return (
           <QRPayment
             amount={paymentAmount}
@@ -167,13 +168,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             onCancel={() => setSelectedMethod(null)}
           />
         );
-      case "wallet":
+      case "bank_transfer":
         return (
           <QRPayment
             amount={paymentAmount}
             onPaymentComplete={handlePaymentResult}
             onCancel={() => setSelectedMethod(null)}
-            walletType="wallet"
+            walletType="qr"
           />
         );
       default:

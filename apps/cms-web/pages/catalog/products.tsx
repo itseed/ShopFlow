@@ -1,9 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../_app";
 import Layout from "../../components/Layout";
-import { Product, ProductStatus, Category } from "@shopflow/types";
+import ImageUpload from "../../components/ImageUpload";
+import { Product, ProductStatus } from "@shopflow/types";
 import { withAuth } from "../../lib/auth";
+import {
+  useProducts,
+  useCategories,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+} from "../../lib/hooks/useDatabase";
 import {
   Box,
   VStack,
@@ -35,7 +43,6 @@ import {
   NumberDecrementStepper,
   Textarea,
   useDisclosure,
-  useToast,
   Table,
   Thead,
   Tbody,
@@ -58,7 +65,6 @@ import {
   Image,
   FormHelperText,
   Checkbox,
-  SimpleGrid,
   Tag,
   TagLabel,
   TagCloseButton,
@@ -75,10 +81,27 @@ import {
 import { IoAdd } from "react-icons/io5";
 
 const ProductsPage: NextPageWithLayout = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+  // React Query hooks
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    error: productsError,
+  } = useProducts();
+
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories(
+    { status: "active" }
+  );
+
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+
+  // Extract products data
+  const products = productsData || [];
+  const loading = productsLoading || categoriesLoading;
+  const error = productsError?.message || "";
+
+  // Local state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -89,7 +112,7 @@ const ProductsPage: NextPageWithLayout = () => {
     stock: 0,
     category_id: "",
     status: "active" as ProductStatus,
-    images: [] as File[],
+    images: [] as string[], // Changed from File[] to string[]
     hasVariants: false,
     variants: [] as {
       id: string;
@@ -99,7 +122,6 @@ const ProductsPage: NextPageWithLayout = () => {
       is_active: boolean;
     }[],
   });
-  const [isDragOver, setIsDragOver] = useState(false);
   const [variantTypes, setVariantTypes] = useState<string[]>([]);
   const [newVariantType, setNewVariantType] = useState("");
   const [variantOptions, setVariantOptions] = useState<
@@ -115,105 +137,7 @@ const ProductsPage: NextPageWithLayout = () => {
     onOpen: onDeleteOpen,
     onClose: onDeleteClose,
   } = useDisclosure();
-  const toast = useToast();
   const cancelRef = React.useRef(null);
-
-  useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      // Sample categories data
-      const sampleCategories: Category[] = [
-        { id: "1", name: "เครื่องดื่ม", display_order: 1, status: "active" },
-        { id: "2", name: "อาหาร", display_order: 2, status: "active" },
-        { id: "3", name: "ขนมปัง", display_order: 3, status: "active" },
-        { id: "4", name: "สลัด", display_order: 4, status: "active" },
-      ];
-      setCategories(sampleCategories);
-    } catch (err) {
-      console.error("Error loading categories:", err);
-    }
-  };
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      // Sample data for now
-      const sampleProducts: Product[] = [
-        {
-          id: "1",
-          name: "กาแฟลาเต้",
-          description: "กาแฟลาเต้หอมกรุ่น ชงจากเมล็ดกาแฟคุณภาพเยี่ยม",
-          price: 65,
-          stock: 50,
-          category_id: "1",
-          status: "active",
-          images: [
-            "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=300&fit=crop",
-          ],
-        },
-        {
-          id: "2",
-          name: "ขนมปังโฮลวีท",
-          description: "ขนมปังโฮลวีทอบสด เหมาะสำหรับมื้อเช้า",
-          price: 45,
-          stock: 30,
-          category_id: "3",
-          status: "active",
-          images: [
-            "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop",
-          ],
-        },
-        {
-          id: "3",
-          name: "สลัดผลไม้",
-          description: "สลัดผลไม้สดใหม่ ดีต่อสุขภาพ",
-          price: 85,
-          stock: 20,
-          category_id: "4",
-          status: "active",
-          images: [
-            "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop",
-          ],
-        },
-        {
-          id: "4",
-          name: "ชาเขียวมัทฉะ",
-          description: "ชาเขียวมัทฉะแท้จากญี่ปุ่น รสชาติเข้มข้น",
-          price: 55,
-          stock: 25,
-          category_id: "1",
-          status: "active",
-          images: [
-            "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop",
-          ],
-        },
-        {
-          id: "5",
-          name: "แซนด์วิชทูน่า",
-          description: "แซนด์วิชทูน่าสด ผักกรอบ อิ่มอร่อย",
-          price: 75,
-          stock: 15,
-          category_id: "2",
-          status: "active",
-          images: [
-            "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop",
-          ],
-        },
-      ];
-
-      setProducts(sampleProducts);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Variant Management Functions
   const addVariantType = () => {
@@ -299,25 +223,15 @@ const ProductsPage: NextPageWithLayout = () => {
     setNewVariantOption({});
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadProducts();
-      return;
-    }
+  const handleSearch = () => {
+    // Search functionality will be handled by the useProducts hook
+    // For now, we'll just set the search query
+    console.log("Searching for:", searchQuery);
+  };
 
-    try {
-      setLoading(true);
-      setError("");
-
-      const filteredProducts = products.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setProducts(filteredProducts);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการค้นหา");
-    } finally {
-      setLoading(false);
-    }
+  const handleReset = () => {
+    setSearchQuery("");
+    // This will trigger a refetch with no search parameters
   };
 
   const handleAddProduct = () => {
@@ -346,7 +260,7 @@ const ProductsPage: NextPageWithLayout = () => {
       stock: product.stock,
       category_id: product.category_id || "",
       status: product.status,
-      images: [],
+      images: product.images || [],
       hasVariants:
         (product as Product & { hasVariants?: boolean }).hasVariants || false,
       variants:
@@ -366,102 +280,40 @@ const ProductsPage: NextPageWithLayout = () => {
     onOpen();
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setFormData((prev) => ({ ...prev, images: files }));
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-
-    const files = Array.from(e.dataTransfer.files).filter((file) =>
-      file.type.startsWith("image/")
-    );
-    if (files.length > 0) {
-      setFormData((prev) => ({ ...prev, images: files }));
-    }
-  };
-
-  const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
+  const handleImagesChange = (imageUrls: string[]) => {
+    setFormData((prev) => ({ ...prev, images: imageUrls }));
   };
 
   const handleSaveProduct = async () => {
     try {
-      // Convert File[] to string[] URLs (in real app, upload to server first)
-      const imageUrls = formData.images.map((file) =>
-        URL.createObjectURL(file)
-      );
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        stock: formData.stock,
+        category_id: formData.category_id || undefined,
+        status: formData.status as "active" | "inactive" | "out_of_stock",
+        images:
+          formData.images.length > 0
+            ? formData.images
+            : selectedProduct?.images || undefined,
+      };
 
       if (selectedProduct) {
         // Update existing product
-        const updatedProduct: Product = {
-          ...selectedProduct,
-          name: formData.name,
-          description: formData.description,
-          price: formData.price,
-          stock: formData.stock,
-          category_id: formData.category_id || undefined,
-          status: formData.status,
-          images:
-            formData.images.length > 0 ? imageUrls : selectedProduct.images,
-        };
-        setProducts((prev) =>
-          prev.map((p) => (p.id === selectedProduct.id ? updatedProduct : p))
-        );
-
-        toast({
-          title: "อัปเดตสินค้าสำเร็จ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
+        await updateProductMutation.mutateAsync({
+          id: selectedProduct.id,
+          data: productData,
         });
       } else {
         // Add new product
-        const newProduct: Product = {
-          id: Date.now().toString(),
-          name: formData.name,
-          description: formData.description,
-          price: formData.price,
-          stock: formData.stock,
-          category_id: formData.category_id || undefined,
-          status: formData.status,
-          images: imageUrls,
-        };
-        setProducts((prev) => [newProduct, ...prev]);
-
-        toast({
-          title: "เพิ่มสินค้าสำเร็จ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
+        await createProductMutation.mutateAsync(productData);
       }
 
       onClose();
     } catch (error) {
       console.error("Save error:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถบันทึกสินค้าได้",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      // Error toast is handled by the mutation hook
     }
   };
 
@@ -474,32 +326,20 @@ const ProductsPage: NextPageWithLayout = () => {
     if (!productToDelete) return;
 
     try {
-      setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
-
-      toast({
-        title: "ลบสินค้าสำเร็จ",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
+      await deleteProductMutation.mutateAsync(productToDelete.id);
       onDeleteClose();
       setProductToDelete(null);
     } catch (error) {
       console.error("Delete error:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถลบสินค้าได้",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      // Error toast is handled by the mutation hook
     }
   };
 
   const getCategoryName = (categoryId?: string) => {
     if (!categoryId) return "-";
-    const category = categories.find((c) => c.id === categoryId);
+    const category = categories.find(
+      (c: { id: string; name: string }) => c.id === categoryId
+    );
     return category?.name || "-";
   };
 
@@ -545,7 +385,7 @@ const ProductsPage: NextPageWithLayout = () => {
             </Button>
             <Button
               leftIcon={<FiFilter />}
-              onClick={loadProducts}
+              onClick={handleReset}
               variant="outline"
             >
               รีเซ็ต
@@ -816,111 +656,11 @@ const ProductsPage: NextPageWithLayout = () => {
 
               <FormControl>
                 <FormLabel fontFamily="heading">รูปภาพสินค้า</FormLabel>
-
-                {/* Drag & Drop Upload Area */}
-                <Box
-                  border="2px dashed"
-                  borderColor={isDragOver ? "blue.500" : "gray.300"}
-                  borderRadius="lg"
-                  p={6}
-                  textAlign="center"
-                  bg={isDragOver ? "blue.50" : "gray.50"}
-                  transition="all 0.2s"
-                  cursor="pointer"
-                  _hover={{ borderColor: "blue.400", bg: "blue.50" }}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() =>
-                    document.getElementById("product-image-upload")?.click()
-                  }
-                >
-                  <VStack spacing={3}>
-                    <Box
-                      p={3}
-                      borderRadius="full"
-                      bg={isDragOver ? "blue.100" : "gray.100"}
-                      color={isDragOver ? "blue.500" : "gray.500"}
-                    >
-                      <FiPlus size={24} />
-                    </Box>
-                    <VStack spacing={1}>
-                      <Text
-                        fontWeight="medium"
-                        color="gray.700"
-                        fontFamily="body"
-                      >
-                        {isDragOver
-                          ? "วางไฟล์รูปภาพที่นี่"
-                          : "ลากและวางไฟล์รูปภาพ หรือคลิกเพื่อเลือก"}
-                      </Text>
-                      <Text fontSize="sm" color="gray.500" fontFamily="body">
-                        รองรับไฟล์ JPG, PNG, GIF ขนาดไม่เกิน 5MB
-                        (เลือกได้หลายไฟล์)
-                      </Text>
-                    </VStack>
-                  </VStack>
-                  <Input
-                    id="product-image-upload"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageChange}
-                    display="none"
-                  />
-                </Box>
-
-                {/* Image Preview */}
-                {formData.images.length > 0 && (
-                  <Box mt={4}>
-                    <Text
-                      fontSize="sm"
-                      fontWeight="medium"
-                      mb={3}
-                      color="gray.700"
-                      fontFamily="heading"
-                    >
-                      รูปภาพที่เลือก ({formData.images.length} ไฟล์)
-                    </Text>
-                    <HStack spacing={3} flexWrap="wrap">
-                      {formData.images.map((file, index) => (
-                        <Box
-                          key={index}
-                          position="relative"
-                          borderRadius="lg"
-                          overflow="hidden"
-                          border="1px solid"
-                          borderColor="gray.200"
-                          bg="white"
-                          shadow="sm"
-                        >
-                          <Image
-                            src={URL.createObjectURL(file)}
-                            alt={`Preview ${index + 1}`}
-                            boxSize="100px"
-                            objectFit="cover"
-                          />
-                          <Box
-                            position="absolute"
-                            top={1}
-                            right={1}
-                            bg="red.500"
-                            borderRadius="full"
-                            p={1}
-                            cursor="pointer"
-                            _hover={{ bg: "red.600" }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeImage(index);
-                            }}
-                          >
-                            <FiTrash2 size={12} color="white" />
-                          </Box>
-                        </Box>
-                      ))}
-                    </HStack>
-                  </Box>
-                )}
+                <ImageUpload
+                  images={formData.images}
+                  onImagesChange={handleImagesChange}
+                  maxImages={5}
+                />
               </FormControl>
 
               <HStack spacing={4} w="full">

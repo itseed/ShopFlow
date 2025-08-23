@@ -28,45 +28,58 @@ export const useCustomerSelection = (
   const [selectedCustomers, setSelectedCustomers] = useState<Customer[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
 
-  const selectedCustomer = selectedCustomers.length > 0 ? selectedCustomers[0] : null;
+  const selectedCustomer =
+    selectedCustomers.length > 0 ? selectedCustomers[0] : null;
 
-  const selectCustomer = useCallback((customer: Customer) => {
-    setSelectedCustomers([customer]);
-    if (onCustomerSelect && !allowMultiple) {
-      onCustomerSelect(customer);
-    }
-  }, [onCustomerSelect, allowMultiple]);
+  const selectCustomer = useCallback(
+    (customer: Customer) => {
+      setSelectedCustomers([customer]);
+      if (onCustomerSelect && !allowMultiple) {
+        onCustomerSelect(customer);
+      }
+    },
+    [onCustomerSelect, allowMultiple]
+  );
 
-  const selectCustomers = useCallback((customers: Customer[]) => {
-    setSelectedCustomers(customers);
-    if (onCustomerSelect) {
-      onCustomerSelect(allowMultiple ? customers : customers[0]);
-    }
-  }, [onCustomerSelect, allowMultiple]);
+  const selectCustomers = useCallback(
+    (customers: Customer[]) => {
+      setSelectedCustomers(customers);
+      if (onCustomerSelect) {
+        onCustomerSelect(allowMultiple ? customers : customers[0]);
+      }
+    },
+    [onCustomerSelect, allowMultiple]
+  );
 
   const clearSelection = useCallback(() => {
     setSelectedCustomers([]);
   }, []);
 
-  const toggleSelection = useCallback((customer: Customer) => {
-    setSelectedCustomers(prev => {
-      const isSelected = prev.some(c => c.id === customer.id);
-      
-      if (allowMultiple) {
-        if (isSelected) {
-          return prev.filter(c => c.id !== customer.id);
-        } else {
-          return [...prev, customer];
-        }
-      } else {
-        return isSelected ? [] : [customer];
-      }
-    });
-  }, [allowMultiple]);
+  const toggleSelection = useCallback(
+    (customer: Customer) => {
+      setSelectedCustomers((prev) => {
+        const isSelected = prev.some((c) => c.id === customer.id);
 
-  const isCustomerSelected = useCallback((customer: Customer) => {
-    return selectedCustomers.some(c => c.id === customer.id);
-  }, [selectedCustomers]);
+        if (allowMultiple) {
+          if (isSelected) {
+            return prev.filter((c) => c.id !== customer.id);
+          } else {
+            return [...prev, customer];
+          }
+        } else {
+          return isSelected ? [] : [customer];
+        }
+      });
+    },
+    [allowMultiple]
+  );
+
+  const isCustomerSelected = useCallback(
+    (customer: Customer) => {
+      return selectedCustomers.some((c) => c.id === customer.id);
+    },
+    [selectedCustomers]
+  );
 
   const startSelection = useCallback(() => {
     setIsSelecting(true);
@@ -75,7 +88,11 @@ export const useCustomerSelection = (
   const finishSelection = useCallback(() => {
     setIsSelecting(false);
     if (onCustomerSelect) {
-      onCustomerSelect(allowMultiple ? selectedCustomers : selectedCustomer);
+      if (allowMultiple) {
+        onCustomerSelect(selectedCustomers);
+      } else if (selectedCustomer) {
+        onCustomerSelect(selectedCustomer);
+      }
     }
   }, [onCustomerSelect, allowMultiple, selectedCustomers, selectedCustomer]);
 

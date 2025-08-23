@@ -33,7 +33,9 @@ const MOCK_BARCODES = [
   "1234567890128", // ลูกอม
 ];
 
-export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeScannerReturn => {
+export const useBarcodeScanner = (
+  options: BarcodeScannerOptions = {}
+): BarcodeScannerReturn => {
   const {
     onScan,
     onError,
@@ -51,7 +53,7 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
   const [keyboardBuffer, setKeyboardBuffer] = useState("");
   const [isSupported, setIsSupported] = useState(false);
 
-  const scanTimeoutRef = useRef<NodeJS.Timeout>();
+  const scanTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const streamRef = useRef<MediaStream | null>(null);
   const toast = useToast();
 
@@ -60,11 +62,13 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
     const checkSupport = async () => {
       try {
         // Check for camera access
-        const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-        
+        const hasCamera = !!(
+          navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        );
+
         // Check for BarcodeDetector API (experimental)
         const hasBarcodeDetector = "BarcodeDetector" in window;
-        
+
         // For now, we'll consider it supported if we have camera access
         setIsSupported(hasCamera);
       } catch (error) {
@@ -82,7 +86,11 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
     const handleKeyPress = (event: KeyboardEvent) => {
       // Ignore if user is typing in an input field
       const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
         return;
       }
 
@@ -97,9 +105,9 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
       // Handle alphanumeric characters
       if (/^[a-zA-Z0-9]$/.test(event.key)) {
         event.preventDefault();
-        setKeyboardBuffer(prev => {
+        setKeyboardBuffer((prev) => {
           const newBuffer = prev + event.key;
-          
+
           // Clear timeout if exists
           if (scanTimeoutRef.current) {
             clearTimeout(scanTimeoutRef.current);
@@ -127,20 +135,24 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
   // Play scan sound
   const playBeepcriptSound = useCallback(() => {
     if (!enableSound) return;
-    
+
     try {
       // Create a simple beep sound
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-      
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.01,
+        audioContext.currentTime + 0.1
+      );
+
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.1);
     } catch (error) {
@@ -151,7 +163,7 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
   // Vibrate on scan
   const vibrateOnScan = useCallback(() => {
     if (!enableVibration || !navigator.vibrate) return;
-    
+
     try {
       navigator.vibrate(100); // 100ms vibration
     } catch (error) {
@@ -160,49 +172,63 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
   }, [enableVibration]);
 
   // Process scanned barcode
-  const processScan = useCallback((barcode: string) => {
-    // Validate barcode length
-    if (barcode.length < minLength || barcode.length > maxLength) {
-      const error = `Invalid barcode length: ${barcode.length}. Expected between ${minLength} and ${maxLength}.`;
-      onError?.(error);
+  const processScan = useCallback(
+    (barcode: string) => {
+      // Validate barcode length
+      if (barcode.length < minLength || barcode.length > maxLength) {
+        const error = `Invalid barcode length: ${barcode.length}. Expected between ${minLength} and ${maxLength}.`;
+        onError?.(error);
+        toast({
+          title: "รหัสไม่ถูกต้อง",
+          description: error,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      // Check for duplicate scans (within 2 seconds)
+      if (lastScannedCode === barcode) {
+        const now = Date.now();
+        const lastScanTime =
+          scanHistory.length > 0 ? new Date(scanHistory[0]).getTime() : 0;
+        if (now - lastScanTime < 2000) {
+          return; // Ignore duplicate scan
+        }
+      }
+
+      // Update state
+      setLastScannedCode(barcode);
+      setScanHistory((prev) => [barcode, ...prev.slice(0, 9)]); // Keep last 10 scans
+
+      // Feedback
+      playBeepcriptSound();
+      vibrateOnScan();
+
+      // Callback
+      onScan?.(barcode);
+
       toast({
-        title: "รหัสไม่ถูกต้อง",
-        description: error,
-        status: "error",
-        duration: 3000,
+        title: "สแกนสำเร็จ",
+        description: `รหัส: ${barcode}`,
+        status: "success",
+        duration: 2000,
         isClosable: true,
       });
-      return;
-    }
-
-    // Check for duplicate scans (within 2 seconds)
-    if (lastScannedCode === barcode) {
-      const now = Date.now();
-      const lastScanTime = scanHistory.length > 0 ? new Date(scanHistory[0]).getTime() : 0;
-      if (now - lastScanTime < 2000) {
-        return; // Ignore duplicate scan
-      }
-    }
-
-    // Update state
-    setLastScannedCode(barcode);
-    setScanHistory(prev => [barcode, ...prev.slice(0, 9)]); // Keep last 10 scans
-
-    // Feedback
-    playBeepcriptSound();
-    vibrateOnScan();
-
-    // Callback
-    onScan?.(barcode);
-
-    toast({
-      title: "สแกนสำเร็จ",
-      description: `รหัส: ${barcode}`,
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
-  }, [minLength, maxLength, lastScannedCode, scanHistory, onScan, onError, playBeepcriptSound, vibrateOnScan, toast]);
+    },
+    [
+      minLength,
+      maxLength,
+      lastScannedCode,
+      scanHistory,
+      onScan,
+      onError,
+      playBeepcriptSound,
+      vibrateOnScan,
+      toast,
+    ]
+  );
 
   // Start scanning with camera
   const startScanning = useCallback(async () => {
@@ -226,7 +252,8 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
       if (process.env.NODE_ENV === "development") {
         // Simulate scanning delay
         setTimeout(() => {
-          const randomBarcode = MOCK_BARCODES[Math.floor(Math.random() * MOCK_BARCODES.length)];
+          const randomBarcode =
+            MOCK_BARCODES[Math.floor(Math.random() * MOCK_BARCODES.length)];
           processScan(randomBarcode);
           setIsScanning(false);
         }, 2000);
@@ -250,7 +277,6 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
         duration: 3000,
         isClosable: true,
       });
-
     } catch (error) {
       setIsScanning(false);
       const errorMessage = "ไม่สามารถเข้าถึงกล้องได้";
@@ -268,9 +294,9 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
   // Stop scanning
   const stopScanning = useCallback(() => {
     setIsScanning(false);
-    
+
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
 
@@ -280,11 +306,14 @@ export const useBarcodeScanner = (options: BarcodeScannerOptions = {}): BarcodeS
   }, []);
 
   // Manual barcode input
-  const scanFromKeyboard = useCallback((input: string) => {
-    if (input.trim()) {
-      processScan(input.trim());
-    }
-  }, [processScan]);
+  const scanFromKeyboard = useCallback(
+    (input: string) => {
+      if (input.trim()) {
+        processScan(input.trim());
+      }
+    },
+    [processScan]
+  );
 
   // Clear last scanned code
   const clearLastScanned = useCallback(() => {

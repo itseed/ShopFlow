@@ -23,13 +23,13 @@ import {
   Td,
 } from "@chakra-ui/react";
 import { FaPrint, FaEnvelope, FaDownload } from "react-icons/fa";
-import { Receipt } from "@shopflow/types";
+import { SalesReceipt } from "@shopflow/types";
 import { formatCurrency } from "../../lib/sales";
 
 interface ReceiptModalProps {
   isOpen: boolean;
   onClose: () => void;
-  receipt: Receipt;
+  receipt: SalesReceipt;
   onPrint?: () => void;
   onEmailSend?: () => void;
 }

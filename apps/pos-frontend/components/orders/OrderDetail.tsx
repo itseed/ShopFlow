@@ -45,8 +45,13 @@ import {
   GridItem,
   Icon,
   Flex,
-  useReactToPrint,
 } from "@chakra-ui/react";
+// Stub for react-to-print - package not installed
+const useReactToPrint = (options: any) => () => {
+  if (typeof window !== "undefined") {
+    window.print();
+  }
+};
 import {
   IoReceipt,
   IoMail,

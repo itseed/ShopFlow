@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Customer, CustomerFormData, CustomerStats, CustomerTransaction, CustomerActivity } from "@shopflow/types";
+import {
+  Customer,
+  CustomerFormData,
+  CustomerStats,
+  CustomerTransaction,
+  CustomerActivity,
+} from "@shopflow/types";
 import {
   validateCustomerData,
   filterCustomers,
@@ -25,13 +31,13 @@ interface UseCustomersReturn {
   filteredCustomers: Customer[];
   paginatedResult: PaginatedCustomers;
   stats: ReturnType<typeof getCustomerSummaryStats>;
-  
+
   // State
   loading: boolean;
   error: string | null;
   filters: CustomerSearchFilters;
   currentPage: number;
-  
+
   // Actions
   loadCustomers: () => Promise<void>;
   searchCustomers: (filters: CustomerSearchFilters) => void;
@@ -45,12 +51,10 @@ interface UseCustomersReturn {
   refreshCustomers: () => Promise<void>;
 }
 
-export const useCustomers = (options: UseCustomersOptions = {}): UseCustomersReturn => {
-  const {
-    initialFilters = {},
-    pageSize = 20,
-    autoLoad = true,
-  } = options;
+export const useCustomers = (
+  options: UseCustomersOptions = {}
+): UseCustomersReturn => {
+  const { initialFilters = {}, pageSize = 20, autoLoad = true } = options;
 
   // State
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -175,7 +179,11 @@ export const useCustomers = (options: UseCustomersOptions = {}): UseCustomersRet
   ];
 
   // Computed values
-  const paginatedResult = paginateCustomers(filteredCustomers, currentPage, pageSize);
+  const paginatedResult = paginateCustomers(
+    filteredCustomers,
+    currentPage,
+    pageSize
+  );
   const stats = getCustomerSummaryStats(customers);
 
   // Effects
@@ -198,7 +206,11 @@ export const useCustomers = (options: UseCustomersOptions = {}): UseCustomersRet
       await new Promise((resolve) => setTimeout(resolve, 800));
       setCustomers(mockCustomers);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า"
+      );
     } finally {
       setLoading(false);
     }
@@ -225,167 +237,192 @@ export const useCustomers = (options: UseCustomersOptions = {}): UseCustomersRet
     setCurrentPage(page);
   }, []);
 
-  const createCustomer = useCallback(async (data: CustomerFormData): Promise<Customer> => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Validate data
-      const validation = validateCustomerData(data);
-      if (!validation.isValid) {
-        throw new Error(Object.values(validation.errors)[0]);
+  const createCustomer = useCallback(
+    async (data: CustomerFormData): Promise<Customer> => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Validate data
+        const validation = validateCustomerData(data);
+        if (!validation.isValid) {
+          throw new Error(Object.values(validation.errors)[0]);
+        }
+
+        // Simulate API call
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            // Simulate 10% chance of error
+            if (Math.random() < 0.1) {
+              reject(new Error("เกิดข้อผิดพลาดในการสร้างลูกค้า"));
+            } else {
+              resolve(true);
+            }
+          }, 1000);
+        });
+
+        // Create new customer
+        const newCustomer: Customer = {
+          id: Date.now().toString(),
+          customerNumber: generateCustomerNumber(customers),
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          isActive: true,
+          notes: data.notes,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        // Add to customers list
+        setCustomers((prev) => [newCustomer, ...prev]);
+
+        return newCustomer;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการสร้างลูกค้า";
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
       }
+    },
+    [customers]
+  );
 
-      // Simulate API call
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate 10% chance of error
-          if (Math.random() < 0.1) {
-            reject(new Error("เกิดข้อผิดพลาดในการสร้างลูกค้า"));
-          } else {
-            resolve(true);
-          }
-        }, 1000);
-      });
+  const updateCustomer = useCallback(
+    async (id: string, data: CustomerFormData): Promise<Customer> => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Validate data
+        const validation = validateCustomerData(data);
+        if (!validation.isValid) {
+          throw new Error(Object.values(validation.errors)[0]);
+        }
 
-      // Create new customer
-      const newCustomer: Customer = {
-        id: Date.now().toString(),
-        customerNumber: generateCustomerNumber(customers),
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        dateOfBirth: data.dateOfBirth,
-        gender: data.gender,
-        isActive: true,
-        notes: data.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+        // Find existing customer
+        const existingCustomer = customers.find((c) => c.id === id);
+        if (!existingCustomer) {
+          throw new Error("ไม่พบข้อมูลลูกค้า");
+        }
 
-      // Add to customers list
-      setCustomers((prev) => [newCustomer, ...prev]);
-      
-      return newCustomer;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการสร้างลูกค้า";
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [customers]);
+        // Simulate API call
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            // Simulate 5% chance of error
+            if (Math.random() < 0.05) {
+              reject(new Error("เกิดข้อผิดพลาดในการอัปเดตลูกค้า"));
+            } else {
+              resolve(true);
+            }
+          }, 800);
+        });
 
-  const updateCustomer = useCallback(async (id: string, data: CustomerFormData): Promise<Customer> => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Validate data
-      const validation = validateCustomerData(data);
-      if (!validation.isValid) {
-        throw new Error(Object.values(validation.errors)[0]);
+        // Update customer
+        const updatedCustomer: Customer = {
+          ...existingCustomer,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          notes: data.notes,
+          updatedAt: new Date(),
+        };
+
+        // Update customers list
+        setCustomers((prev) =>
+          prev.map((customer) =>
+            customer.id === id ? updatedCustomer : customer
+          )
+        );
+
+        return updatedCustomer;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "เกิดข้อผิดพลาดในการอัปเดตลูกค้า";
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
       }
+    },
+    [customers]
+  );
 
-      // Find existing customer
-      const existingCustomer = customers.find((c) => c.id === id);
-      if (!existingCustomer) {
-        throw new Error("ไม่พบข้อมูลลูกค้า");
+  const deleteCustomer = useCallback(
+    async (id: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Find existing customer
+        const existingCustomer = customers.find((c) => c.id === id);
+        if (!existingCustomer) {
+          throw new Error("ไม่พบข้อมูลลูกค้า");
+        }
+
+        // Simulate API call
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            // Simulate 3% chance of error
+            if (Math.random() < 0.03) {
+              reject(new Error("เกิดข้อผิดพลาดในการลบลูกค้า"));
+            } else {
+              resolve(true);
+            }
+          }, 500);
+        });
+
+        // Remove from customers list
+        setCustomers((prev) => prev.filter((customer) => customer.id !== id));
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการลบลูกค้า";
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
       }
+    },
+    [customers]
+  );
 
-      // Simulate API call
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate 5% chance of error
-          if (Math.random() < 0.05) {
-            reject(new Error("เกิดข้อผิดพลาดในการอัปเดตลูกค้า"));
-          } else {
-            resolve(true);
-          }
-        }, 800);
-      });
+  const getCustomer = useCallback(
+    async (id: string): Promise<Customer | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Update customer
-      const updatedCustomer: Customer = {
-        ...existingCustomer,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        dateOfBirth: data.dateOfBirth,
-        gender: data.gender,
-        notes: data.notes,
-        updatedAt: new Date(),
-      };
-
-      // Update customers list
-      setCustomers((prev) =>
-        prev.map((customer) => (customer.id === id ? updatedCustomer : customer))
-      );
-      
-      return updatedCustomer;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการอัปเดตลูกค้า";
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [customers]);
-
-  const deleteCustomer = useCallback(async (id: string): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Find existing customer
-      const existingCustomer = customers.find((c) => c.id === id);
-      if (!existingCustomer) {
-        throw new Error("ไม่พบข้อมูลลูกค้า");
+        const customer = customers.find((c) => c.id === id);
+        return customer || null;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า";
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
       }
+    },
+    [customers]
+  );
 
-      // Simulate API call
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate 3% chance of error
-          if (Math.random() < 0.03) {
-            reject(new Error("เกิดข้อผิดพลาดในการลบลูกค้า"));
-          } else {
-            resolve(true);
-          }
-        }, 500);
-      });
-
-      // Remove from customers list
-      setCustomers((prev) => prev.filter((customer) => customer.id !== id));
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการลบลูกค้า";
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [customers]);
-
-  const getCustomer = useCallback(async (id: string): Promise<Customer | null> => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      
-      const customer = customers.find((c) => c.id === id);
-      return customer || null;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า";
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [customers]);
-
-  const validateCustomer = useCallback((data: CustomerFormData): CustomerValidationResult => {
-    return validateCustomerData(data);
-  }, []);
+  const validateCustomer = useCallback(
+    (data: CustomerFormData): CustomerValidationResult => {
+      return validateCustomerData(data);
+    },
+    []
+  );
 
   const refreshCustomers = useCallback(async () => {
     await loadCustomers();
@@ -397,13 +434,13 @@ export const useCustomers = (options: UseCustomersOptions = {}): UseCustomersRet
     filteredCustomers,
     paginatedResult,
     stats,
-    
+
     // State
     loading,
     error,
     filters,
     currentPage,
-    
+
     // Actions
     loadCustomers,
     searchCustomers,
@@ -426,11 +463,17 @@ export const useCustomer = (id?: string) => {
 
   // Mock customer stats
   const mockStats: CustomerStats = {
+    customerId: id || "1",
     totalSpent: 75000,
     totalOrders: 25,
     averageOrderValue: 3000,
     lastPurchaseDate: new Date("2024-01-15"),
     pointsBalance: 1250,
+    monthlySpending: [
+      { month: "2024-01", amount: 15000, orders: 5 },
+      { month: "2024-02", amount: 18000, orders: 6 },
+      { month: "2024-03", amount: 12000, orders: 4 },
+    ],
     favoriteProducts: [
       {
         productId: "1",
@@ -482,7 +525,7 @@ export const useCustomer = (id?: string) => {
     {
       id: "2",
       customerId: id || "1",
-      type: "membership_update",
+      type: "membership_upgrade",
       title: "อัปเดตสมาชิก",
       description: "เลื่อนเป็นสมาชิก Gold",
       createdAt: new Date("2024-01-01T09:00:00"),
@@ -491,24 +534,27 @@ export const useCustomer = (id?: string) => {
 
   const loadCustomer = useCallback(async () => {
     if (!id) return;
-    
+
     setLoading(true);
     setError(null);
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 500));
-      
+
       // Find customer from mock data
       const customers = useCustomers({ autoLoad: false }).customers;
       const foundCustomer = customers.find((c) => c.id === id);
-      
+
       if (!foundCustomer) {
         throw new Error("ไม่พบข้อมูลลูกค้า");
       }
-      
+
       setCustomer(foundCustomer);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า";
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า";
       setError(errorMessage);
     } finally {
       setLoading(false);

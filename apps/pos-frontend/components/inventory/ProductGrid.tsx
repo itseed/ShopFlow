@@ -76,32 +76,39 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const hoverBg = useColorModeValue("gray.50", "gray.700");
 
   const getStockStatus = (product: Product) => {
-    if (product.stockQuantity === 0) {
-      return { 
-        text: "หมดสต็อก", 
-        color: "red", 
+    if (product.stock === 0) {
+      return {
+        text: "หมดสต็อก",
+        color: "red",
         icon: IoAlertCircle,
-        percentage: 0 
+        percentage: 0,
       };
-    }
-    if (product.stockQuantity <= product.minStockLevel) {
-      return { 
-        text: "ใกล้หมด", 
-        color: "orange", 
+    } else if (product.stock <= 10) {
+      return {
+        text: "ใกล้หมด",
+        color: "orange",
         icon: IoWarning,
-        percentage: (product.stockQuantity / product.minStockLevel) * 100 
+        percentage: (product.stock / 20) * 100,
+      };
+    } else if (product.stock <= 20) {
+      return {
+        text: "สต็อกต่ำ",
+        color: "yellow",
+        icon: IoWarning,
+        percentage: (product.stock / 50) * 100,
+      };
+    } else {
+      return {
+        text: "พร้อมขาย",
+        color: "green",
+        icon: IoCheckmarkCircle,
+        percentage: Math.min((product.stock / 100) * 100, 100),
       };
     }
-    return { 
-      text: "มีสินค้า", 
-      color: "green", 
-      icon: IoCheckmarkCircle,
-      percentage: Math.min((product.stockQuantity / product.maxStockLevel) * 100, 100)
-    };
   };
 
   const handleImageError = (productId: string) => {
-    setImageErrors(prev => new Set([...prev, productId]));
+    setImageErrors((prev) => new Set([...prev, productId]));
   };
 
   const handleCopySKU = (sku: string) => {
@@ -118,19 +125,27 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const getGridColumns = () => {
     if (columns) return columns;
     switch (cardSize) {
-      case "sm": return { base: 3, md: 4, lg: 6 };
-      case "md": return { base: 2, md: 3, lg: 4 };
-      case "lg": return { base: 1, md: 2, lg: 3 };
-      default: return { base: 2, md: 3, lg: 4 };
+      case "sm":
+        return { base: 3, md: 4, lg: 6 };
+      case "md":
+        return { base: 2, md: 3, lg: 4 };
+      case "lg":
+        return { base: 1, md: 2, lg: 3 };
+      default:
+        return { base: 2, md: 3, lg: 4 };
     }
   };
 
   const getCardHeight = () => {
     switch (cardSize) {
-      case "sm": return "280px";
-      case "md": return "320px";
-      case "lg": return "360px";
-      default: return "320px";
+      case "sm":
+        return "280px";
+      case "md":
+        return "320px";
+      case "lg":
+        return "360px";
+      default:
+        return "320px";
     }
   };
 
@@ -158,8 +173,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       {products.map((product) => {
         const stockStatus = getStockStatus(product);
         const StatusIcon = stockStatus.icon;
-        const hasImage = product.imageUrl && !imageErrors.has(product.id);
-        const profit = product.price - product.cost;
+        const hasImage =
+          product.images &&
+          product.images.length > 0 &&
+          !imageErrors.has(product.id);
+        const profit = product.price - 0; // cost property not available in shared type
         const profitMargin = ((profit / product.price) * 100).toFixed(1);
 
         return (
@@ -170,15 +188,19 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
             borderColor={borderColor}
             cursor={onProductClick ? "pointer" : "default"}
             onClick={() => onProductClick?.(product)}
-            _hover={onProductClick ? { 
-              shadow: "lg", 
-              transform: "translateY(-2px)",
-              bg: hoverBg 
-            } : {}}
+            _hover={
+              onProductClick
+                ? {
+                    shadow: "lg",
+                    transform: "translateY(-2px)",
+                    bg: hoverBg,
+                  }
+                : {}
+            }
             transition="all 0.2s"
             height={getCardHeight()}
             overflow="hidden"
-            opacity={product.isActive ? 1 : 0.7}
+            opacity={product.status === "active" ? 1 : 0.7}
           >
             <CardHeader p={0} position="relative">
               {/* Product Image */}
@@ -193,7 +215,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               >
                 {hasImage ? (
                   <Image
-                    src={product.imageUrl}
+                    src={product.images?.[0] || "/placeholder.jpg"}
                     alt={product.name}
                     width="100%"
                     height="100%"
@@ -210,7 +232,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   >
                     <Avatar
                       name={product.name}
-                      src={product.imageUrl}
+                      src={product.images?.[0] || "/placeholder.jpg"}
                       size="lg"
                       bg="gray.300"
                     />
@@ -265,7 +287,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                               e.stopPropagation();
                               onAddToCart(product);
                             }}
-                            isDisabled={product.stockQuantity === 0}
+                            isDisabled={product.stock === 0}
                           >
                             เพิ่มในตะกร้า
                           </MenuItem>
@@ -274,7 +296,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                           icon={<IoCopyOutline />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCopySKU(product.sku);
+                            handleCopySKU(product.sku || "");
                           }}
                         >
                           คัดลอก SKU
@@ -332,11 +354,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                       {product.name}
                     </Text>
                   </Tooltip>
-                  
+
                   <HStack spacing={2} fontSize="xs" color="gray.500">
                     <Text>SKU: {product.sku}</Text>
                     <Badge size="xs" colorScheme="blue" variant="outline">
-                      {product.category.name}
+                      {product.category?.name || "ไม่ระบุหมวดหมู่"}
                     </Badge>
                   </HStack>
 
@@ -351,7 +373,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                       </Text>
                     </HStack>
                     <Text fontSize="xs" color="gray.500">
-                      ต้นทุน: {formatCurrency(product.cost)}
+                      ต้นทุน: {formatCurrency(0)}{" "}
+                      {/* cost not available in shared type */}
                     </Text>
                   </VStack>
                 </VStack>
@@ -362,7 +385,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                     <HStack justify="space-between" width="100%" fontSize="xs">
                       <Text color="gray.500">สต็อก:</Text>
                       <Text fontWeight="medium">
-                        {product.stockQuantity} / {product.maxStockLevel}
+                        {product.stock} / {100}{" "}
+                        {/* maxStockLevel not available */}
                       </Text>
                     </HStack>
                     <Progress
@@ -388,7 +412,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                           e.stopPropagation();
                           onAddToCart(product);
                         }}
-                        isDisabled={product.stockQuantity === 0}
+                        isDisabled={product.stock === 0}
                       >
                         เพิ่ม
                       </Button>
@@ -408,26 +432,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   </HStack>
                 )}
 
-                {/* Tags */}
-                {product.tags && product.tags.length > 0 && (
-                  <HStack spacing={1} flexWrap="wrap">
-                    {product.tags.slice(0, 2).map(tag => (
-                      <Badge
-                        key={tag}
-                        size="xs"
-                        variant="subtle"
-                        colorScheme="gray"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                    {product.tags.length > 2 && (
-                      <Badge size="xs" variant="subtle" colorScheme="gray">
-                        +{product.tags.length - 2}
-                      </Badge>
-                    )}
-                  </HStack>
-                )}
+                {/* Tags - Removed since not available in shared Product type */}
               </VStack>
             </CardBody>
           </Card>

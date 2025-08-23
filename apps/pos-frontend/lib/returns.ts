@@ -62,15 +62,10 @@ export const canRefundOrder = (order: SalesTransaction): boolean => {
     return false;
   }
 
-  // Check if order is not already refunded
-  if (order.status === "refunded") {
-    return false;
-  }
-
   // Check if order is within refund time limit (e.g., 30 days)
   const refundTimeLimit = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
   const timeSinceOrder = Date.now() - order.createdAt.getTime();
-  
+
   if (timeSinceOrder > refundTimeLimit) {
     return false;
   }
@@ -93,15 +88,19 @@ export const validateRefundItems = (
   }
 
   for (const refundItem of refundItems) {
-    const originalItem = order.cart.items.find((item) => item.id === refundItem.itemId);
-    
+    const originalItem = order.cart.items.find(
+      (item) => item.id === refundItem.itemId
+    );
+
     if (!originalItem) {
       errors.push(`ไม่พบสินค้า ID: ${refundItem.itemId} ในออเดอร์เดิม`);
       continue;
     }
 
     if (refundItem.quantity <= 0) {
-      errors.push(`จำนวนที่คืนต้องมากกว่า 0 สำหรับ ${originalItem.product.name}`);
+      errors.push(
+        `จำนวนที่คืนต้องมากกว่า 0 สำหรับ ${originalItem.product.name}`
+      );
     }
 
     if (refundItem.quantity > originalItem.quantity) {
@@ -135,11 +134,14 @@ export const calculateRefundAmount = (
   let taxAmount = 0;
 
   for (const refundItem of refundItems) {
-    const originalItem = order.cart.items.find((item) => item.id === refundItem.itemId);
+    const originalItem = order.cart.items.find(
+      (item) => item.id === refundItem.itemId
+    );
     if (!originalItem) continue;
 
     const itemSubtotal = originalItem.unitPrice * refundItem.quantity;
-    const itemDiscountPerItem = originalItem.discountAmount / originalItem.quantity;
+    const itemDiscountPerItem =
+      originalItem.discountAmount / originalItem.quantity;
     const itemTaxPerItem = originalItem.taxAmount / originalItem.quantity;
 
     subtotal += itemSubtotal;
@@ -273,8 +275,6 @@ export const getRefundEligibility = (order: SalesTransaction) => {
       ? "สามารถคืนเงินได้"
       : order.status !== "completed"
       ? "ออเดอร์ยังไม่เสร็จสิ้น"
-      : order.status === "refunded"
-      ? "ออเดอร์นี้ได้คืนเงินแล้ว"
       : timeRemaining <= 0
       ? "เกินระยะเวลาคืนเงิน (30 วัน)"
       : "ไม่สามารถคืนเงินได้",

@@ -65,24 +65,8 @@ const mockProducts: Product[] = [
     name: "น้ำดื่ม",
     description: "น้ำดื่มขวด 600ml",
     price: 10,
-    cost: 7,
-    category: {
-      id: "1",
-      name: "เครื่องดื่ม",
-      description: "เครื่องดื่มทุกชนิด",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    stockQuantity: 150,
-    minStockLevel: 50,
-    maxStockLevel: 500,
-    isActive: true,
-    barcode: "1234567890123",
-    imageUrl: "",
-    tags: ["เครื่องดื่ม", "น้ำ"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    stock: 150,
+    status: "active",
   },
   // Add more mock products...
 ];
@@ -92,57 +76,54 @@ const mockCategories: Category[] = [
     id: "1",
     name: "เครื่องดื่ม",
     description: "เครื่องดื่มทุกชนิด เช่น น้ำ น้ำหวาน กาแฟ ชา",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date(),
+    display_order: 1,
+    status: "active",
   },
   {
-    id: "2", 
+    id: "2",
     name: "ขนม",
     description: "ขนมและของหวาน เช่น บิสกิต ช็อกโกแลต ลูกอม",
-    isActive: true,
-    createdAt: new Date("2024-01-02"),
-    updatedAt: new Date(),
+    display_order: 2,
+    status: "active",
   },
   {
     id: "3",
     name: "อาหารสด",
     description: "อาหารสดและผลไม้ เช่น ผลไม้ ผัก เนื้อสัตว์",
-    isActive: true,
-    createdAt: new Date("2024-01-03"),
-    updatedAt: new Date(),
+    display_order: 3,
+    status: "active",
   },
   {
     id: "4",
     name: "เครื่องใช้",
-    description: "เครื่องใช้ในครัวเรือน เช่น ผงซักฟอก สบู่ ยาสีฟัน",
-    isActive: true,
-    createdAt: new Date("2024-01-04"),
-    updatedAt: new Date(),
+    description: "เครื่องใช้ในครัวเรือน (ไม่ได้ใช้งาน)",
+    display_order: 4,
+    status: "inactive",
   },
   {
     id: "5",
     name: "ยาและสุขภาพ",
     description: "ยาและผลิตภัณฑ์เพื่อสุขภาพ",
-    isActive: false,
-    createdAt: new Date("2024-01-05"),
-    updatedAt: new Date(),
+    display_order: 5,
+    status: "inactive",
   },
 ];
 
 interface CategoryFormData {
   name: string;
   description: string;
-  isActive: boolean;
+  status: "active" | "inactive";
 }
 
 const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(mockCategories);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null
+  );
   const [formData, setFormData] = useState<CategoryFormData>({
     name: "",
     description: "",
-    isActive: true,
+    status: "active",
   });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -164,19 +145,20 @@ const CategoriesPage: React.FC = () => {
   // Calculate category statistics
   const categoryStats = {
     totalCategories: categories.length,
-    activeCategories: categories.filter(c => c.isActive).length,
-    inactiveCategories: categories.filter(c => !c.isActive).length,
+    activeCategories: categories.filter((c) => c.status === "active").length,
+    inactiveCategories: categories.filter((c) => c.status === "inactive")
+      .length,
     totalProducts: mockProducts.length,
   };
 
   const getCategoryProductCount = (categoryId: string) => {
-    return mockProducts.filter(p => p.category.id === categoryId).length;
+    return mockProducts.filter((p) => p.category?.id === categoryId).length;
   };
 
   const getCategoryValue = (categoryId: string) => {
     return mockProducts
-      .filter(p => p.category.id === categoryId)
-      .reduce((sum, p) => sum + (p.stockQuantity * p.cost), 0);
+      .filter((p) => p.category?.id === categoryId)
+      .reduce((sum, p) => sum + p.stock * p.price, 0);
   };
 
   const handleAddCategory = () => {
@@ -184,7 +166,7 @@ const CategoriesPage: React.FC = () => {
     setFormData({
       name: "",
       description: "",
-      isActive: true,
+      status: "active",
     });
     setIsEditing(false);
     onFormOpen();
@@ -194,8 +176,8 @@ const CategoriesPage: React.FC = () => {
     setSelectedCategory(category);
     setFormData({
       name: category.name,
-      description: category.description,
-      isActive: category.isActive,
+      description: category.description || "",
+      status: category.status,
     });
     setIsEditing(true);
     onFormOpen();
@@ -203,7 +185,7 @@ const CategoriesPage: React.FC = () => {
 
   const handleDeleteCategory = (categoryId: string) => {
     const categoryProductCount = getCategoryProductCount(categoryId);
-    
+
     if (categoryProductCount > 0) {
       toast({
         title: "ไม่สามารถลบหมวดหมู่ได้",
@@ -216,7 +198,7 @@ const CategoriesPage: React.FC = () => {
     }
 
     if (window.confirm("ต้องการลบหมวดหมู่นี้หรือไม่?")) {
-      setCategories(prev => prev.filter(c => c.id !== categoryId));
+      setCategories((prev) => prev.filter((c) => c.id !== categoryId));
       toast({
         title: "ลบหมวดหมู่สำเร็จ",
         description: "ลบหมวดหมู่เรียบร้อยแล้ว",
@@ -244,12 +226,11 @@ const CategoriesPage: React.FC = () => {
         ...selectedCategory,
         name: formData.name,
         description: formData.description,
-        isActive: formData.isActive,
-        updatedAt: new Date(),
+        status: formData.status,
       };
 
-      setCategories(prev => 
-        prev.map(c => c.id === selectedCategory.id ? updatedCategory : c)
+      setCategories((prev) =>
+        prev.map((c) => (c.id === selectedCategory.id ? updatedCategory : c))
       );
 
       toast({
@@ -265,12 +246,11 @@ const CategoriesPage: React.FC = () => {
         id: Date.now().toString(),
         name: formData.name,
         description: formData.description,
-        isActive: formData.isActive,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        display_order: categories.length + 1,
+        status: formData.status,
       };
 
-      setCategories(prev => [newCategory, ...prev]);
+      setCategories((prev) => [newCategory, ...prev]);
 
       toast({
         title: "เพิ่มหมวดหมู่สำเร็จ",
@@ -285,20 +265,22 @@ const CategoriesPage: React.FC = () => {
   };
 
   const handleToggleStatus = (categoryId: string) => {
-    setCategories(prev =>
-      prev.map(c =>
+    setCategories((prev) =>
+      prev.map((c) =>
         c.id === categoryId
-          ? { ...c, isActive: !c.isActive, updatedAt: new Date() }
+          ? { ...c, status: c.status === "active" ? "inactive" : "active" }
           : c
       )
     );
 
-    const category = categories.find(c => c.id === categoryId);
-    const newStatus = !category?.isActive;
+    const category = categories.find((c) => c.id === categoryId);
+    const newStatus = category?.status === "inactive";
 
     toast({
       title: newStatus ? "เปิดใช้งานหมวดหมู่" : "ปิดใช้งานหมวดหมู่",
-      description: `${category?.name} ${newStatus ? "เปิดใช้งาน" : "ปิดใช้งาน"}แล้ว`,
+      description: `${category?.name} ${
+        newStatus ? "เปิดใช้งาน" : "ปิดใช้งาน"
+      }แล้ว`,
       status: "success",
       duration: 3000,
       isClosable: true,
@@ -400,9 +382,7 @@ const CategoriesPage: React.FC = () => {
               <StatNumber fontSize="3xl">
                 {categoryStats.totalCategories}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                หมวดหมู่
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">หมวดหมู่</StatHelpText>
             </Stat>
 
             <Stat>
@@ -410,9 +390,7 @@ const CategoriesPage: React.FC = () => {
               <StatNumber fontSize="3xl" color="green.200">
                 {categoryStats.activeCategories}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                หมวดหมู่
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">หมวดหมู่</StatHelpText>
             </Stat>
 
             <Stat>
@@ -420,9 +398,7 @@ const CategoriesPage: React.FC = () => {
               <StatNumber fontSize="3xl" color="orange.200">
                 {categoryStats.inactiveCategories}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                หมวดหมู่
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">หมวดหมู่</StatHelpText>
             </Stat>
 
             <Stat>
@@ -430,9 +406,7 @@ const CategoriesPage: React.FC = () => {
               <StatNumber fontSize="3xl">
                 {categoryStats.totalProducts}
               </StatNumber>
-              <StatHelpText color="whiteAlpha.800">
-                รายการ
-              </StatHelpText>
+              <StatHelpText color="whiteAlpha.800">รายการ</StatHelpText>
             </Stat>
           </SimpleGrid>
         </Box>
@@ -452,7 +426,7 @@ const CategoriesPage: React.FC = () => {
                 overflow="hidden"
                 _hover={{ shadow: "lg", transform: "translateY(-2px)" }}
                 transition="all 0.2s"
-                opacity={category.isActive ? 1 : 0.7}
+                opacity={category.status === "active" ? 1 : 0.7}
               >
                 <CardHeader>
                   <Flex justify="space-between" align="center">
@@ -460,7 +434,9 @@ const CategoriesPage: React.FC = () => {
                       <Avatar
                         size="md"
                         name={category.name}
-                        bg={category.isActive ? "blue.500" : "gray.400"}
+                        bg={
+                          category.status === "active" ? "blue.500" : "gray.400"
+                        }
                         icon={<Icon as={IoGridOutline} />}
                       />
                       <VStack align="start" spacing={0}>
@@ -468,10 +444,16 @@ const CategoriesPage: React.FC = () => {
                           {category.name}
                         </Text>
                         <Badge
-                          colorScheme={category.isActive ? "green" : "gray"}
-                          variant={category.isActive ? "solid" : "outline"}
+                          colorScheme={
+                            category.status === "active" ? "green" : "gray"
+                          }
+                          variant={
+                            category.status === "active" ? "solid" : "outline"
+                          }
                         >
-                          {category.isActive ? "ใช้งาน" : "ปิดใช้งาน"}
+                          {category.status === "active"
+                            ? "ใช้งาน"
+                            : "ปิดใช้งาน"}
                         </Badge>
                       </VStack>
                     </HStack>
@@ -494,7 +476,9 @@ const CategoriesPage: React.FC = () => {
                           icon={<IoStatsChartOutline />}
                           onClick={() => handleToggleStatus(category.id)}
                         >
-                          {category.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+                          {category.status === "active"
+                            ? "ปิดใช้งาน"
+                            : "เปิดใช้งาน"}
                         </MenuItem>
                         <Divider />
                         <MenuItem
@@ -517,26 +501,52 @@ const CategoriesPage: React.FC = () => {
 
                     <SimpleGrid columns={2} spacing={4}>
                       <VStack align="start" spacing={1}>
-                        <Text fontSize="xs" color="gray.500">สินค้า</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          สินค้า
+                        </Text>
                         <Text fontSize="lg" fontWeight="bold" color="blue.500">
                           {productCount}
                         </Text>
-                        <Text fontSize="xs" color="gray.500">รายการ</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          รายการ
+                        </Text>
                       </VStack>
                       <VStack align="start" spacing={1}>
-                        <Text fontSize="xs" color="gray.500">มูลค่า</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          มูลค่า
+                        </Text>
                         <Text fontSize="lg" fontWeight="bold" color="green.500">
                           {formatCurrency(categoryValue)}
                         </Text>
-                        <Text fontSize="xs" color="gray.500">บาท</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          บาท
+                        </Text>
                       </VStack>
                     </SimpleGrid>
 
                     <Divider />
 
-                    <HStack justify="space-between" fontSize="xs" color="gray.500">
-                      <Text>สร้างเมื่อ: {category.createdAt.toLocaleDateString('th-TH')}</Text>
-                      <Text>อัปเดต: {category.updatedAt.toLocaleDateString('th-TH')}</Text>
+                    <HStack
+                      justify="space-between"
+                      fontSize="xs"
+                      color="gray.500"
+                    >
+                      <Text>
+                        สร้างเมื่อ:{" "}
+                        {category.created_at
+                          ? new Date(category.created_at).toLocaleDateString(
+                              "th-TH"
+                            )
+                          : "ไม่ระบุ"}
+                      </Text>
+                      <Text>
+                        อัปเดต:{" "}
+                        {category.updated_at
+                          ? new Date(category.updated_at).toLocaleDateString(
+                              "th-TH"
+                            )
+                          : "ไม่ระบุ"}
+                      </Text>
                     </HStack>
                   </VStack>
                 </CardBody>
@@ -556,7 +566,7 @@ const CategoriesPage: React.FC = () => {
               </HStack>
             </ModalHeader>
             <ModalCloseButton />
-            
+
             <ModalBody>
               <VStack spacing={4} align="stretch">
                 <FormControl isRequired>
@@ -564,10 +574,12 @@ const CategoriesPage: React.FC = () => {
                   <Input
                     placeholder="ระบุชื่อหมวดหมู่"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      name: e.target.value
-                    }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
                   />
                 </FormControl>
 
@@ -577,10 +589,12 @@ const CategoriesPage: React.FC = () => {
                     placeholder="ระบุคำอธิบายหมวดหมู่ (ไม่บังคับ)"
                     rows={3}
                     value={formData.description}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      description: e.target.value
-                    }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
                   />
                 </FormControl>
 
@@ -588,16 +602,18 @@ const CategoriesPage: React.FC = () => {
                   <HStack justify="space-between">
                     <FormLabel mb={0}>สถานะการใช้งาน</FormLabel>
                     <Switch
-                      isChecked={formData.isActive}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        isActive: e.target.checked
-                      }))}
+                      isChecked={formData.status === "active"}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          status: e.target.checked ? "active" : "inactive",
+                        }))
+                      }
                       colorScheme="green"
                     />
                   </HStack>
                   <Text fontSize="sm" color="gray.500" mt={1}>
-                    {formData.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}
+                    {formData.status ? "เปิดใช้งาน" : "ปิดใช้งาน"}
                   </Text>
                 </FormControl>
 
@@ -607,10 +623,12 @@ const CategoriesPage: React.FC = () => {
                       <strong>ข้อมูลเพิ่มเติม:</strong>
                     </Text>
                     <Text fontSize="sm" color="gray.600">
-                      สินค้าในหมวดหมู่: {getCategoryProductCount(selectedCategory.id)} รายการ
+                      สินค้าในหมวดหมู่:{" "}
+                      {getCategoryProductCount(selectedCategory.id)} รายการ
                     </Text>
                     <Text fontSize="sm" color="gray.600">
-                      มูลค่ารวม: {formatCurrency(getCategoryValue(selectedCategory.id))}
+                      มูลค่ารวม:{" "}
+                      {formatCurrency(getCategoryValue(selectedCategory.id))}
                     </Text>
                   </Box>
                 )}

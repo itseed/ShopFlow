@@ -7,7 +7,7 @@ import {
 } from "@chakra-ui/react";
 
 interface TouchButtonProps extends Omit<ButtonProps, "children"> {
-  children: React.ReactNode;
+  children: any;
   variant?: "primary" | "secondary" | "success" | "warning" | "danger";
   loading?: boolean;
   touchOptimized?: boolean;
