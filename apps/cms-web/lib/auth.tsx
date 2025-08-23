@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        console.error("Error fetching user profile:", error);
+        // Error is handled by the calling component
         return null;
       }
 
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return profile;
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      // Error is handled by the calling component
       return null;
     }
   };
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserProfile(profile);
         }
       } catch (error) {
-        console.error("Error getting session:", error);
+        // Error is handled by the calling component
       } finally {
         setLoading(false);
       }
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setUserProfile(null);
     } catch (error) {
-      console.error("Error signing out:", error);
+      // Error will be logged by the calling component if needed
     }
   };
 

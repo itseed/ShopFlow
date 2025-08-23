@@ -51,7 +51,7 @@ export default function SignInPage() {
       router.push(redirectTo);
     } catch (err: any) {
       setError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
-      console.error("Sign in error:", err);
+      // Error is already displayed to the user via setError
     } finally {
       setLoading(false);
     }

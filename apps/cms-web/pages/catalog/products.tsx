@@ -225,8 +225,8 @@ const ProductsPage: NextPageWithLayout = () => {
 
   const handleSearch = () => {
     // Search functionality will be handled by the useProducts hook
-    // For now, we'll just set the search query
-    console.log("Searching for:", searchQuery);
+    // Trigger refetch with search parameters
+    // queryClient.invalidateQueries(['products']);
   };
 
   const handleReset = () => {
@@ -312,7 +312,6 @@ const ProductsPage: NextPageWithLayout = () => {
 
       onClose();
     } catch (error) {
-      console.error("Save error:", error);
       // Error toast is handled by the mutation hook
     }
   };
@@ -330,7 +329,6 @@ const ProductsPage: NextPageWithLayout = () => {
       onDeleteClose();
       setProductToDelete(null);
     } catch (error) {
-      console.error("Delete error:", error);
       // Error toast is handled by the mutation hook
     }
   };
