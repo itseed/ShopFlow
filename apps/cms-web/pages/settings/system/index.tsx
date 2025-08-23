@@ -1,4 +1,4 @@
-import { ReactElement, useState } from "react";
+import { ReactElement, useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -66,9 +66,10 @@ import {
   FiRotateCcw,
   FiTool,
 } from "react-icons/fi";
-import Layout from "../../components/Layout";
-import { withAuth } from "../../lib/auth";
-import { NextPageWithLayout } from "../_app";
+import Layout from "../../../components/Layout";
+import { withAuth } from "../../../lib/auth";
+import { NextPageWithLayout } from "../../_app";
+import { useSystemSettings } from "../../../lib/hooks/useSystemStatus";
 
 function SystemPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -89,17 +90,92 @@ function SystemPage() {
     onClose: onRestoreClose,
   } = useDisclosure();
 
-  const handleSave = () => {
+  // Use the real system settings hook
+  const {
+    settings,
+    loading: settingsLoading,
+    error: settingsError,
+    saving,
+    updateSettings,
+    setMaintenanceMode: setMaintenanceModeAPI,
+    refresh,
+  } = useSystemSettings();
+
+  // Initialize state with real settings when they load
+  useEffect(() => {
+    if (settings) {
+      setAutoBackup(settings.autoBackup ?? true);
+      setMaintenanceMode(settings.maintenanceMode ?? false);
+      // Initialize other settings as needed
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const result = await updateSettings({
+        autoBackup,
+        // Add other settings here as needed
+      });
+
+      if (result.success) {
+        toast({
+          title: "บันทึกการตั้งค่าระบบสำเร็จ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
       toast({
-        title: "บันทึกการตั้งค่าระบบสำเร็จ",
-        status: "success",
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถบันทึกการตั้งค่าได้",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMaintenanceModeToggle = async (enabled: boolean) => {
+    try {
+      const result = await setMaintenanceModeAPI(enabled);
+
+      if (result.success) {
+        setMaintenanceMode(enabled);
+        toast({
+          title: enabled ? "เปิดโหมดบำรุงรักษา" : "ปิดโหมดบำรุงรักษา",
+          description: enabled
+            ? "ระบบกำลังอยู่ในโหมดบำรุงรักษา"
+            : "ระบบกลับสู่การทำงานปกติ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถเปลี่ยนโหมดบำรุงรักษาได้",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Revert the toggle if it failed
+      setMaintenanceMode(!enabled);
+    }
   };
 
   const systemStats = [

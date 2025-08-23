@@ -1,18 +1,97 @@
 // Customer Management Types
 export interface Customer {
   id: string;
-  customerNumber: string; // รหัสลูกค้า เช่น CU001
-  name: string;
-  phone?: string;
+  customer_code?: string;
+  first_name?: string;
+  last_name?: string;
+  company_name?: string;
   email?: string;
+  phone?: string;
   address?: string;
-  dateOfBirth?: Date;
-  gender?: "male" | "female" | "other";
-  membership?: CustomerMembership;
+  city?: string;
+  postal_code?: string;
+  country: string;
+  customer_type: CustomerType;
+  status: CustomerStatus;
+  credit_limit: number;
+  current_balance: number;
+  total_orders: number;
+  total_spent: number;
+  last_order_date?: string;
+  loyalty_points: number;
+  preferred_branch_id?: string;
   notes?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
+export type CustomerType = "individual" | "business";
+export type CustomerStatus = "active" | "inactive" | "vip";
+
+export interface CustomerFormData {
+  first_name?: string;
+  last_name?: string;
+  company_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+  customer_type: CustomerType;
+  status?: CustomerStatus;
+  credit_limit?: number;
+  notes?: string;
+  preferred_branch_id?: string;
+}
+
+export interface CustomerStats {
+  total_orders: number;
+  total_spent: number;
+  avg_order_value: number;
+  last_order_date?: string;
+  loyalty_points: number;
+  status: CustomerStatus;
+}
+
+export interface CustomerWithStats extends Customer {
+  order_count?: number;
+  last_order_amount?: number;
+  avg_order_value?: number;
+}
+
+// Customer search and filter types
+export interface CustomerFilters {
+  customer_type?: CustomerType;
+  status?: CustomerStatus;
+  city?: string;
+  preferred_branch_id?: string;
+  min_total_spent?: number;
+  max_total_spent?: number;
+  min_orders?: number;
+  max_orders?: number;
+  search?: string; // Search in name, email, phone, company
+}
+
+export interface CustomerSummary {
+  total_customers: number;
+  new_customers_this_month: number;
+  vip_customers: number;
+  business_customers: number;
+  individual_customers: number;
+  total_loyalty_points: number;
+  avg_order_value: number;
+  top_spending_customers: TopCustomer[];
+}
+
+export interface TopCustomer {
+  id: string;
+  name: string;
+  total_spent: number;
+  order_count: number;
+  customer_type: CustomerType;
+  last_order_date?: string;
 }
 
 export interface CustomerMembership {
@@ -55,32 +134,6 @@ export interface CustomerTransaction {
   createdAt: Date;
 }
 
-export interface CustomerStats {
-  customerId: string;
-  totalOrders: number;
-  totalSpent: number;
-  averageOrderValue: number;
-  lastPurchaseDate?: Date;
-  firstPurchaseDate?: Date;
-  favoriteProducts: Array<{
-    productId: string;
-    productName: string;
-    purchaseCount: number;
-    totalAmount: number;
-  }>;
-  monthlySpending: Array<{
-    month: string;
-    amount: number;
-    orders: number;
-  }>;
-  pointsBalance: number;
-  membershipStatus?: {
-    currentType: string;
-    nextType?: string;
-    progressToNext?: number;
-  };
-}
-
 export interface CustomerFilter {
   searchTerm?: string;
   membershipType?: string;
@@ -95,17 +148,6 @@ export interface CustomerFilter {
   sortOrder: "asc" | "desc";
   page: number;
   limit: number;
-}
-
-export interface CustomerFormData {
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  dateOfBirth?: Date;
-  gender?: "male" | "female" | "other";
-  membershipType?: string;
-  notes?: string;
 }
 
 // Customer Activity Types

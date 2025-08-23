@@ -4,7 +4,7 @@ export interface Order {
   order_number: string;
 
   // Customer Information
-  customer_type: CustomerType;
+  customer_type: OrderCustomerType;
   customer_id?: string; // For registered customers
   customer_name?: string;
   customer_phone?: string;
@@ -45,10 +45,16 @@ export interface OrderItem {
   id: string;
   order_id: string;
   product_id: string;
+  product_sku?: string;
   product_name: string; // Stored at time of order
+  product_description?: string;
+  variant_info?: Record<string, any>;
   quantity: number;
   unit_price: number;
+  discount_amount?: number;
   total_price: number;
+  cost_price?: number; // For profit calculation
+  created_at?: string;
   product?: Product; // For populated queries (optional)
 }
 
@@ -75,7 +81,7 @@ export type PaymentStatus =
   | "overdue"
   | "refunded";
 export type DeliveryMethod = "pickup" | "delivery" | "express" | "scheduled";
-export type CustomerType =
+export type OrderCustomerType =
   | "registered"
   | "walk_in"
   | "phone_order"
@@ -93,7 +99,7 @@ export interface OrderFilters {
   status?: OrderStatus;
   payment_method?: PaymentMethod;
   payment_status?: PaymentStatus;
-  customer_type?: CustomerType;
+  customer_type?: OrderCustomerType;
   shop_type?: ShopType;
   delivery_method?: DeliveryMethod;
   priority?: OrderPriority;

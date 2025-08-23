@@ -4,6 +4,8 @@ export * from "./Order";
 export * from "./Category";
 export * from "./User";
 export * from "./Customer";
+export * from "./Supplier";
+export * from "./Inventory";
 export * from "./Branch";
 
 // POS-specific types (excluding duplicates)

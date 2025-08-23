@@ -12,27 +12,40 @@ import {
 // Product-specific filter types
 export interface ProductFilters extends BaseFilters {
   categoryId?: string;
+  supplierId?: string;
   status?: ProductStatus;
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;
   lowStock?: boolean;
+  brand?: string;
+  isFeatured?: boolean;
 }
 
 // Product creation/update data types
 export interface CreateProductData {
   name: string;
   description?: string;
+  short_description?: string;
   price: number;
-  cost?: number;
+  cost_price?: number;
+  discount_price?: number;
   sku?: string;
+  barcode?: string;
   stock: number;
-  low_stock_threshold?: number;
+  min_stock?: number;
+  max_stock?: number;
+  unit?: string;
+  weight?: number;
   category_id?: string;
+  supplier_id?: string;
+  brand?: string;
   status?: ProductStatus;
   images?: string[];
-  barcode?: string;
   tags?: string[];
+  meta_data?: Record<string, any>;
+  is_featured?: boolean;
+  is_trackable?: boolean;
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {
@@ -56,7 +69,8 @@ class ProductService {
     try {
       let query = supabase.from(this.tableName).select(`
         *,
-        category:categories(id, name, description)
+        category:categories(id, name, description),
+        supplier:suppliers(id, name, contact_person, email, phone)
       `);
 
       // Apply filters
@@ -68,6 +82,18 @@ class ProductService {
 
       if (filters.categoryId) {
         query = query.eq("category_id", filters.categoryId);
+      }
+
+      if (filters.supplierId) {
+        query = query.eq("supplier_id", filters.supplierId);
+      }
+
+      if (filters.brand) {
+        query = query.ilike("brand", `%${filters.brand}%`);
+      }
+
+      if (filters.isFeatured !== undefined) {
+        query = query.eq("is_featured", filters.isFeatured);
       }
 
       if (filters.status) {
@@ -87,7 +113,9 @@ class ProductService {
       }
 
       if (filters.lowStock) {
-        query = query.or("stock.lte.low_stock_threshold,stock.eq.0");
+        // Get all products and filter client-side for low stock
+        // We'll post-process the results to filter stock <= min_stock
+        // This is a temporary solution - ideally use a database view
       }
 
       // Apply sorting
@@ -108,7 +136,17 @@ class ProductService {
         return createErrorResponse(handleSupabaseError(error));
       }
 
-      return createSuccessResponse(data || []);
+      let products = data || [];
+
+      // Post-process for low stock filtering since PostgREST doesn't support column-to-column comparison
+      if (filters.lowStock) {
+        products = products.filter((product: any) => {
+          const minStock = product.min_stock || 5;
+          return product.stock <= minStock || product.stock === 0;
+        });
+      }
+
+      return createSuccessResponse(products);
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }
@@ -122,7 +160,8 @@ class ProductService {
         .select(
           `
           *,
-          category:categories(id, name, description)
+          category:categories(id, name, description),
+          supplier:suppliers(id, name, contact_person, email, phone)
         `
         )
         .eq("id", id)
@@ -156,7 +195,8 @@ class ProductService {
         .select(
           `
           *,
-          category:categories(id, name, description)
+          category:categories(id, name, description),
+          supplier:suppliers(id, name, contact_person, email, phone)
         `
         )
         .single();
@@ -187,7 +227,8 @@ class ProductService {
         .select(
           `
           *,
-          category:categories(id, name, description)
+          category:categories(id, name, description),
+          supplier:suppliers(id, name, contact_person, email, phone)
         `
         )
         .single();
@@ -277,7 +318,8 @@ class ProductService {
         .select(
           `
           *,
-          category:categories(id, name, description)
+          category:categories(id, name, description),
+          supplier:suppliers(id, name, contact_person, email, phone)
         `
         )
         .single();
@@ -310,7 +352,8 @@ class ProductService {
         .select(
           `
           *,
-          category:categories(id, name, description)
+          category:categories(id, name, description),
+          supplier:suppliers(id, name, contact_person, email, phone)
         `
         )
         .eq("barcode", barcode)
@@ -330,9 +373,21 @@ class ProductService {
     }
   }
 
-  // Get product count with filters
+  // Get count with filters
   async count(filters: ProductFilters = {}): Promise<ApiResponse<number>> {
     try {
+      // For low stock filter, we need to fetch data and count client-side
+      if (filters.lowStock) {
+        const result = await this.getAll(filters);
+        if (!result.success) {
+          return createErrorResponse(
+            result.error || "Failed to fetch low stock products"
+          );
+        }
+        return createSuccessResponse(result.data?.length || 0);
+      }
+
+      // For other filters, use efficient count query
       let query = supabase
         .from(this.tableName)
         .select("id", { count: "exact", head: true });
@@ -348,16 +403,24 @@ class ProductService {
         query = query.eq("category_id", filters.categoryId);
       }
 
+      if (filters.supplierId) {
+        query = query.eq("supplier_id", filters.supplierId);
+      }
+
+      if (filters.brand) {
+        query = query.ilike("brand", `%${filters.brand}%`);
+      }
+
+      if (filters.isFeatured !== undefined) {
+        query = query.eq("is_featured", filters.isFeatured);
+      }
+
       if (filters.status) {
         query = query.eq("status", filters.status);
       }
 
       if (filters.inStock) {
         query = query.gt("stock", 0);
-      }
-
-      if (filters.lowStock) {
-        query = query.or("stock.lte.low_stock_threshold,stock.eq.0");
       }
 
       const { count, error } = await query;
@@ -370,6 +433,24 @@ class ProductService {
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }
+  }
+
+  // Get products by supplier
+  async getBySupplier(supplierId: string): Promise<ApiResponse<Product[]>> {
+    return this.getAll({ supplierId });
+  }
+
+  // Get featured products
+  async getFeatured(limit?: number): Promise<ApiResponse<Product[]>> {
+    return this.getAll({ isFeatured: true, limit });
+  }
+
+  // Get products by brand
+  async getByBrand(
+    brand: string,
+    limit?: number
+  ): Promise<ApiResponse<Product[]>> {
+    return this.getAll({ brand, limit });
   }
 
   // Bulk update products

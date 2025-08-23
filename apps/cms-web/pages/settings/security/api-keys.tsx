@@ -75,19 +75,11 @@ import {
   FiAlertTriangle,
 } from "react-icons/fi";
 import Link from "next/link";
+import { useApiKeys } from "../../../lib/hooks/useSecurity";
+import { ApiKey as ServiceApiKey } from "../../../lib/services/securityService";
 
-interface ApiKey {
-  id: string;
-  name: string;
-  description: string;
-  key: string;
-  permissions: string[];
-  last_used: string | null;
-  expires_at: string | null;
-  is_active: boolean;
-  created_at: string;
-  usage_count: number;
-  rate_limit: number;
+interface ApiKey extends ServiceApiKey {
+  key: string; // Add the key property that exists in the UI but not in the service
 }
 
 const permissions = [
@@ -101,56 +93,20 @@ const permissions = [
   { value: "admin", label: "สิทธิ์ผู้ดูแลระบบ" },
 ];
 
-const mockApiKeys: ApiKey[] = [
-  {
-    id: "1",
-    name: "Mobile App API",
-    description: "API สำหรับแอปพลิเคชันมือถือ",
-    key: "sk_live_51H7jQqF9x8R2Zw3Y...",
-    permissions: ["read:products", "read:orders", "write:orders"],
-    last_used: "2024-07-15T10:30:00Z",
-    expires_at: "2025-07-15T00:00:00Z",
-    is_active: true,
-    created_at: "2024-01-15T00:00:00Z",
-    usage_count: 15420,
-    rate_limit: 1000,
-  },
-  {
-    id: "2",
-    name: "Webhook Integration",
-    description: "API สำหรับ webhook และการแจ้งเตือน",
-    key: "sk_live_72K9mNpG2x1A5Br8Q...",
-    permissions: ["read:orders", "write:customers"],
-    last_used: "2024-07-14T15:45:00Z",
-    expires_at: null,
-    is_active: true,
-    created_at: "2024-02-01T00:00:00Z",
-    usage_count: 8932,
-    rate_limit: 500,
-  },
-  {
-    id: "3",
-    name: "Analytics Dashboard",
-    description: "API สำหรับแดชบอร์ดวิเคราะห์ข้อมูล",
-    key: "sk_live_33P5cRtH8y2K9Ew1M...",
-    permissions: [
-      "read:products",
-      "read:orders",
-      "read:customers",
-      "read:reports",
-    ],
-    last_used: null,
-    expires_at: "2024-12-31T00:00:00Z",
-    is_active: false,
-    created_at: "2024-03-10T00:00:00Z",
-    usage_count: 0,
-    rate_limit: 200,
-  },
-];
-
 function ApiKeysPage() {
   const toast = useToast();
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>(mockApiKeys);
+  const {
+    apiKeys: serviceApiKeys,
+    loading,
+    error,
+    creating,
+    updating,
+    deleting,
+    refresh,
+    createApiKey,
+    updateApiKey,
+    deleteApiKey,
+  } = useApiKeys();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -163,6 +119,12 @@ function ApiKeysPage() {
     rate_limit: 1000,
   });
 
+  // Convert service API keys to UI API keys
+  const apiKeys: ApiKey[] = serviceApiKeys.map((key) => ({
+    ...key,
+    key: key.key_hash, // Use key_hash as key for display purposes
+  }));
+
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isDeleteOpen,
@@ -173,7 +135,7 @@ function ApiKeysPage() {
   const filteredApiKeys = apiKeys.filter(
     (key) =>
       key.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      key.description.toLowerCase().includes(searchTerm.toLowerCase())
+      key.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAddApiKey = () => {
@@ -193,7 +155,7 @@ function ApiKeysPage() {
     setSelectedApiKey(apiKey);
     setFormData({
       name: apiKey.name,
-      description: apiKey.description,
+      description: apiKey.description || "",
       permissions: apiKey.permissions,
       expires_at: apiKey.expires_at ? apiKey.expires_at.split("T")[0] : "",
       rate_limit: apiKey.rate_limit,
@@ -207,97 +169,94 @@ function ApiKeysPage() {
     onDeleteOpen();
   };
 
-  const generateApiKey = () => {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let result = "sk_live_";
-    for (let i = 0; i < 32; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+  const confirmDeleteApiKey = async () => {
+    if (selectedApiKey) {
+      try {
+        const result = await deleteApiKey(selectedApiKey.id);
+
+        if (result.success) {
+          toast({
+            title: "ลบ API Key สำเร็จ",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+          onDeleteClose();
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        toast({
+          title: "เกิดข้อผิดพลาด",
+          description:
+            error instanceof Error ? error.message : "ไม่สามารถลบ API Key ได้",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     }
-    return result;
   };
 
-  const handleSaveApiKey = () => {
-    if (
-      !formData.name ||
-      !formData.description ||
-      formData.permissions.length === 0
-    ) {
+  const handleSave = async () => {
+    try {
+      if (isEditing && selectedApiKey) {
+        // Update existing API key
+        const result = await updateApiKey(selectedApiKey.id, {
+          name: formData.name,
+          description: formData.description,
+          permissions: formData.permissions,
+          expires_at: formData.expires_at || null,
+          rate_limit: formData.rate_limit,
+        });
+
+        if (result.success) {
+          toast({
+            title: "อัปเดต API Key สำเร็จ",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+          onClose();
+        } else {
+          throw new Error(result.error);
+        }
+      } else {
+        // Create new API key
+        const result = await createApiKey({
+          name: formData.name,
+          description: formData.description,
+          key_hash: "", // This would be generated on the server
+          permissions: formData.permissions,
+          expires_at: formData.expires_at || null,
+          is_active: true,
+          rate_limit: formData.rate_limit,
+        });
+
+        if (result.success) {
+          toast({
+            title: "สร้าง API Key ใหม่สำเร็จ",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+          onClose();
+        } else {
+          throw new Error(result.error);
+        }
+      }
+    } catch (error) {
       toast({
-        title: "กรุณากรอกข้อมูลให้ครบถ้วน",
-        description: "ชื่อ คำอธิบาย และสิทธิ์การเข้าถึงเป็นข้อมูลที่จำเป็น",
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถบันทึก API Key ได้",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
-      return;
     }
-
-    if (isEditing && selectedApiKey) {
-      setApiKeys((prev) =>
-        prev.map((key) =>
-          key.id === selectedApiKey.id
-            ? {
-                ...key,
-                ...formData,
-                expires_at: formData.expires_at
-                  ? formData.expires_at + "T00:00:00Z"
-                  : null,
-              }
-            : key
-        )
-      );
-      toast({
-        title: "แก้ไข API Key สำเร็จ",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } else {
-      const newApiKey: ApiKey = {
-        id: Date.now().toString(),
-        ...formData,
-        key: generateApiKey(),
-        last_used: null,
-        expires_at: formData.expires_at
-          ? formData.expires_at + "T00:00:00Z"
-          : null,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        usage_count: 0,
-      };
-      setApiKeys((prev) => [...prev, newApiKey]);
-      toast({
-        title: "สร้าง API Key ใหม่สำเร็จ",
-        description: "กรุณาคัดลอกและเก็บ API Key ไว้ในที่ปลอดภัย",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-
-    onClose();
-  };
-
-  const handleConfirmDelete = () => {
-    if (selectedApiKey) {
-      setApiKeys((prev) => prev.filter((key) => key.id !== selectedApiKey.id));
-      toast({
-        title: "ลบ API Key สำเร็จ",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-    onDeleteClose();
-  };
-
-  const toggleApiKeyStatus = (id: string) => {
-    setApiKeys((prev) =>
-      prev.map((key) =>
-        key.id === id ? { ...key, is_active: !key.is_active } : key
-      )
-    );
   };
 
   const togglePermission = (permission: string) => {
@@ -309,12 +268,6 @@ function ApiKeysPage() {
     }));
   };
 
-  const toggleShowKey = (id: string) => {
-    setShowKey((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const { hasCopied, onCopy } = useClipboard("");
-
   const copyApiKey = (key: string) => {
     navigator.clipboard.writeText(key);
     toast({
@@ -325,20 +278,98 @@ function ApiKeysPage() {
     });
   };
 
-  const getStatusColor = (apiKey: ApiKey) => {
-    if (!apiKey.is_active) return "gray";
-    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date())
-      return "red";
-    if (apiKey.usage_count > apiKey.rate_limit * 0.8) return "orange";
-    return "green";
+  const toggleKeyVisibility = (keyId: string) => {
+    setShowKey((prev) => ({
+      ...prev,
+      [keyId]: !prev[keyId],
+    }));
   };
 
   const getUsagePercentage = (apiKey: ApiKey) => {
-    return Math.min((apiKey.usage_count / apiKey.rate_limit) * 100, 100);
+    return Math.min(100, (apiKey.usage_count / apiKey.rate_limit) * 100);
+  };
+
+  const getStatusColor = (apiKey: ApiKey) => {
+    if (!apiKey.is_active) return "red";
+    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date())
+      return "orange";
+    return "green";
   };
 
   const isExpired = (expiresAt: string | null) => {
-    return expiresAt && new Date(expiresAt) < new Date();
+    if (!expiresAt) return false;
+    return new Date(expiresAt) < new Date();
+  };
+
+  const toggleShowKey = (keyId: string) => {
+    setShowKey((prev) => ({
+      ...prev,
+      [keyId]: !prev[keyId],
+    }));
+  };
+
+  const toggleApiKeyStatus = async (keyId: string) => {
+    const apiKey = apiKeys.find((k) => k.id === keyId);
+    if (apiKey) {
+      try {
+        const result = await updateApiKey(keyId, {
+          is_active: !apiKey.is_active,
+        });
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        toast({
+          title: apiKey.is_active
+            ? "ปิดการใช้งาน API Key"
+            : "เปิดการใช้งาน API Key",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (error) {
+        toast({
+          title: "เกิดข้อผิดพลาด",
+          description:
+            error instanceof Error
+              ? error.message
+              : "ไม่สามารถอัปเดตสถานะ API Key ได้",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (selectedApiKey) {
+      try {
+        const result = await deleteApiKey(selectedApiKey.id);
+
+        if (result.success) {
+          toast({
+            title: "ลบ API Key สำเร็จ",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+          onDeleteClose();
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        toast({
+          title: "เกิดข้อผิดพลาด",
+          description:
+            error instanceof Error ? error.message : "ไม่สามารถลบ API Key ได้",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }
   };
 
   return (
@@ -781,8 +812,8 @@ function ApiKeysPage() {
             <Button variant="ghost" mr={3} onClick={onClose}>
               ยกเลิก
             </Button>
-            <Button colorScheme="blue" onClick={handleSaveApiKey}>
-              {isEditing ? "บันทึกการเปลี่ยนแปลง" : "สร้าง API Key"}
+            <Button colorScheme="blue" onClick={handleSave}>
+              บันทึก
             </Button>
           </ModalFooter>
         </ModalContent>

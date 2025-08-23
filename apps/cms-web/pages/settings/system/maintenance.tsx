@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../../_app";
 import Layout from "../../../components/Layout";
@@ -77,17 +77,10 @@ import {
   FiDownload,
 } from "react-icons/fi";
 import Link from "next/link";
-
-interface SystemStatus {
-  cpu_usage: number;
-  memory_usage: number;
-  disk_usage: number;
-  network_status: "online" | "offline" | "degraded";
-  uptime: string;
-  last_update: string;
-  pending_updates: number;
-  maintenance_mode: boolean;
-}
+import {
+  useSystemStatus,
+  useSystemSettings,
+} from "../../../lib/hooks/useSystemStatus";
 
 interface MaintenanceTask {
   id: string;
@@ -114,110 +107,95 @@ interface UpdatePackage {
   critical: boolean;
 }
 
-const mockSystemStatus: SystemStatus = {
-  cpu_usage: 35,
-  memory_usage: 68,
-  disk_usage: 45,
-  network_status: "online",
-  uptime: "15d 6h 23m",
-  last_update: "2024-07-10T09:30:00Z",
-  pending_updates: 3,
-  maintenance_mode: false,
-};
-
-const mockMaintenanceTasks: MaintenanceTask[] = [
-  {
-    id: "1",
-    name: "ล้างไฟล์ชั่วคราว",
-    description: "ลบไฟล์ log และ cache ที่ไม่จำเป็น",
-    category: "cleanup",
-    frequency: "daily",
-    last_run: "2024-07-15T02:00:00Z",
-    next_run: "2024-07-16T02:00:00Z",
-    status: "completed",
-    duration: 300,
-    auto_run: true,
-  },
-  {
-    id: "2",
-    name: "อัพเดทความปลอดภัย",
-    description: "ติดตั้งแพทช์ความปลอดภัยล่าสุด",
-    category: "security",
-    frequency: "weekly",
-    last_run: "2024-07-14T01:00:00Z",
-    next_run: "2024-07-21T01:00:00Z",
-    status: "pending",
-    duration: 1800,
-    auto_run: true,
-  },
-  {
-    id: "3",
-    name: "เพิ่มประสิทธิภาพฐานข้อมูล",
-    description: "ปรับปรุงการทำงานของฐานข้อมูล",
-    category: "optimization",
-    frequency: "monthly",
-    last_run: "2024-06-15T03:00:00Z",
-    next_run: "2024-07-15T03:00:00Z",
-    status: "running",
-    duration: 3600,
-    auto_run: true,
-  },
-];
-
-const mockUpdates: UpdatePackage[] = [
-  {
-    id: "1",
-    name: "Node.js Security Update",
-    current_version: "18.16.0",
-    new_version: "18.17.1",
-    type: "security",
-    size: 45.2,
-    description: "แก้ไขช่องโหว่ความปลอดภัยที่สำคัญ",
-    release_date: "2024-07-12T00:00:00Z",
-    critical: true,
-  },
-  {
-    id: "2",
-    name: "Next.js Framework",
-    current_version: "13.4.12",
-    new_version: "13.4.19",
-    type: "feature",
-    size: 12.8,
-    description: "ปรับปรุงประสิทธิภาพและเพิ่มฟีเจอร์ใหม่",
-    release_date: "2024-07-10T00:00:00Z",
-    critical: false,
-  },
-  {
-    id: "3",
-    name: "Chakra UI",
-    current_version: "2.8.0",
-    new_version: "2.8.2",
-    type: "bugfix",
-    size: 3.1,
-    description: "แก้ไขบั๊กและปรับปรุงความเสถียร",
-    release_date: "2024-07-08T00:00:00Z",
-    critical: false,
-  },
-];
-
 function MaintenancePage() {
   const toast = useToast();
-  const [systemStatus, setSystemStatus] =
-    useState<SystemStatus>(mockSystemStatus);
-  const [maintenanceTasks, setMaintenanceTasks] =
-    useState<MaintenanceTask[]>(mockMaintenanceTasks);
-  const [updates, setUpdates] = useState<UpdatePackage[]>(mockUpdates);
+  const { status, loading, error, refresh } = useSystemStatus(true, 30000);
+  const { settings, setMaintenanceMode } = useSystemSettings();
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [selectedTask, setSelectedTask] = useState<MaintenanceTask | null>(
     null
   );
+  const [isRunningTask, setIsRunningTask] = useState(false);
+  const [taskProgress, setTaskProgress] = useState(0);
   const [selectedUpdates, setSelectedUpdates] = useState<string[]>([]);
-  const [isMaintenanceModeChanging, setIsMaintenanceModeChanging] =
-    useState(false);
+  const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>([
+    {
+      id: "1",
+      name: "ล้างไฟล์ชั่วคราว",
+      description: "ลบไฟล์ log และ cache ที่ไม่จำเป็น",
+      category: "cleanup",
+      frequency: "daily",
+      last_run: "2024-07-15T02:00:00Z",
+      next_run: "2024-07-16T02:00:00Z",
+      status: "completed",
+      duration: 300,
+      auto_run: true,
+    },
+    {
+      id: "2",
+      name: "อัพเดทความปลอดภัย",
+      description: "ติดตั้งแพทช์ความปลอดภัยล่าสุด",
+      category: "security",
+      frequency: "weekly",
+      last_run: "2024-07-14T01:00:00Z",
+      next_run: "2024-07-21T01:00:00Z",
+      status: "pending",
+      duration: 1800,
+      auto_run: true,
+    },
+    {
+      id: "3",
+      name: "เพิ่มประสิทธิภาพฐานข้อมูล",
+      description: "ปรับปรุงการทำงานของฐานข้อมูล",
+      category: "optimization",
+      frequency: "monthly",
+      last_run: "2024-06-15T03:00:00Z",
+      next_run: "2024-07-15T03:00:00Z",
+      status: "running",
+      duration: 3600,
+      auto_run: true,
+    },
+  ]);
+  const [updates, setUpdates] = useState<UpdatePackage[]>([
+    {
+      id: "1",
+      name: "Node.js Security Update",
+      current_version: "18.16.0",
+      new_version: "18.17.1",
+      type: "security",
+      size: 45.2,
+      description: "แก้ไขช่องโหว่ความปลอดภัยที่สำคัญ",
+      release_date: "2024-07-12T00:00:00Z",
+      critical: true,
+    },
+    {
+      id: "2",
+      name: "Next.js Framework",
+      current_version: "13.4.12",
+      new_version: "13.4.19",
+      type: "feature",
+      size: 12.8,
+      description: "ปรับปรุงประสิทธิภาพและเพิ่มฟีเจอร์ใหม่",
+      release_date: "2024-07-10T00:00:00Z",
+      critical: false,
+    },
+    {
+      id: "3",
+      name: "Chakra UI",
+      current_version: "2.8.0",
+      new_version: "2.8.2",
+      type: "bugfix",
+      size: 3.1,
+      description: "แก้ไขบั๊กและปรับปรุงความเสถียร",
+      release_date: "2024-07-08T00:00:00Z",
+      critical: false,
+    },
+  ]);
 
   const {
-    isOpen: isMaintenanceModalOpen,
-    onOpen: onMaintenanceModalOpen,
-    onClose: onMaintenanceModalClose,
+    isOpen: isTaskModalOpen,
+    onOpen: onTaskModalOpen,
+    onClose: onTaskModalClose,
   } = useDisclosure();
 
   const {
@@ -226,87 +204,114 @@ function MaintenancePage() {
     onClose: onUpdateModalClose,
   } = useDisclosure();
 
-  const {
-    isOpen: isTaskModalOpen,
-    onOpen: onTaskModalOpen,
-    onClose: onTaskModalClose,
-  } = useDisclosure();
+  const bgColor = useColorModeValue("white", "gray.800");
 
-  const handleMaintenanceMode = async (enable: boolean) => {
-    setIsMaintenanceModeChanging(true);
+  // Initialize state with real system status when it loads
+  useEffect(() => {
+    if (settings) {
+      setIsMaintenanceMode(settings.maintenanceMode ?? false);
+    }
+  }, [settings]);
 
-    // Simulate API call
-    setTimeout(() => {
-      setSystemStatus((prev) => ({ ...prev, maintenance_mode: enable }));
-      setIsMaintenanceModeChanging(false);
+  const handleMaintenanceModeToggle = async (enabled: boolean) => {
+    try {
+      const result = await setMaintenanceMode(enabled);
+
+      if (result.success) {
+        setIsMaintenanceMode(enabled);
+        toast({
+          title: enabled ? "เปิดโหมดบำรุงรักษา" : "ปิดโหมดบำรุงรักษา",
+          description: enabled
+            ? "ระบบกำลังอยู่ในโหมดบำรุงรักษา"
+            : "ระบบกลับสู่การทำงานปกติ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
       toast({
-        title: enable ? "เปิดโหมดบำรุงรักษาแล้ว" : "ปิดโหมดบำรุงรักษาแล้ว",
-        description: enable
-          ? "ระบบจะไม่สามารถใช้งานได้ชั่วคราว"
-          : "ระบบกลับมาใช้งานได้ปกติแล้ว",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-    }, 1500);
-  };
-
-  const handleRunTask = (task: MaintenanceTask) => {
-    setMaintenanceTasks((prev) =>
-      prev.map((t) =>
-        t.id === task.id ? { ...t, status: "running" as const } : t
-      )
-    );
-
-    // Simulate task completion
-    setTimeout(() => {
-      setMaintenanceTasks((prev) =>
-        prev.map((t) =>
-          t.id === task.id
-            ? {
-                ...t,
-                status: "completed" as const,
-                last_run: new Date().toISOString(),
-                next_run: getNextRunTime(t.frequency),
-              }
-            : t
-        )
-      );
-      toast({
-        title: "งานบำรุงรักษาเสร็จสิ้น",
-        description: `${task.name} ทำงานเสร็จเรียบร้อยแล้ว`,
-        status: "success",
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถเปลี่ยนโหมดบำรุงรักษาได้",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
-    }, 3000);
+      // Revert the toggle if it failed
+      setIsMaintenanceMode(!enabled);
+    }
+  };
+
+  const handleRunTask = async (taskId: string) => {
+    setIsRunningTask(true);
+    setTaskProgress(0);
+
+    // Simulate task progress for now since we don't have real task implementation
+    const interval = setInterval(() => {
+      setTaskProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsRunningTask(false);
+          toast({
+            title: "ดำเนินการเสร็จสมบูรณ์",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 300);
+  };
+
+  const getHealthColor = (value: number) => {
+    if (value < 70) return "red";
+    if (value < 90) return "yellow";
+    return "green";
+  };
+
+  const getComplexityLabel = (complexity: string) => {
+    switch (complexity) {
+      case "easy":
+        return "ง่าย";
+      case "medium":
+        return "ปานกลาง";
+      case "advanced":
+        return "ยาก";
+      default:
+        return complexity;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "security":
+        return "red";
+      case "feature":
+        return "blue";
+      case "bugfix":
+        return "green";
+      default:
+        return "gray";
+    }
   };
 
   const handleInstallUpdates = () => {
-    if (selectedUpdates.length === 0) {
-      toast({
-        title: "กรุณาเลือกการอัพเดท",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
     // Simulate update installation
-    setUpdates((prev) =>
-      prev.filter((update) => !selectedUpdates.includes(update.id))
-    );
-    setSelectedUpdates([]);
-    onUpdateModalClose();
-
     toast({
       title: "กำลังติดตั้งการอัพเดท",
-      description: "ระบบจะรีสตาร์ทเมื่อติดตั้งเสร็จสิ้น",
+      description: "ระบบจะแจ้งเตือนเมื่อการอัพเดทเสร็จสมบูรณ์",
       status: "info",
-      duration: 5000,
+      duration: 3000,
       isClosable: true,
     });
+    onUpdateModalClose();
   };
 
   const getNextRunTime = (frequency: string): string => {
@@ -368,19 +373,6 @@ function MaintenancePage() {
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "security":
-        return "red";
-      case "feature":
-        return "blue";
-      case "bugfix":
-        return "green";
-      default:
-        return "gray";
-    }
-  };
-
   const getTypeLabel = (type: string) => {
     switch (type) {
       case "security":
@@ -401,16 +393,19 @@ function MaintenancePage() {
     return `${(sizeInMB / 1024).toFixed(2)} GB`;
   };
 
-  const getHealthColor = (usage: number) => {
-    if (usage >= 90) return "red";
-    if (usage >= 70) return "yellow";
-    return "green";
-  };
-
-  const criticalUpdates = updates.filter((update) => update.critical).length;
+  const criticalUpdates = updates.filter((update) => update.critical);
   const runningTasks = maintenanceTasks.filter(
     (task) => task.status === "running"
-  ).length;
+  );
+
+  // System stats (using mock data since the real system status doesn't have these properties)
+  const systemStats = {
+    cpu_usage: 35,
+    memory_usage: 68,
+    disk_usage: 45,
+    network_status: "online" as const,
+    uptime: "15d 6h 23m",
+  };
 
   return (
     <Box>
@@ -451,18 +446,13 @@ function MaintenancePage() {
 
         <HStack spacing={2}>
           <Button
-            leftIcon={systemStatus.maintenance_mode ? <FiPlay /> : <FiPause />}
-            colorScheme={systemStatus.maintenance_mode ? "green" : "orange"}
+            leftIcon={isMaintenanceMode ? <FiPlay /> : <FiPause />}
+            colorScheme={isMaintenanceMode ? "green" : "orange"}
             variant="outline"
             size="sm"
-            onClick={() =>
-              handleMaintenanceMode(!systemStatus.maintenance_mode)
-            }
-            isLoading={isMaintenanceModeChanging}
+            onClick={() => handleMaintenanceModeToggle(!isMaintenanceMode)}
           >
-            {systemStatus.maintenance_mode
-              ? "ปิดโหมดบำรุงรักษา"
-              : "เปิดโหมดบำรุงรักษา"}
+            {isMaintenanceMode ? "ปิดโหมดบำรุงรักษา" : "เปิดโหมดบำรุงรักษา"}
           </Button>
           <Button leftIcon={<FiRefreshCw />} variant="outline" size="sm">
             รีเฟรช
@@ -471,7 +461,7 @@ function MaintenancePage() {
       </HStack>
 
       {/* Maintenance Mode Alert */}
-      {systemStatus.maintenance_mode && (
+      {isMaintenanceMode && (
         <Alert status="warning" borderRadius="lg" mb={6}>
           <AlertIcon />
           <Box>
@@ -488,13 +478,13 @@ function MaintenancePage() {
         <Card>
           <CardBody>
             <Stat>
-              <StatLabel>การใช้งาน CPU</StatLabel>
-              <StatNumber>{systemStatus.cpu_usage}%</StatNumber>
+              <StatLabel>CPU Usage</StatLabel>
+              <StatNumber>{systemStats.cpu_usage}%</StatNumber>
               <Progress
-                value={systemStatus.cpu_usage}
-                colorScheme={getHealthColor(systemStatus.cpu_usage)}
+                value={systemStats.cpu_usage}
+                colorScheme={getHealthColor(systemStats.cpu_usage)}
                 size="sm"
-                mt={2}
+                borderRadius="full"
               />
             </Stat>
           </CardBody>
@@ -503,13 +493,13 @@ function MaintenancePage() {
         <Card>
           <CardBody>
             <Stat>
-              <StatLabel>การใช้งาน Memory</StatLabel>
-              <StatNumber>{systemStatus.memory_usage}%</StatNumber>
+              <StatLabel>Memory Usage</StatLabel>
+              <StatNumber>{systemStats.memory_usage}%</StatNumber>
               <Progress
-                value={systemStatus.memory_usage}
-                colorScheme={getHealthColor(systemStatus.memory_usage)}
+                value={systemStats.memory_usage}
+                colorScheme={getHealthColor(systemStats.memory_usage)}
                 size="sm"
-                mt={2}
+                borderRadius="full"
               />
             </Stat>
           </CardBody>
@@ -518,13 +508,13 @@ function MaintenancePage() {
         <Card>
           <CardBody>
             <Stat>
-              <StatLabel>การใช้งาน Disk</StatLabel>
-              <StatNumber>{systemStatus.disk_usage}%</StatNumber>
+              <StatLabel>Disk Usage</StatLabel>
+              <StatNumber>{systemStats.disk_usage}%</StatNumber>
               <Progress
-                value={systemStatus.disk_usage}
-                colorScheme={getHealthColor(systemStatus.disk_usage)}
+                value={systemStats.disk_usage}
+                colorScheme={getHealthColor(systemStats.disk_usage)}
                 size="sm"
-                mt={2}
+                borderRadius="full"
               />
             </Stat>
           </CardBody>
@@ -534,22 +524,24 @@ function MaintenancePage() {
           <CardBody>
             <Stat>
               <StatLabel>Uptime</StatLabel>
-              <StatNumber fontSize="lg">{systemStatus.uptime}</StatNumber>
+              <StatNumber fontSize="lg">{systemStats.uptime}</StatNumber>
               <StatHelpText>
-                <HStack spacing={1}>
-                  <Icon
-                    as={FiWifi}
-                    color={
-                      systemStatus.network_status === "online"
-                        ? "green.500"
-                        : "red.500"
+                <HStack>
+                  <Badge
+                    colorScheme={
+                      systemStats.network_status === "online"
+                        ? "green"
+                        : systemStats.network_status === "degraded"
+                        ? "yellow"
+                        : "red"
                     }
-                  />
-                  <Text>
-                    {systemStatus.network_status === "online"
+                  >
+                    {systemStats.network_status === "online"
                       ? "ออนไลน์"
+                      : systemStats.network_status === "degraded"
+                      ? "เชื่อมต่อช้า"
                       : "ออฟไลน์"}
-                  </Text>
+                  </Badge>
                 </HStack>
               </StatHelpText>
             </Stat>
@@ -567,7 +559,7 @@ function MaintenancePage() {
                   งานที่กำลังทำงาน
                 </Text>
                 <Text fontSize="2xl" fontWeight="bold" color="blue.500">
-                  {runningTasks}
+                  {runningTasks.length}
                 </Text>
               </Box>
               <Icon as={FiSettings} boxSize={8} color="blue.500" />
@@ -599,7 +591,7 @@ function MaintenancePage() {
                   อัพเดทสำคัญ
                 </Text>
                 <Text fontSize="2xl" fontWeight="bold" color="red.500">
-                  {criticalUpdates}
+                  {criticalUpdates.length}
                 </Text>
               </Box>
               <Icon as={FiAlertTriangle} boxSize={8} color="red.500" />
@@ -693,7 +685,7 @@ function MaintenancePage() {
                           leftIcon={<FiPlay />}
                           variant="ghost"
                           colorScheme="blue"
-                          onClick={() => handleRunTask(task)}
+                          onClick={() => handleRunTask(task.id)}
                           isDisabled={task.status === "running"}
                         >
                           รัน
@@ -714,11 +706,11 @@ function MaintenancePage() {
           <HStack justify="space-between">
             <VStack align="start" spacing={1}>
               <Heading size="md">การอัพเดทที่พร้อมใช้งาน</Heading>
-              {criticalUpdates > 0 && (
+              {criticalUpdates.length > 0 && (
                 <HStack spacing={1}>
                   <Icon as={FiAlertTriangle} color="red.500" />
                   <Text fontSize="sm" color="red.500">
-                    มี {criticalUpdates} การอัพเดทสำคัญ
+                    มี {criticalUpdates.length} การอัพเดทสำคัญ
                   </Text>
                 </HStack>
               )}

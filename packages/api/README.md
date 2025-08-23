@@ -139,7 +139,7 @@ CREATE TABLE products (
   cost DECIMAL(10,2),
   sku TEXT UNIQUE,
   stock INTEGER NOT NULL DEFAULT 0,
-  low_stock_threshold INTEGER DEFAULT 5,
+  min_stock INTEGER DEFAULT 5,
   category_id UUID REFERENCES categories(id),
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'out_of_stock')),
   images TEXT[],

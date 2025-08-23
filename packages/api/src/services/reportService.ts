@@ -6,7 +6,7 @@ import {
   handleSupabaseError,
 } from "../types/api";
 
-// Report data types
+// Enhanced Report data types with new schema fields
 export interface SalesReport {
   date: string;
   totalSales: number;
@@ -14,6 +14,15 @@ export interface SalesReport {
   averageOrderValue: number;
   topPaymentMethod: string;
   growth?: number;
+  // Enhanced fields
+  totalProfit?: number;
+  profitMargin?: number;
+  b2bSales?: number;
+  walkInSales?: number;
+  deliveryOrders?: number;
+  pendingPayments?: number;
+  customerTypes?: Record<string, number>;
+  salesByRep?: Record<string, number>;
 }
 
 export interface ProductReport {
@@ -27,6 +36,14 @@ export interface ProductReport {
   profitMargin?: number;
   stockLevel: number;
   salesTrend: "up" | "down" | "stable";
+  // Enhanced fields
+  totalCost?: number;
+  grossProfit?: number;
+  profitPerUnit?: number;
+  supplier?: string;
+  stockTurnover?: number;
+  reorderPoint?: boolean;
+  topShopTypes?: Array<{ type: string; quantity: number }>;
 }
 
 export interface CustomerReport {
@@ -36,6 +53,14 @@ export interface CustomerReport {
   totalCustomers: number;
   customerRetentionRate: number;
   averageOrdersPerCustomer: number;
+  // Enhanced fields
+  b2bCustomers: number;
+  walkInCustomers: number;
+  phoneOrderCustomers: number;
+  repeatCustomers: number;
+  customerLifetimeValue: number;
+  topCustomerSegments: Array<{ type: string; count: number; revenue: number }>;
+  shopTypeDistribution: Record<string, number>;
 }
 
 export interface InventoryReport {
@@ -60,6 +85,22 @@ export interface ProfitLossReport {
   expenses: number;
   netProfit: number;
   netProfitMargin: number;
+  // Enhanced fields
+  productCosts: number;
+  deliveryCosts: number;
+  operationalExpenses: number;
+  salesCommissions: number;
+  costBreakdown: Array<{
+    category: string;
+    amount: number;
+    percentage: number;
+  }>;
+  profitByCategory: Array<{ category: string; profit: number; margin: number }>;
+  profitByBranch: Array<{
+    branchId: string;
+    branchName: string;
+    profit: number;
+  }>;
 }
 
 export interface BranchComparisonReport {
@@ -71,6 +112,15 @@ export interface BranchComparisonReport {
   topSellingProduct: string;
   staffCount: number;
   performance: "excellent" | "good" | "average" | "poor";
+  // Enhanced fields
+  totalProfit: number;
+  profitMargin: number;
+  customerTypes: Record<string, number>;
+  deliveryVsPickup: { delivery: number; pickup: number };
+  paymentMethods: Record<string, number>;
+  priorityOrders: Record<string, number>;
+  averageDeliveryTime?: number;
+  customerSatisfaction?: number;
 }
 
 // Filter types for reports
@@ -85,7 +135,7 @@ export interface ReportFilters {
 }
 
 class ReportService {
-  // Sales Reports
+  // Enhanced Sales Reports with new schema fields
   async getSalesReport(
     filters: ReportFilters = {}
   ): Promise<ApiResponse<SalesReport[]>> {
@@ -93,9 +143,22 @@ class ReportService {
       let query = supabase.from("orders").select(`
           id,
           total,
+          subtotal,
           payment_method,
+          payment_status,
+          customer_type,
+          shop_type,
+          delivery_method,
+          priority,
+          sales_rep,
           created_at,
-          branch_id
+          branch_id,
+          items:order_items(
+            quantity,
+            unit_price,
+            total_price,
+            cost_price
+          )
         `);
 
       // Apply filters
@@ -127,6 +190,13 @@ class ReportService {
           totalSales: number;
           totalOrders: number;
           paymentMethods: Record<string, number>;
+          totalProfit: number;
+          customerTypes: Record<string, number>;
+          deliveryMethods: Record<string, number>;
+          salesByRep: Record<string, number>;
+          pendingPayments: number;
+          b2bSales: number;
+          walkInSales: number;
         }
       >();
 
@@ -157,14 +227,69 @@ class ReportService {
             totalSales: 0,
             totalOrders: 0,
             paymentMethods: {},
+            totalProfit: 0,
+            customerTypes: {},
+            deliveryMethods: {},
+            salesByRep: {},
+            pendingPayments: 0,
+            b2bSales: 0,
+            walkInSales: 0,
           });
         }
 
         const dayData = salesData.get(key)!;
         dayData.totalSales += order.total;
         dayData.totalOrders += 1;
+
+        // Payment method tracking
         dayData.paymentMethods[order.payment_method] =
           (dayData.paymentMethods[order.payment_method] || 0) + 1;
+
+        // Customer type tracking
+        if (order.customer_type) {
+          dayData.customerTypes[order.customer_type] =
+            (dayData.customerTypes[order.customer_type] || 0) + 1;
+
+          // B2B vs Walk-in tracking
+          if (order.customer_type === "registered" || order.shop_type) {
+            dayData.b2bSales += order.total;
+          } else if (order.customer_type === "walk_in") {
+            dayData.walkInSales += order.total;
+          }
+        }
+
+        // Delivery method tracking
+        if (order.delivery_method) {
+          dayData.deliveryMethods[order.delivery_method] =
+            (dayData.deliveryMethods[order.delivery_method] || 0) + 1;
+        }
+
+        // Sales rep tracking
+        if (order.sales_rep) {
+          dayData.salesByRep[order.sales_rep] =
+            (dayData.salesByRep[order.sales_rep] || 0) + order.total;
+        }
+
+        // Pending payments tracking
+        if (
+          order.payment_status === "pending" ||
+          order.payment_status === "partial"
+        ) {
+          dayData.pendingPayments += order.total;
+        }
+
+        // Calculate profit from order items
+        if (order.items && Array.isArray(order.items)) {
+          const orderProfit = order.items.reduce((profit, item) => {
+            if (item.cost_price && item.total_price) {
+              return (
+                profit + (item.total_price - item.cost_price * item.quantity)
+              );
+            }
+            return profit;
+          }, 0);
+          dayData.totalProfit += orderProfit;
+        }
       });
 
       // Convert to report format
@@ -175,6 +300,12 @@ class ReportService {
               ([, a], [, b]) => b - a
             )[0]?.[0] || "cash";
 
+          const profitMargin =
+            data.totalSales > 0
+              ? (data.totalProfit / data.totalSales) * 100
+              : 0;
+          const deliveryOrders = data.deliveryMethods["delivery"] || 0;
+
           return {
             date,
             totalSales: data.totalSales,
@@ -182,6 +313,14 @@ class ReportService {
             averageOrderValue:
               data.totalOrders > 0 ? data.totalSales / data.totalOrders : 0,
             topPaymentMethod,
+            totalProfit: data.totalProfit,
+            profitMargin,
+            b2bSales: data.b2bSales,
+            walkInSales: data.walkInSales,
+            deliveryOrders,
+            pendingPayments: data.pendingPayments,
+            customerTypes: data.customerTypes,
+            salesByRep: data.salesByRep,
           };
         }
       );
@@ -192,21 +331,41 @@ class ReportService {
     }
   }
 
-  // Product Performance Report
+  // Enhanced Product Performance Report
   async getProductReport(
     filters: ReportFilters = {}
   ): Promise<ApiResponse<ProductReport[]>> {
     try {
+      // Get order items with enhanced schema fields
       let itemsQuery = supabase.from("order_items").select(`
           product_id,
           product_name,
           quantity,
           unit_price,
           total_price,
-          order:orders!inner(created_at, branch_id)
+          cost_price,
+          order:orders!inner(
+            created_at, 
+            branch_id,
+            customer_type,
+            shop_type
+          )
         `);
 
-      // Get product details separately to avoid complex joins
+      // Apply date filters to orders
+      if (filters.startDate) {
+        itemsQuery = itemsQuery.gte("order.created_at", filters.startDate);
+      }
+
+      if (filters.endDate) {
+        itemsQuery = itemsQuery.lte("order.created_at", filters.endDate);
+      }
+
+      if (filters.branchId) {
+        itemsQuery = itemsQuery.eq("order.branch_id", filters.branchId);
+      }
+
+      // Get enhanced product details with supplier information
       const [itemsResponse, productsResponse] = await Promise.all([
         itemsQuery,
         supabase.from("products").select(`
@@ -214,7 +373,11 @@ class ReportService {
           name,
           sku,
           stock,
-          category:categories(name)
+          min_stock,
+          price,
+          cost_price,
+          category:categories(id, name),
+          supplier:suppliers(id, name, contact_person)
         `),
       ]);
 
@@ -230,17 +393,22 @@ class ReportService {
       const products = productsResponse.data || [];
       const productsMap = new Map(products.map((p) => [p.id, p]));
 
-      // Group by product
+      // Group by product with enhanced analytics
       const productData = new Map<
         string,
         {
           productName: string;
           sku?: string;
           category?: string;
+          supplier?: string;
           quantitySold: number;
           revenue: number;
+          totalCost: number;
           prices: number[];
           stockLevel: number;
+          minStock: number;
+          shopTypes: Record<string, number>;
+          customerTypes: Record<string, number>;
         }
       >();
 
@@ -249,16 +417,22 @@ class ReportService {
         const product = item.product_id
           ? productsMap.get(item.product_id)
           : null;
+        const order = item.order as any;
 
         if (!productData.has(productKey)) {
           productData.set(productKey, {
             productName: item.product_name,
             sku: product?.sku,
-            category: (product?.category as any)?.name,
+            category: product?.category?.name,
+            supplier: product?.supplier?.name,
             quantitySold: 0,
             revenue: 0,
+            totalCost: 0,
             prices: [],
             stockLevel: product?.stock || 0,
+            minStock: product?.min_stock || 0,
+            shopTypes: {},
+            customerTypes: {},
           });
         }
 
@@ -266,9 +440,26 @@ class ReportService {
         productEntry.quantitySold += item.quantity;
         productEntry.revenue += item.total_price;
         productEntry.prices.push(item.unit_price);
+
+        // Calculate cost - use item cost_price if available, otherwise product cost_price
+        const itemCost = item.cost_price || product?.cost_price || 0;
+        productEntry.totalCost += itemCost * item.quantity;
+
+        // Track shop types
+        if (order.shop_type) {
+          productEntry.shopTypes[order.shop_type] =
+            (productEntry.shopTypes[order.shop_type] || 0) + item.quantity;
+        }
+
+        // Track customer types
+        if (order.customer_type) {
+          productEntry.customerTypes[order.customer_type] =
+            (productEntry.customerTypes[order.customer_type] || 0) +
+            item.quantity;
+        }
       });
 
-      // Convert to report format
+      // Convert to enhanced report format
       const reports: ProductReport[] = Array.from(productData.entries())
         .map(([productId, data]) => {
           const averagePrice =
@@ -276,6 +467,30 @@ class ReportService {
               ? data.prices.reduce((sum, price) => sum + price, 0) /
                 data.prices.length
               : 0;
+
+          const grossProfit = data.revenue - data.totalCost;
+          const profitMargin =
+            data.revenue > 0 ? (grossProfit / data.revenue) * 100 : 0;
+          const profitPerUnit =
+            data.quantitySold > 0 ? grossProfit / data.quantitySold : 0;
+
+          // Calculate stock turnover (simplified)
+          const stockTurnover =
+            data.stockLevel > 0 ? data.quantitySold / data.stockLevel : 0;
+
+          // Check if reorder point reached
+          const reorderPoint = data.stockLevel <= data.minStock;
+
+          // Get top shop types
+          const topShopTypes = Object.entries(data.shopTypes)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([type, quantity]) => ({ type, quantity }));
+
+          // Determine sales trend (simplified - could be enhanced with historical data)
+          let salesTrend: "up" | "down" | "stable" = "stable";
+          if (stockTurnover > 2) salesTrend = "up";
+          else if (stockTurnover < 0.5) salesTrend = "down";
 
           return {
             productId,
@@ -285,8 +500,16 @@ class ReportService {
             quantitySold: data.quantitySold,
             revenue: data.revenue,
             averagePrice,
+            profitMargin,
             stockLevel: data.stockLevel,
-            salesTrend: "stable" as const, // TODO: Calculate based on historical data
+            salesTrend,
+            totalCost: data.totalCost,
+            grossProfit,
+            profitPerUnit,
+            supplier: data.supplier,
+            stockTurnover,
+            reorderPoint,
+            topShopTypes,
           };
         })
         .sort((a, b) => b.revenue - a.revenue);
@@ -360,7 +583,7 @@ class ReportService {
     }
   }
 
-  // Branch Comparison Report
+  // Enhanced Branch Comparison Report
   async getBranchComparisonReport(
     filters: ReportFilters = {}
   ): Promise<ApiResponse<BranchComparisonReport[]>> {
@@ -368,19 +591,32 @@ class ReportService {
       // Get all branches
       const { data: branches, error: branchError } = await supabase
         .from("branches")
-        .select("id, name")
+        .select("id, name, address, phone")
         .eq("is_active", true);
 
       if (branchError) {
         return createErrorResponse(handleSupabaseError(branchError));
       }
 
-      // Get orders with items for each branch
+      // Get enhanced orders with detailed analysis
       let ordersQuery = supabase.from("orders").select(`
           id,
           total,
+          subtotal,
           branch_id,
-          items:order_items(product_name, quantity, total_price)
+          customer_type,
+          payment_method,
+          payment_status,
+          delivery_method,
+          priority,
+          created_at,
+          items:order_items(
+            product_name, 
+            quantity, 
+            total_price,
+            cost_price,
+            unit_price
+          )
         `);
 
       if (filters.startDate) {
@@ -407,15 +643,23 @@ class ReportService {
         return createErrorResponse(handleSupabaseError(staffError));
       }
 
-      // Process data for each branch
+      // Process enhanced data for each branch
       const branchData = new Map<
         string,
         {
           name: string;
           totalSales: number;
           totalOrders: number;
+          totalProfit: number;
           staffCount: number;
           productSales: Map<string, number>;
+          customerTypes: Record<string, number>;
+          paymentMethods: Record<string, number>;
+          deliveryMethods: Record<string, number>;
+          priorityOrders: Record<string, number>;
+          averageOrderValue: number;
+          deliveryOrdersCount: number;
+          pickupOrdersCount: number;
         }
       >();
 
@@ -425,51 +669,114 @@ class ReportService {
           name: branch.name,
           totalSales: 0,
           totalOrders: 0,
+          totalProfit: 0,
           staffCount: 0,
           productSales: new Map(),
+          customerTypes: {},
+          paymentMethods: {},
+          deliveryMethods: {},
+          priorityOrders: {},
+          averageOrderValue: 0,
+          deliveryOrdersCount: 0,
+          pickupOrdersCount: 0,
         });
       });
 
-      // Process orders
-      orders?.forEach((order) => {
-        if (order.branch_id && branchData.has(order.branch_id)) {
-          const branch = branchData.get(order.branch_id)!;
-          branch.totalSales += order.total;
-          branch.totalOrders += 1;
-
-          // Track product sales
-          order.items?.forEach((item) => {
-            const current = branch.productSales.get(item.product_name) || 0;
-            branch.productSales.set(item.product_name, current + item.quantity);
-          });
-        }
-      });
-
-      // Process staff counts
+      // Count staff per branch
       staff?.forEach((member) => {
         if (member.branch_id && branchData.has(member.branch_id)) {
           branchData.get(member.branch_id)!.staffCount += 1;
         }
       });
 
-      // Convert to report format
+      // Process orders with enhanced analytics
+      orders?.forEach((order) => {
+        if (order.branch_id && branchData.has(order.branch_id)) {
+          const branch = branchData.get(order.branch_id)!;
+          branch.totalSales += order.total;
+          branch.totalOrders += 1;
+
+          // Track customer types
+          if (order.customer_type) {
+            branch.customerTypes[order.customer_type] =
+              (branch.customerTypes[order.customer_type] || 0) + 1;
+          }
+
+          // Track payment methods
+          if (order.payment_method) {
+            branch.paymentMethods[order.payment_method] =
+              (branch.paymentMethods[order.payment_method] || 0) + 1;
+          }
+
+          // Track delivery methods
+          if (order.delivery_method) {
+            branch.deliveryMethods[order.delivery_method] =
+              (branch.deliveryMethods[order.delivery_method] || 0) + 1;
+
+            if (order.delivery_method === "delivery") {
+              branch.deliveryOrdersCount += 1;
+            } else if (order.delivery_method === "pickup") {
+              branch.pickupOrdersCount += 1;
+            }
+          }
+
+          // Track priority orders
+          if (order.priority) {
+            branch.priorityOrders[order.priority] =
+              (branch.priorityOrders[order.priority] || 0) + 1;
+          }
+
+          // Calculate profit from order items
+          if (order.items && Array.isArray(order.items)) {
+            const orderProfit = order.items.reduce((profit, item) => {
+              if (item.cost_price && item.total_price) {
+                return (
+                  profit + (item.total_price - item.cost_price * item.quantity)
+                );
+              }
+              return profit;
+            }, 0);
+            branch.totalProfit += orderProfit;
+
+            // Track product sales
+            order.items.forEach((item) => {
+              const current = branch.productSales.get(item.product_name) || 0;
+              branch.productSales.set(
+                item.product_name,
+                current + item.quantity
+              );
+            });
+          }
+        }
+      });
+
+      // Convert to enhanced report format
       const reports: BranchComparisonReport[] = Array.from(branchData.entries())
         .map(([branchId, data]) => {
           const averageOrderValue =
             data.totalOrders > 0 ? data.totalSales / data.totalOrders : 0;
+          const profitMargin =
+            data.totalSales > 0
+              ? (data.totalProfit / data.totalSales) * 100
+              : 0;
 
           // Get top selling product
-          const topProduct =
+          const topSellingProduct =
             Array.from(data.productSales.entries()).sort(
               ([, a], [, b]) => b - a
-            )[0]?.[0] || "No sales";
+            )[0]?.[0] || "ไม่มีข้อมูล";
 
-          // Simple performance calculation
+          // Determine performance based on profit margin and sales volume
           let performance: "excellent" | "good" | "average" | "poor";
-          if (averageOrderValue >= 500) performance = "excellent";
-          else if (averageOrderValue >= 300) performance = "good";
-          else if (averageOrderValue >= 100) performance = "average";
-          else performance = "poor";
+          if (profitMargin > 30 && data.totalSales > 100000) {
+            performance = "excellent";
+          } else if (profitMargin > 20 && data.totalSales > 50000) {
+            performance = "good";
+          } else if (profitMargin > 10 && data.totalSales > 25000) {
+            performance = "average";
+          } else {
+            performance = "poor";
+          }
 
           return {
             branchId,
@@ -477,9 +784,18 @@ class ReportService {
             totalSales: data.totalSales,
             totalOrders: data.totalOrders,
             averageOrderValue,
-            topSellingProduct: topProduct,
+            topSellingProduct,
             staffCount: data.staffCount,
             performance,
+            totalProfit: data.totalProfit,
+            profitMargin,
+            customerTypes: data.customerTypes,
+            deliveryVsPickup: {
+              delivery: data.deliveryOrdersCount,
+              pickup: data.pickupOrdersCount,
+            },
+            paymentMethods: data.paymentMethods,
+            priorityOrders: data.priorityOrders,
           };
         })
         .sort((a, b) => b.totalSales - a.totalSales);
@@ -594,6 +910,433 @@ class ReportService {
       };
 
       return createSuccessResponse(summary);
+    } catch (error) {
+      return createErrorResponse(handleSupabaseError(error));
+    }
+  }
+
+  // Enhanced Customer Analytics Report
+  async getCustomerReport(
+    filters: ReportFilters = {}
+  ): Promise<ApiResponse<CustomerReport[]>> {
+    try {
+      // Get customer data with order history
+      let customersQuery = supabase.from("customers").select(`
+        id,
+        customer_code,
+        customer_type,
+        company_name,
+        first_name,
+        last_name,
+        created_at,
+        orders(
+          id,
+          total,
+          subtotal,
+          customer_type,
+          shop_type,
+          created_at,
+          items:order_items(
+            quantity,
+            total_price,
+            cost_price
+          )
+        )
+      `);
+
+      // Apply date filters if needed
+      if (filters.startDate) {
+        customersQuery = customersQuery.gte("created_at", filters.startDate);
+      }
+
+      if (filters.endDate) {
+        customersQuery = customersQuery.lte("created_at", filters.endDate);
+      }
+
+      const { data: customers, error } = await customersQuery;
+
+      if (error) {
+        return createErrorResponse(handleSupabaseError(error));
+      }
+
+      // Group by date based on groupBy parameter
+      const groupBy = filters.groupBy || "day";
+      const customerData = new Map<
+        string,
+        {
+          newCustomers: number;
+          returningCustomers: number;
+          totalCustomers: number;
+          b2bCustomers: number;
+          walkInCustomers: number;
+          phoneOrderCustomers: number;
+          repeatCustomers: number;
+          customerLifetimeValue: number;
+          customerSegments: Map<string, { count: number; revenue: number }>;
+          shopTypeDistribution: Record<string, number>;
+          totalRevenue: number;
+          totalOrders: number;
+        }
+      >();
+
+      // Process customers and their order data
+      customers?.forEach((customer) => {
+        const customerDate = new Date(customer.created_at);
+        let key: string;
+
+        switch (groupBy) {
+          case "week":
+            const weekStart = new Date(customerDate);
+            weekStart.setDate(customerDate.getDate() - customerDate.getDay());
+            key = weekStart.toISOString().split("T")[0];
+            break;
+          case "month":
+            key = `${customerDate.getFullYear()}-${(customerDate.getMonth() + 1)
+              .toString()
+              .padStart(2, "0")}`;
+            break;
+          case "year":
+            key = customerDate.getFullYear().toString();
+            break;
+          default: // day
+            key = customerDate.toISOString().split("T")[0];
+        }
+
+        if (!customerData.has(key)) {
+          customerData.set(key, {
+            newCustomers: 0,
+            returningCustomers: 0,
+            totalCustomers: 0,
+            b2bCustomers: 0,
+            walkInCustomers: 0,
+            phoneOrderCustomers: 0,
+            repeatCustomers: 0,
+            customerLifetimeValue: 0,
+            customerSegments: new Map(),
+            shopTypeDistribution: {},
+            totalRevenue: 0,
+            totalOrders: 0,
+          });
+        }
+
+        const dayData = customerData.get(key)!;
+        dayData.newCustomers += 1;
+        dayData.totalCustomers += 1;
+
+        // Calculate customer lifetime value and order patterns
+        let customerOrderCount = 0;
+        let customerTotalSpent = 0;
+
+        if (customer.orders && Array.isArray(customer.orders)) {
+          customerOrderCount = customer.orders.length;
+          customerTotalSpent = customer.orders.reduce((total, order) => {
+            dayData.totalOrders += 1;
+            return total + order.total;
+          }, 0);
+
+          dayData.totalRevenue += customerTotalSpent;
+          dayData.customerLifetimeValue += customerTotalSpent;
+
+          // Classify customer types from orders
+          customer.orders.forEach((order) => {
+            if (order.customer_type) {
+              switch (order.customer_type) {
+                case "registered":
+                  if (order.shop_type) {
+                    dayData.b2bCustomers += 1;
+                    // Track shop type distribution
+                    dayData.shopTypeDistribution[order.shop_type] =
+                      (dayData.shopTypeDistribution[order.shop_type] || 0) + 1;
+                  }
+                  break;
+                case "walk_in":
+                  dayData.walkInCustomers += 1;
+                  break;
+                case "phone_order":
+                  dayData.phoneOrderCustomers += 1;
+                  break;
+                case "repeat_customer":
+                  dayData.repeatCustomers += 1;
+                  break;
+              }
+            }
+          });
+        }
+
+        // Determine if returning customer (has more than 1 order)
+        if (customerOrderCount > 1) {
+          dayData.returningCustomers += 1;
+          dayData.newCustomers -= 1; // Adjust new customer count
+        }
+
+        // Classify customer segment based on spend
+        const segmentType = customer.customer_type || "individual";
+        const segment = dayData.customerSegments.get(segmentType) || {
+          count: 0,
+          revenue: 0,
+        };
+        segment.count += 1;
+        segment.revenue += customerTotalSpent;
+        dayData.customerSegments.set(segmentType, segment);
+      });
+
+      // Convert to report format
+      const reports: CustomerReport[] = Array.from(customerData.entries()).map(
+        ([date, data]) => {
+          const customerRetentionRate =
+            data.totalCustomers > 0
+              ? (data.returningCustomers / data.totalCustomers) * 100
+              : 0;
+
+          const averageOrdersPerCustomer =
+            data.totalCustomers > 0
+              ? data.totalOrders / data.totalCustomers
+              : 0;
+
+          const avgCustomerLifetimeValue =
+            data.totalCustomers > 0
+              ? data.customerLifetimeValue / data.totalCustomers
+              : 0;
+
+          // Convert customer segments map to array
+          const topCustomerSegments = Array.from(
+            data.customerSegments.entries()
+          )
+            .map(([type, segment]) => ({
+              type,
+              count: segment.count,
+              revenue: segment.revenue,
+            }))
+            .sort((a, b) => b.revenue - a.revenue);
+
+          return {
+            date,
+            newCustomers: data.newCustomers,
+            returningCustomers: data.returningCustomers,
+            totalCustomers: data.totalCustomers,
+            customerRetentionRate,
+            averageOrdersPerCustomer,
+            b2bCustomers: data.b2bCustomers,
+            walkInCustomers: data.walkInCustomers,
+            phoneOrderCustomers: data.phoneOrderCustomers,
+            repeatCustomers: data.repeatCustomers,
+            customerLifetimeValue: avgCustomerLifetimeValue,
+            topCustomerSegments,
+            shopTypeDistribution: data.shopTypeDistribution,
+          };
+        }
+      );
+
+      return createSuccessResponse(reports);
+    } catch (error) {
+      return createErrorResponse(handleSupabaseError(error));
+    }
+  }
+
+  // Enhanced Profit & Loss Report
+  async getProfitLossReport(
+    filters: ReportFilters = {}
+  ): Promise<ApiResponse<ProfitLossReport[]>> {
+    try {
+      // Get orders with detailed cost tracking
+      let ordersQuery = supabase.from("orders").select(`
+        id,
+        total,
+        subtotal,
+        delivery_fee,
+        created_at,
+        branch_id,
+        items:order_items(
+          quantity,
+          unit_price,
+          total_price,
+          cost_price
+        )
+      `);
+
+      // Apply filters
+      if (filters.startDate) {
+        ordersQuery = ordersQuery.gte("created_at", filters.startDate);
+      }
+
+      if (filters.endDate) {
+        ordersQuery = ordersQuery.lte("created_at", filters.endDate);
+      }
+
+      if (filters.branchId) {
+        ordersQuery = ordersQuery.eq("branch_id", filters.branchId);
+      }
+
+      const { data: orders, error } = await ordersQuery;
+
+      if (error) {
+        return createErrorResponse(handleSupabaseError(error));
+      }
+
+      // Get product categories for profit breakdown
+      const { data: categories, error: categoriesError } = await supabase
+        .from("categories")
+        .select("id, name");
+
+      if (categoriesError) {
+        return createErrorResponse(handleSupabaseError(categoriesError));
+      }
+
+      // Group by time period
+      const groupBy = filters.groupBy || "month";
+      const profitData = new Map<
+        string,
+        {
+          revenue: number;
+          productCosts: number;
+          deliveryCosts: number;
+          grossProfit: number;
+          categoryProfits: Map<string, { profit: number; revenue: number }>;
+          branchProfits: Map<string, number>;
+        }
+      >();
+
+      // Process orders
+      orders?.forEach((order) => {
+        const date = new Date(order.created_at);
+        let key: string;
+
+        switch (groupBy) {
+          case "week":
+            const weekStart = new Date(date);
+            weekStart.setDate(date.getDate() - date.getDay());
+            key = weekStart.toISOString().split("T")[0];
+            break;
+          case "month":
+            key = `${date.getFullYear()}-${(date.getMonth() + 1)
+              .toString()
+              .padStart(2, "0")}`;
+            break;
+          case "year":
+            key = date.getFullYear().toString();
+            break;
+          default:
+            key = date.toISOString().split("T")[0];
+        }
+
+        if (!profitData.has(key)) {
+          profitData.set(key, {
+            revenue: 0,
+            productCosts: 0,
+            deliveryCosts: 0,
+            grossProfit: 0,
+            categoryProfits: new Map(),
+            branchProfits: new Map(),
+          });
+        }
+
+        const periodData = profitData.get(key)!;
+        periodData.revenue += order.total;
+        periodData.deliveryCosts += order.delivery_fee || 0;
+
+        // Calculate item-level profits
+        if (order.items && Array.isArray(order.items)) {
+          order.items.forEach((item) => {
+            if (item.cost_price && item.total_price) {
+              const itemCost = item.cost_price * item.quantity;
+              const itemProfit = item.total_price - itemCost;
+
+              periodData.productCosts += itemCost;
+              periodData.grossProfit += itemProfit;
+            }
+          });
+        }
+
+        // Track branch profits
+        if (order.branch_id) {
+          const branchProfit =
+            periodData.branchProfits.get(order.branch_id) || 0;
+          const orderProfit = order.total - (order.delivery_fee || 0);
+          periodData.branchProfits.set(
+            order.branch_id,
+            branchProfit + orderProfit
+          );
+        }
+      });
+
+      // Convert to report format
+      const reports: ProfitLossReport[] = Array.from(profitData.entries()).map(
+        ([period, data]) => {
+          const grossProfitMargin =
+            data.revenue > 0 ? (data.grossProfit / data.revenue) * 100 : 0;
+
+          // Estimate operational expenses (simplified - could be from a dedicated expenses table)
+          const operationalExpenses = data.revenue * 0.15; // 15% of revenue as operational costs
+          const salesCommissions = data.revenue * 0.05; // 5% sales commissions
+
+          const totalExpenses =
+            operationalExpenses + salesCommissions + data.deliveryCosts;
+          const netProfit = data.grossProfit - totalExpenses;
+          const netProfitMargin =
+            data.revenue > 0 ? (netProfit / data.revenue) * 100 : 0;
+
+          // Cost breakdown
+          const costBreakdown = [
+            {
+              category: "Product Costs",
+              amount: data.productCosts,
+              percentage:
+                data.revenue > 0 ? (data.productCosts / data.revenue) * 100 : 0,
+            },
+            {
+              category: "Delivery Costs",
+              amount: data.deliveryCosts,
+              percentage:
+                data.revenue > 0
+                  ? (data.deliveryCosts / data.revenue) * 100
+                  : 0,
+            },
+            {
+              category: "Operational Expenses",
+              amount: operationalExpenses,
+              percentage:
+                data.revenue > 0
+                  ? (operationalExpenses / data.revenue) * 100
+                  : 0,
+            },
+            {
+              category: "Sales Commissions",
+              amount: salesCommissions,
+              percentage:
+                data.revenue > 0 ? (salesCommissions / data.revenue) * 100 : 0,
+            },
+          ];
+
+          // Branch profit breakdown
+          const profitByBranch = Array.from(data.branchProfits.entries()).map(
+            ([branchId, profit]) => ({
+              branchId,
+              branchName: `Branch ${branchId}`, // Could be enhanced with actual branch names
+              profit,
+            })
+          );
+
+          return {
+            period,
+            revenue: data.revenue,
+            cost: data.productCosts,
+            grossProfit: data.grossProfit,
+            grossProfitMargin,
+            expenses: totalExpenses,
+            netProfit,
+            netProfitMargin,
+            productCosts: data.productCosts,
+            deliveryCosts: data.deliveryCosts,
+            operationalExpenses,
+            salesCommissions,
+            costBreakdown,
+            profitByCategory: [], // Could be enhanced with category-specific data
+            profitByBranch,
+          };
+        }
+      );
+
+      return createSuccessResponse(reports);
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }

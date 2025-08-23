@@ -74,9 +74,9 @@ import {
   FiCopy,
   FiRotateCcw,
 } from "react-icons/fi";
-import Layout from "../../components/Layout";
-import { withAuth } from "../../lib/auth";
-import { NextPageWithLayout } from "../_app";
+import Layout from "../../../components/Layout";
+import { withAuth } from "../../../lib/auth";
+import { NextPageWithLayout } from "../../_app";
 
 interface Integration {
   id: number;

@@ -1,4 +1,5 @@
-import { ReactElement } from "react";
+import { ReactElement, useState } from "react";
+import { useRouter } from "next/router";
 import {
   Box,
   Heading,
@@ -27,6 +28,23 @@ import {
   InputLeftElement,
   Select,
   Avatar,
+  Spinner,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Textarea,
+  useDisclosure,
+  Switch,
 } from "@chakra-ui/react";
 import {
   FiUsers,
@@ -39,106 +57,234 @@ import {
   FiPhone,
   FiMapPin,
   FiUserPlus,
+  FiSave,
+  FiTrash2,
 } from "react-icons/fi";
-// Make sure the path below matches the actual location of your Layout component
 import Layout from "../../components/Layout";
-// import { withAuth } from "../lib/auth";
-// Update the import path below to the correct location of your withAuth function
 import { withAuth } from "../../lib/auth";
+import {
+  useCustomers,
+  useCustomerStats,
+  useCreateCustomer,
+  useUpdateCustomer,
+  useDeleteCustomer,
+} from "../../lib/hooks/useCustomers";
 
-// Mock data for customers
-const mockCustomers = [
-  {
-    id: "CUST-001",
-    name: "นายสมชาย ใจดี",
-    email: "somchai@example.com",
-    phone: "081-234-5678",
-    address: "123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110",
-    totalOrders: 5,
-    totalSpent: 2750,
-    lastOrderDate: "2024-01-15T10:30:00Z",
-    status: "active",
-    joinedDate: "2023-08-15T00:00:00Z",
-  },
-  {
-    id: "CUST-002",
-    name: "นางสาวสมหญิง รักดี",
-    email: "somying@example.com",
-    phone: "082-345-6789",
-    address: "456 ถนนราชดำริ แขวงลุมพินี เขตปทุมวัน กรุงเทพฯ 10330",
-    totalOrders: 3,
-    totalSpent: 1890,
-    lastOrderDate: "2024-01-14T16:20:00Z",
-    status: "active",
-    joinedDate: "2023-09-22T00:00:00Z",
-  },
-  {
-    id: "CUST-003",
-    name: "นายสมศักดิ์ มั่นคง",
-    email: "somsak@example.com",
-    phone: "083-456-7890",
-    address: "789 ถนนสีลม แขวงสีลม เขตบางรัก กรุงเทพฯ 10500",
-    totalOrders: 8,
-    totalSpent: 4200,
-    lastOrderDate: "2024-01-13T14:15:00Z",
-    status: "vip",
-    joinedDate: "2023-06-10T00:00:00Z",
-  },
-  {
-    id: "CUST-004",
-    name: "นางสาวสมใจ ยิ้มแย้ม",
-    email: "somjai@example.com",
-    phone: "084-567-8901",
-    address: "321 ถนนพหลโยธิน แขวงสามเสนใน เขตพญาไท กรุงเทพฯ 10400",
-    totalOrders: 1,
-    totalSpent: 450,
-    lastOrderDate: "2024-01-10T11:30:00Z",
-    status: "inactive",
-    joinedDate: "2024-01-01T00:00:00Z",
-  },
-];
+// Customer with stats type
+interface CustomerWithStats {
+  id: string;
+  customerNumber: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  dateOfBirth?: Date;
+  gender?: "male" | "female" | "other";
+  notes?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderDate?: string;
+  orderCount: number;
+}
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "active":
-      return "green";
-    case "vip":
-      return "purple";
-    case "inactive":
-      return "gray";
-    default:
-      return "gray";
-  }
+interface CustomerFormData {
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  gender?: "male" | "female" | "other";
+  notes?: string;
+  isActive?: boolean;
+}
+
+const getStatusColor = (isActive: boolean) => {
+  return isActive ? "green" : "gray";
 };
 
-const getStatusText = (status: string) => {
-  switch (status) {
-    case "active":
-      return "ใช้งานอยู่";
-    case "vip":
-      return "ลูกค้า VIP";
-    case "inactive":
-      return "ไม่ใช้งาน";
-    default:
-      return status;
-  }
+const getStatusText = (isActive: boolean) => {
+  return isActive ? "ใช้งานอยู่" : "ไม่ใช้งาน";
 };
 
 function CustomersPage() {
-  const totalCustomers = mockCustomers.length;
-  const activeCustomers = mockCustomers.filter(
-    (customer) => customer.status === "active"
-  ).length;
-  const vipCustomers = mockCustomers.filter(
-    (customer) => customer.status === "vip"
-  ).length;
-  const totalRevenue = mockCustomers.reduce(
-    (sum, customer) => sum + customer.totalSpent,
-    0
-  );
+  const router = useRouter();
+  const toast = useToast();
+
+  // Real Supabase hooks
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+
+  const filters = {
+    search: searchTerm,
+    isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+  };
+
+  const { customers, loading, error, refetch } = useCustomers(filters);
+  const { stats, loading: statsLoading } = useCustomerStats();
+  const { createCustomer, isCreating } = useCreateCustomer();
+  const { updateCustomer, isUpdating } = useUpdateCustomer();
+  const { deleteCustomer, isDeleting } = useDeleteCustomer();
+
+  // Modal states
+  const {
+    isOpen: isFormOpen,
+    onOpen: onFormOpen,
+    onClose: onFormClose,
+  } = useDisclosure();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerWithStats | null>(null);
+  const [formData, setFormData] = useState<CustomerFormData>({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    gender: undefined,
+    notes: "",
+    isActive: true,
+  });
+
+  const handleAddCustomer = () => {
+    setSelectedCustomer(null);
+    setFormData({
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+      gender: undefined,
+      notes: "",
+      isActive: true,
+    });
+    setIsEditing(false);
+    onFormOpen();
+  };
+
+  const handleEditCustomer = (customer: CustomerWithStats) => {
+    setSelectedCustomer(customer);
+    setFormData({
+      name: customer.name,
+      phone: customer.phone || "",
+      email: customer.email || "",
+      address: customer.address || "",
+      gender: customer.gender,
+      notes: customer.notes || "",
+      isActive: customer.isActive,
+    });
+    setIsEditing(true);
+    onFormOpen();
+  };
+
+  const handleSaveCustomer = async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: "กรุณากรอกชื่อลูกค้า",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      if (isEditing && selectedCustomer) {
+        await updateCustomer({
+          id: selectedCustomer.id,
+          data: {
+            name: formData.name,
+            phone: formData.phone || undefined,
+            email: formData.email || undefined,
+            address: formData.address || undefined,
+            gender: formData.gender,
+            notes: formData.notes || undefined,
+            isActive: formData.isActive,
+          },
+        });
+        toast({
+          title: "แก้ไขข้อมูลลูกค้าสำเร็จ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        await createCustomer({
+          name: formData.name,
+          phone: formData.phone || undefined,
+          email: formData.email || undefined,
+          address: formData.address || undefined,
+          gender: formData.gender,
+          notes: formData.notes || undefined,
+          isActive: formData.isActive,
+        });
+        toast({
+          title: "เพิ่มลูกค้าใหม่สำเร็จ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+      onFormClose();
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error ? error.message : "ไม่สามารถบันทึกข้อมูลได้",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleToggleStatus = async (customerId: string) => {
+    const customer = customers.find(
+      (c: CustomerWithStats) => c.id === customerId
+    );
+    if (!customer) return;
+
+    try {
+      await updateCustomer({
+        id: customerId,
+        data: {
+          isActive: !customer.isActive,
+        },
+      });
+      toast({
+        title: "เปลี่ยนสถานะลูกค้าสำเร็จ",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error ? error.message : "ไม่สามารถเปลี่ยนสถานะได้",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleViewCustomer = (customerId: string) => {
+    router.push(`/customers/${customerId}`);
+  };
 
   return (
     <VStack spacing={6} align="stretch">
+      {/* Error Alert */}
+      {error && (
+        <Alert status="error">
+          <AlertIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Page Header */}
       <Flex justify="space-between" align="center">
         <Box>
@@ -153,7 +299,12 @@ function CustomersPage() {
           <Button leftIcon={<Icon as={FiDownload} />} variant="outline">
             ส่งออกข้อมูล
           </Button>
-          <Button colorScheme="blue" leftIcon={<Icon as={FiUserPlus} />}>
+          <Button
+            colorScheme="blue"
+            leftIcon={<Icon as={FiUserPlus} />}
+            onClick={handleAddCustomer}
+            isDisabled={isCreating}
+          >
             เพิ่มลูกค้าใหม่
           </Button>
         </HStack>
@@ -165,7 +316,9 @@ function CustomersPage() {
           <CardBody>
             <Stat>
               <StatLabel fontFamily="body">ลูกค้าทั้งหมด</StatLabel>
-              <StatNumber fontFamily="heading">{totalCustomers}</StatNumber>
+              <StatNumber fontFamily="heading">
+                {statsLoading ? <Spinner size="sm" /> : stats.total}
+              </StatNumber>
               <StatHelpText fontFamily="body">คน</StatHelpText>
             </Stat>
           </CardBody>
@@ -176,7 +329,7 @@ function CustomersPage() {
             <Stat>
               <StatLabel fontFamily="body">ใช้งานอยู่</StatLabel>
               <StatNumber fontFamily="heading" color="green.500">
-                {activeCustomers}
+                {statsLoading ? <Spinner size="sm" /> : stats.active}
               </StatNumber>
               <StatHelpText fontFamily="body">คน</StatHelpText>
             </Stat>
@@ -186,9 +339,9 @@ function CustomersPage() {
         <Card>
           <CardBody>
             <Stat>
-              <StatLabel fontFamily="body">ลูกค้า VIP</StatLabel>
-              <StatNumber fontFamily="heading" color="purple.500">
-                {vipCustomers}
+              <StatLabel fontFamily="body">ลูกค้าใหม่เดือนนี้</StatLabel>
+              <StatNumber fontFamily="heading" color="blue.500">
+                {statsLoading ? <Spinner size="sm" /> : stats.newThisMonth}
               </StatNumber>
               <StatHelpText fontFamily="body">คน</StatHelpText>
             </Stat>
@@ -199,8 +352,12 @@ function CustomersPage() {
           <CardBody>
             <Stat>
               <StatLabel fontFamily="body">ยอดขายรวม</StatLabel>
-              <StatNumber fontFamily="heading" color="blue.500">
-                ฿{totalRevenue.toLocaleString()}
+              <StatNumber fontFamily="heading" color="purple.500">
+                {statsLoading ? (
+                  <Spinner size="sm" />
+                ) : (
+                  `฿${stats.totalRevenue.toLocaleString()}`
+                )}
               </StatNumber>
               <StatHelpText fontFamily="body">บาท</StatHelpText>
             </Stat>
@@ -216,16 +373,32 @@ function CustomersPage() {
               <InputLeftElement>
                 <Icon as={FiSearch} color="gray.400" />
               </InputLeftElement>
-              <Input placeholder="ค้นหาลูกค้า..." fontFamily="body" />
+              <Input
+                placeholder="ค้นหาลูกค้า..."
+                fontFamily="body"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </InputGroup>
 
-            <Select placeholder="สถานะทั้งหมด" maxW="200px" fontFamily="body">
+            <Select
+              placeholder="สถานะทั้งหมด"
+              maxW="200px"
+              fontFamily="body"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+            >
+              <option value="all">ทั้งหมด</option>
               <option value="active">ใช้งานอยู่</option>
-              <option value="vip">ลูกค้า VIP</option>
               <option value="inactive">ไม่ใช้งาน</option>
             </Select>
 
-            <Button leftIcon={<Icon as={FiFilter} />} variant="outline">
+            <Button
+              leftIcon={<Icon as={FiFilter} />}
+              variant="outline"
+              onClick={() => refetch()}
+              isLoading={loading}
+            >
               กรองข้อมูล
             </Button>
           </HStack>
@@ -235,119 +408,300 @@ function CustomersPage() {
       {/* Customers Table */}
       <Card>
         <CardBody>
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th fontFamily="body">ลูกค้า</Th>
-                <Th fontFamily="body">ข้อมูลติดต่อ</Th>
-                <Th fontFamily="body">ที่อยู่</Th>
-                <Th fontFamily="body">คำสั่งซื้อ</Th>
-                <Th fontFamily="body">ยอดซื้อรวม</Th>
-                <Th fontFamily="body">สถานะ</Th>
-                <Th fontFamily="body">จัดการ</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {mockCustomers.map((customer) => (
-                <Tr key={customer.id}>
-                  <Td>
-                    <HStack>
-                      <Avatar
-                        size="sm"
-                        name={customer.name}
-                        bg="blue.500"
-                        color="white"
-                      />
-                      <VStack align="start" spacing={0}>
-                        <Text fontFamily="body" fontWeight="medium">
-                          {customer.name}
-                        </Text>
-                        <Text fontSize="sm" color="gray.500" fontFamily="body">
-                          {customer.id}
-                        </Text>
-                      </VStack>
-                    </HStack>
-                  </Td>
-                  <Td>
-                    <VStack align="start" spacing={1}>
-                      <HStack>
-                        <Icon as={FiMail} boxSize={3} color="gray.400" />
-                        <Text fontSize="sm" fontFamily="body">
-                          {customer.email}
-                        </Text>
-                      </HStack>
-                      <HStack>
-                        <Icon as={FiPhone} boxSize={3} color="gray.400" />
-                        <Text fontSize="sm" fontFamily="body">
-                          {customer.phone}
-                        </Text>
-                      </HStack>
-                    </VStack>
-                  </Td>
-                  <Td maxW="200px">
-                    <HStack align="start">
-                      <Icon as={FiMapPin} boxSize={3} color="gray.400" mt={1} />
-                      <Text fontSize="sm" fontFamily="body" noOfLines={2}>
-                        {customer.address}
-                      </Text>
-                    </HStack>
-                  </Td>
-                  <Td>
-                    <VStack align="start" spacing={0}>
-                      <Text fontFamily="body" fontWeight="semibold">
-                        {customer.totalOrders} รายการ
-                      </Text>
-                      <Text fontSize="sm" color="gray.500" fontFamily="body">
-                        ล่าสุด:{" "}
-                        {new Date(customer.lastOrderDate).toLocaleDateString(
-                          "th-TH",
-                          {
-                            month: "short",
-                            day: "numeric",
-                          }
-                        )}
-                      </Text>
-                    </VStack>
-                  </Td>
-                  <Td fontFamily="body" fontWeight="semibold">
-                    ฿{customer.totalSpent.toLocaleString()}
-                  </Td>
-                  <Td>
-                    <Badge
-                      colorScheme={getStatusColor(customer.status)}
-                      borderRadius="full"
-                      px={3}
-                      py={1}
-                    >
-                      <Text fontSize="xs" fontFamily="body">
-                        {getStatusText(customer.status)}
-                      </Text>
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <HStack spacing={2}>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        leftIcon={<Icon as={FiEye} />}
-                      >
-                        ดู
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        leftIcon={<Icon as={FiEdit} />}
-                      >
-                        แก้ไข
-                      </Button>
-                    </HStack>
-                  </Td>
+          {loading ? (
+            <Flex justify="center" p={8}>
+              <Spinner size="lg" />
+            </Flex>
+          ) : (
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th fontFamily="body">ลูกค้า</Th>
+                  <Th fontFamily="body">ข้อมูลติดต่อ</Th>
+                  <Th fontFamily="body">ที่อยู่</Th>
+                  <Th fontFamily="body">คำสั่งซื้อ</Th>
+                  <Th fontFamily="body">ยอดซื้อรวม</Th>
+                  <Th fontFamily="body">สถานะ</Th>
+                  <Th fontFamily="body">จัดการ</Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {customers.map((customer: CustomerWithStats) => (
+                  <Tr key={customer.id}>
+                    <Td>
+                      <HStack>
+                        <Avatar
+                          size="sm"
+                          name={customer.name}
+                          bg="blue.500"
+                          color="white"
+                        />
+                        <VStack align="start" spacing={0}>
+                          <Text fontFamily="body" fontWeight="medium">
+                            {customer.name}
+                          </Text>
+                          <Text
+                            fontSize="sm"
+                            color="gray.500"
+                            fontFamily="body"
+                          >
+                            {customer.customerNumber}
+                          </Text>
+                        </VStack>
+                      </HStack>
+                    </Td>
+                    <Td>
+                      <VStack align="start" spacing={1}>
+                        {customer.email && (
+                          <HStack>
+                            <Icon as={FiMail} boxSize={3} color="gray.400" />
+                            <Text fontSize="sm" fontFamily="body">
+                              {customer.email}
+                            </Text>
+                          </HStack>
+                        )}
+                        {customer.phone && (
+                          <HStack>
+                            <Icon as={FiPhone} boxSize={3} color="gray.400" />
+                            <Text fontSize="sm" fontFamily="body">
+                              {customer.phone}
+                            </Text>
+                          </HStack>
+                        )}
+                        {!customer.email && !customer.phone && (
+                          <Text
+                            fontSize="sm"
+                            color="gray.400"
+                            fontFamily="body"
+                          >
+                            ไม่ระบุ
+                          </Text>
+                        )}
+                      </VStack>
+                    </Td>
+                    <Td maxW="200px">
+                      {customer.address ? (
+                        <HStack align="start">
+                          <Icon
+                            as={FiMapPin}
+                            boxSize={3}
+                            color="gray.400"
+                            mt={1}
+                          />
+                          <Text fontSize="sm" fontFamily="body" noOfLines={2}>
+                            {customer.address}
+                          </Text>
+                        </HStack>
+                      ) : (
+                        <Text fontSize="sm" color="gray.400" fontFamily="body">
+                          ไม่ระบุ
+                        </Text>
+                      )}
+                    </Td>
+                    <Td>
+                      <VStack align="start" spacing={0}>
+                        <Text fontFamily="body" fontWeight="semibold">
+                          {customer.totalOrders} รายการ
+                        </Text>
+                        {customer.lastOrderDate && (
+                          <Text
+                            fontSize="sm"
+                            color="gray.500"
+                            fontFamily="body"
+                          >
+                            ล่าสุด:{" "}
+                            {new Date(
+                              customer.lastOrderDate
+                            ).toLocaleDateString("th-TH", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </Text>
+                        )}
+                      </VStack>
+                    </Td>
+                    <Td fontFamily="body" fontWeight="semibold">
+                      ฿{customer.totalSpent.toLocaleString()}
+                    </Td>
+                    <Td>
+                      <Badge
+                        colorScheme={getStatusColor(customer.isActive)}
+                        borderRadius="full"
+                        px={3}
+                        py={1}
+                      >
+                        <Text fontSize="xs" fontFamily="body">
+                          {getStatusText(customer.isActive)}
+                        </Text>
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={<Icon as={FiEye} />}
+                          onClick={() => handleViewCustomer(customer.id)}
+                        >
+                          ดู
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={<Icon as={FiEdit} />}
+                          onClick={() => handleEditCustomer(customer)}
+                          isDisabled={isUpdating}
+                        >
+                          แก้ไข
+                        </Button>
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
         </CardBody>
       </Card>
+      {/* Customer Form Modal */}
+      <Modal isOpen={isFormOpen} onClose={onFormClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            {isEditing ? "แก้ไขข้อมูลลูกค้า" : "เพิ่มลูกค้าใหม่"}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <FormControl isRequired>
+                <FormLabel>ชื่อลูกค้า</FormLabel>
+                <Input
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
+                  placeholder="ชื่อและนามสกุล"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>เบอร์โทรศัพท์</FormLabel>
+                <Input
+                  value={formData.phone || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      phone: e.target.value,
+                    }))
+                  }
+                  placeholder="081-234-5678"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>อีเมล</FormLabel>
+                <Input
+                  type="email"
+                  value={formData.email || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
+                  }
+                  placeholder="customer@example.com"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>ที่อยู่</FormLabel>
+                <Textarea
+                  value={formData.address || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      address: e.target.value,
+                    }))
+                  }
+                  placeholder="ที่อยู่ของลูกค้า"
+                  rows={3}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>เพศ</FormLabel>
+                <Select
+                  value={formData.gender || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      gender: e.target.value as any,
+                    }))
+                  }
+                  placeholder="เลือกเพศ"
+                >
+                  <option value="male">ชาย</option>
+                  <option value="female">หญิง</option>
+                  <option value="other">อื่นๆ</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>หมายเหตุ</FormLabel>
+                <Textarea
+                  value={formData.notes || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
+                  }
+                  placeholder="บันทึกเพิ่มเติม..."
+                  rows={2}
+                />
+              </FormControl>
+
+              <FormControl>
+                <HStack>
+                  <Switch
+                    isChecked={formData.isActive !== false}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        isActive: e.target.checked,
+                      }))
+                    }
+                    colorScheme="green"
+                  />
+                  <Text>สถานะการใช้งาน</Text>
+                </HStack>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={onFormClose}
+              isDisabled={isCreating || isUpdating}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleSaveCustomer}
+              leftIcon={<Icon as={FiSave} />}
+              isLoading={isCreating || isUpdating}
+              loadingText="กำลังบันทึก..."
+            >
+              บันทึก
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }

@@ -5,6 +5,10 @@ import Layout from "../../../components/Layout";
 import { withAuth } from "../../../lib/auth";
 import { useRouter } from "next/router";
 import {
+  useBranchMutations,
+  BranchFormData,
+} from "../../../lib/hooks/useBranches";
+import {
   Box,
   VStack,
   HStack,
@@ -42,25 +46,23 @@ import {
 } from "react-icons/fi";
 import Link from "next/link";
 
-// Branch interface
-interface Branch {
-  name: string;
-  code: string;
-  address: string;
-  phone: string;
-  email?: string;
-  manager_name: string;
-  manager_phone: string;
-  is_active: boolean;
-  opening_hours: {
-    monday: { open: string; close: string; is_open: boolean };
-    tuesday: { open: string; close: string; is_open: boolean };
-    wednesday: { open: string; close: string; is_open: boolean };
-    thursday: { open: string; close: string; is_open: boolean };
-    friday: { open: string; close: string; is_open: boolean };
-    saturday: { open: string; close: string; is_open: boolean };
-    sunday: { open: string; close: string; is_open: boolean };
-  };
+// Opening hours interface
+interface OpeningHours {
+  monday: { open: string; close: string; is_open: boolean };
+  tuesday: { open: string; close: string; is_open: boolean };
+  wednesday: { open: string; close: string; is_open: boolean };
+  thursday: { open: string; close: string; is_open: boolean };
+  friday: { open: string; close: string; is_open: boolean };
+  saturday: { open: string; close: string; is_open: boolean };
+  sunday: { open: string; close: string; is_open: boolean };
+}
+
+// Extended form data for new branch creation
+interface ExtendedBranchFormData extends BranchFormData {
+  code?: string;
+  manager_name?: string;
+  manager_phone?: string;
+  opening_hours?: OpeningHours;
 }
 
 const dayNames = {
@@ -76,9 +78,9 @@ const dayNames = {
 function NewBranchPage() {
   const router = useRouter();
   const toast = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const { createBranch, isCreating } = useBranchMutations();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<Branch>({
+  const [formData, setFormData] = useState<ExtendedBranchFormData>({
     name: "",
     code: "",
     address: "",
@@ -106,9 +108,9 @@ function NewBranchPage() {
     setFormData((prev) => ({
       ...prev,
       opening_hours: {
-        ...prev.opening_hours,
+        ...prev.opening_hours!,
         [day]: {
-          ...prev.opening_hours[day],
+          ...prev.opening_hours![day],
           [field]: value,
         },
       },
@@ -116,10 +118,10 @@ function NewBranchPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.code || !formData.address) {
+    if (!formData.name || !formData.address) {
       toast({
         title: "กรุณากรอกข้อมูลให้ครบถ้วน",
-        description: "ชื่อสาขา รหัสสาขา และที่อยู่เป็นข้อมูลที่จำเป็น",
+        description: "ชื่อสาขาและที่อยู่เป็นข้อมูลที่จำเป็น",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -127,10 +129,8 @@ function NewBranchPage() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await createBranch(formData);
 
       toast({
         title: "เพิ่มสาขาใหม่สำเร็จ",
@@ -149,22 +149,13 @@ function NewBranchPage() {
         duration: 3000,
         isClosable: true,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const getCompletionPercentage = () => {
-    const requiredFields = [
-      "name",
-      "code",
-      "address",
-      "manager_name",
-      "manager_phone",
-      "phone",
-    ];
+    const requiredFields = ["name", "address", "phone"];
     const filledFields = requiredFields.filter(
-      (field) => formData[field as keyof Branch]
+      (field) => formData[field as keyof ExtendedBranchFormData]
     );
     return Math.round((filledFields.length / requiredFields.length) * 100);
   };
@@ -420,66 +411,68 @@ function NewBranchPage() {
           </CardHeader>
           <CardBody>
             <VStack spacing={4} align="stretch">
-              {Object.entries(formData.opening_hours).map(([day, hours]) => (
-                <Box key={day} p={4} borderRadius="lg" bg="gray.50">
-                  <VStack spacing={3} align="stretch">
-                    <HStack justify="space-between">
-                      <Text fontWeight="medium">
-                        {dayNames[day as keyof typeof dayNames]}
-                      </Text>
-                      <Switch
-                        isChecked={hours.is_open}
-                        onChange={(e) =>
-                          updateOpeningHours(
-                            day as keyof typeof dayNames,
-                            "is_open",
-                            e.target.checked
-                          )
-                        }
-                        colorScheme="green"
-                      />
-                    </HStack>
-
-                    {hours.is_open && (
-                      <HStack spacing={3}>
-                        <FormControl>
-                          <FormLabel fontSize="sm">เวลาเปิด</FormLabel>
-                          <Input
-                            type="time"
-                            size="sm"
-                            value={hours.open}
-                            onChange={(e) =>
-                              updateOpeningHours(
-                                day as keyof typeof dayNames,
-                                "open",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <Text fontSize="sm" pt={6} color="gray.600">
-                          ถึง
+              {Object.entries(formData.opening_hours || {}).map(
+                ([day, hours]) => (
+                  <Box key={day} p={4} borderRadius="lg" bg="gray.50">
+                    <VStack spacing={3} align="stretch">
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium">
+                          {dayNames[day as keyof typeof dayNames]}
                         </Text>
-                        <FormControl>
-                          <FormLabel fontSize="sm">เวลาปิด</FormLabel>
-                          <Input
-                            type="time"
-                            size="sm"
-                            value={hours.close}
-                            onChange={(e) =>
-                              updateOpeningHours(
-                                day as keyof typeof dayNames,
-                                "close",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </FormControl>
+                        <Switch
+                          isChecked={hours.is_open}
+                          onChange={(e) =>
+                            updateOpeningHours(
+                              day as keyof typeof dayNames,
+                              "is_open",
+                              e.target.checked
+                            )
+                          }
+                          colorScheme="green"
+                        />
                       </HStack>
-                    )}
-                  </VStack>
-                </Box>
-              ))}
+
+                      {hours.is_open && (
+                        <HStack spacing={3}>
+                          <FormControl>
+                            <FormLabel fontSize="sm">เวลาเปิด</FormLabel>
+                            <Input
+                              type="time"
+                              size="sm"
+                              value={hours.open}
+                              onChange={(e) =>
+                                updateOpeningHours(
+                                  day as keyof typeof dayNames,
+                                  "open",
+                                  e.target.value
+                                )
+                              }
+                            />
+                          </FormControl>
+                          <Text fontSize="sm" pt={6} color="gray.600">
+                            ถึง
+                          </Text>
+                          <FormControl>
+                            <FormLabel fontSize="sm">เวลาปิด</FormLabel>
+                            <Input
+                              type="time"
+                              size="sm"
+                              value={hours.close}
+                              onChange={(e) =>
+                                updateOpeningHours(
+                                  day as keyof typeof dayNames,
+                                  "close",
+                                  e.target.value
+                                )
+                              }
+                            />
+                          </FormControl>
+                        </HStack>
+                      )}
+                    </VStack>
+                  </Box>
+                )
+              )}
             </VStack>
           </CardBody>
         </Card>
@@ -502,7 +495,7 @@ function NewBranchPage() {
               <Button
                 leftIcon={<FiSave />}
                 colorScheme="blue"
-                isLoading={isLoading}
+                isLoading={isCreating}
                 loadingText="กำลังบันทึก..."
                 onClick={handleSave}
                 size="lg"

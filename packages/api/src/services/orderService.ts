@@ -12,41 +12,108 @@ import {
 // Order-specific filter types
 export interface OrderFilters extends BaseFilters {
   branchId?: string;
+  customerId?: string;
   status?: OrderStatus;
   paymentMethod?: string;
+  paymentStatus?: string;
+  customerType?: string;
+  shopType?: string;
+  deliveryMethod?: string;
+  priority?: string;
   customerPhone?: string;
   orderNumber?: string;
+  salesRep?: string;
   minTotal?: number;
   maxTotal?: number;
 }
 
 // Order creation data
 export interface CreateOrderData {
+  // Customer Information
+  customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
+  customer_email?: string;
+  customer_type?: "registered" | "walk_in" | "phone_order" | "repeat_customer";
+
+  // Shop Information (for B2B)
+  shop_name?: string;
+  shop_type?:
+    | "convenience_store"
+    | "grocery_store"
+    | "mini_mart"
+    | "supermarket"
+    | "restaurant"
+    | "other";
+
+  // Order Details
   subtotal: number;
+  discount_amount?: number;
   tax?: number;
+  delivery_fee?: number;
   total: number;
-  payment_method?: "cash" | "card" | "bank_transfer" | "e_wallet";
+
+  // Payment & Delivery
+  payment_method?: "cash" | "card" | "bank_transfer" | "e_wallet" | "credit";
+  payment_status?: "pending" | "paid" | "partial" | "overdue" | "refunded";
+  delivery_method?: "pickup" | "delivery" | "express" | "scheduled";
+  delivery_address?: string;
+  delivery_date?: string;
+
+  // Status & Tracking
   status?: OrderStatus;
+  priority?: "low" | "normal" | "high" | "urgent";
+  notes?: string;
+  internal_notes?: string;
+
+  // Relations
   branch_id?: string;
+  sales_rep?: string;
+  cashier_id?: string;
   items: CreateOrderItemData[];
 }
 
 export interface CreateOrderItemData {
   product_id?: string;
+  product_sku?: string;
   product_name: string;
+  product_description?: string;
+  variant_info?: Record<string, any>;
   quantity: number;
   unit_price: number;
+  discount_amount?: number;
   total_price: number;
+  cost_price?: number;
 }
 
 // Order update data
 export interface UpdateOrderData {
+  customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
+  customer_email?: string;
+  customer_type?: "registered" | "walk_in" | "phone_order" | "repeat_customer";
+  shop_name?: string;
+  shop_type?:
+    | "convenience_store"
+    | "grocery_store"
+    | "mini_mart"
+    | "supermarket"
+    | "restaurant"
+    | "other";
+  discount_amount?: number;
+  delivery_fee?: number;
+  payment_method?: "cash" | "card" | "bank_transfer" | "e_wallet" | "credit";
+  payment_status?: "pending" | "paid" | "partial" | "overdue" | "refunded";
+  delivery_method?: "pickup" | "delivery" | "express" | "scheduled";
+  delivery_address?: string;
+  delivery_date?: string;
   status?: OrderStatus;
-  payment_method?: "cash" | "card" | "bank_transfer" | "e_wallet";
+  priority?: "low" | "normal" | "high" | "urgent";
+  notes?: string;
+  internal_notes?: string;
+  sales_rep?: string;
+  cashier_id?: string;
 }
 
 // Order statistics
@@ -70,15 +137,21 @@ class OrderService {
     try {
       let query = supabase.from(this.tableName).select(`
         *,
-        branch:branches(id, name),
+        customer:customers(id, customer_code, first_name, last_name, company_name, phone, email),
+        branch:branches(id, name, address, phone),
         items:order_items(
           id,
           product_id,
+          product_sku,
           product_name,
+          product_description,
+          variant_info,
           quantity,
           unit_price,
+          discount_amount,
           total_price,
-          product:products(id, name, images)
+          cost_price,
+          product:products(id, name, images, sku)
         )
       `);
 
@@ -97,8 +170,36 @@ class OrderService {
         query = query.eq("branch_id", filters.branchId);
       }
 
+      if (filters.customerId) {
+        query = query.eq("customer_id", filters.customerId);
+      }
+
       if (filters.paymentMethod) {
         query = query.eq("payment_method", filters.paymentMethod);
+      }
+
+      if (filters.paymentStatus) {
+        query = query.eq("payment_status", filters.paymentStatus);
+      }
+
+      if (filters.customerType) {
+        query = query.eq("customer_type", filters.customerType);
+      }
+
+      if (filters.shopType) {
+        query = query.eq("shop_type", filters.shopType);
+      }
+
+      if (filters.deliveryMethod) {
+        query = query.eq("delivery_method", filters.deliveryMethod);
+      }
+
+      if (filters.priority) {
+        query = query.eq("priority", filters.priority);
+      }
+
+      if (filters.salesRep) {
+        query = query.eq("sales_rep", filters.salesRep);
       }
 
       if (filters.customerPhone) {
@@ -157,14 +258,21 @@ class OrderService {
         .select(
           `
           *,
+          customer:customers(id, customer_code, first_name, last_name, company_name, phone, email),
           branch:branches(id, name, address, phone),
           items:order_items(
             id,
             product_id,
+            product_sku,
             product_name,
+            product_description,
+            variant_info,
             quantity,
             unit_price,
+            discount_amount,
             total_price,
+            cost_price,
+            created_at,
             product:products(id, name, images, sku)
           )
         `
@@ -193,14 +301,30 @@ class OrderService {
       const { data: order, error: orderError } = await supabase
         .from(this.tableName)
         .insert({
+          customer_id: orderData.customer_id,
           customer_name: orderData.customer_name,
           customer_phone: orderData.customer_phone,
+          customer_email: orderData.customer_email,
+          customer_type: orderData.customer_type || "walk_in",
+          shop_name: orderData.shop_name,
+          shop_type: orderData.shop_type,
           subtotal: orderData.subtotal,
+          discount_amount: orderData.discount_amount || 0,
           tax: orderData.tax || 0,
+          delivery_fee: orderData.delivery_fee || 0,
           total: orderData.total,
           payment_method: orderData.payment_method || "cash",
+          payment_status: orderData.payment_status || "paid",
+          delivery_method: orderData.delivery_method || "pickup",
+          delivery_address: orderData.delivery_address,
+          delivery_date: orderData.delivery_date,
           status: orderData.status || "completed",
+          priority: orderData.priority || "normal",
+          notes: orderData.notes,
+          internal_notes: orderData.internal_notes,
           branch_id: orderData.branch_id,
+          sales_rep: orderData.sales_rep,
+          cashier_id: orderData.cashier_id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -214,8 +338,18 @@ class OrderService {
       // Create order items
       if (orderData.items && orderData.items.length > 0) {
         const itemsWithOrderId = orderData.items.map((item) => ({
-          ...item,
           order_id: order.id,
+          product_id: item.product_id,
+          product_sku: item.product_sku,
+          product_name: item.product_name,
+          product_description: item.product_description,
+          variant_info: item.variant_info,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: item.discount_amount || 0,
+          total_price: item.total_price,
+          cost_price: item.cost_price,
+          created_at: new Date().toISOString(),
         }));
 
         const { error: itemsError } = await supabase
@@ -282,6 +416,118 @@ class OrderService {
       }
 
       return createSuccessResponse(null, "Order cancelled successfully");
+    } catch (error) {
+      return createErrorResponse(handleSupabaseError(error));
+    }
+  }
+
+  // Update order status with notes
+  async updateStatus(
+    id: string,
+    status: OrderStatus,
+    notes?: string
+  ): Promise<ApiResponse<Order>> {
+    try {
+      const updateData: any = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (notes) {
+        updateData.internal_notes = notes;
+      }
+
+      const { error } = await supabase
+        .from(this.tableName)
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) {
+        return createErrorResponse(handleSupabaseError(error));
+      }
+
+      return await this.getById(id);
+    } catch (error) {
+      return createErrorResponse(handleSupabaseError(error));
+    }
+  }
+
+  // Update payment status
+  async updatePaymentStatus(
+    id: string,
+    paymentStatus: "pending" | "paid" | "partial" | "overdue" | "refunded",
+    notes?: string
+  ): Promise<ApiResponse<Order>> {
+    try {
+      const updateData: any = {
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (notes) {
+        updateData.internal_notes = notes;
+      }
+
+      const { error } = await supabase
+        .from(this.tableName)
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) {
+        return createErrorResponse(handleSupabaseError(error));
+      }
+
+      return await this.getById(id);
+    } catch (error) {
+      return createErrorResponse(handleSupabaseError(error));
+    }
+  }
+
+  // Find or create customer and create order
+  async createWithCustomer(
+    orderData: CreateOrderData & {
+      autoCreateCustomer?: boolean;
+    }
+  ): Promise<ApiResponse<Order>> {
+    try {
+      // If customer info provided but no customer_id, try to find or create customer
+      if (
+        orderData.autoCreateCustomer &&
+        orderData.customer_phone &&
+        !orderData.customer_id
+      ) {
+        // Try to find existing customer by phone
+        const { data: existingCustomer } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("phone", orderData.customer_phone)
+          .single();
+
+        if (existingCustomer) {
+          orderData.customer_id = existingCustomer.id;
+        } else if (orderData.customer_name) {
+          // Create new customer
+          const { data: newCustomer, error: customerError } = await supabase
+            .from("customers")
+            .insert({
+              first_name: orderData.customer_name,
+              phone: orderData.customer_phone,
+              email: orderData.customer_email,
+              company_name: orderData.shop_name,
+              customer_type: orderData.shop_name ? "business" : "individual",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+
+          if (!customerError && newCustomer) {
+            orderData.customer_id = newCustomer.id;
+          }
+        }
+      }
+
+      return await this.create(orderData);
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }
@@ -394,6 +640,82 @@ class OrderService {
       };
 
       return createSuccessResponse(stats);
+    } catch (error) {
+      return createErrorResponse(handleSupabaseError(error));
+    }
+  }
+
+  // Get orders by customer
+  async getByCustomer(
+    customerId: string,
+    filters: OrderFilters & PaginationParams = {}
+  ): Promise<ApiResponse<Order[]>> {
+    return this.getAll({ ...filters, customerId });
+  }
+
+  // Get orders by date range
+  async getByDateRange(
+    startDate: string,
+    endDate: string,
+    branchId?: string
+  ): Promise<ApiResponse<Order[]>> {
+    return this.getAll({
+      dateFrom: startDate,
+      dateTo: endDate,
+      branchId,
+    });
+  }
+
+  // Get pending orders
+  async getPendingOrders(branchId?: string): Promise<ApiResponse<Order[]>> {
+    return this.getAll({
+      status: "pending",
+      branchId,
+      sortBy: "created_at",
+      sortOrder: "asc",
+    });
+  }
+
+  // Get today's orders
+  async getTodaysOrders(branchId?: string): Promise<ApiResponse<Order[]>> {
+    const today = new Date().toISOString().split("T")[0];
+    return this.getByDateRange(today, today, branchId);
+  }
+
+  // Calculate order profit
+  async calculateOrderProfit(orderId: string): Promise<
+    ApiResponse<{
+      revenue: number;
+      cost: number;
+      profit: number;
+      profitMargin: number;
+    }>
+  > {
+    try {
+      const orderResult = await this.getById(orderId);
+      if (!orderResult.success || !orderResult.data) {
+        return createErrorResponse("Order not found");
+      }
+
+      const order = orderResult.data;
+      let totalCost = 0;
+      let totalRevenue = order.total;
+
+      for (const item of order.items) {
+        if (item.cost_price) {
+          totalCost += item.cost_price * item.quantity;
+        }
+      }
+
+      const profit = totalRevenue - totalCost;
+      const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+      return createSuccessResponse({
+        revenue: totalRevenue,
+        cost: totalCost,
+        profit,
+        profitMargin,
+      });
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }

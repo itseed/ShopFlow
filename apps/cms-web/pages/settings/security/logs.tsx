@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../../_app";
 import Layout from "../../../components/Layout";
@@ -73,22 +73,7 @@ import {
   FiMonitor,
 } from "react-icons/fi";
 import Link from "next/link";
-
-interface SecurityLog {
-  id: string;
-  timestamp: string;
-  user_id: string;
-  user_name: string;
-  user_email: string;
-  action: string;
-  resource: string;
-  ip_address: string;
-  user_agent: string;
-  location: string;
-  success: boolean;
-  risk_level: "low" | "medium" | "high" | "critical";
-  details: any;
-}
+import { useSecurityLogs } from "../../../lib/hooks/useSecurity";
 
 const logActions = [
   { value: "login", label: "เข้าสู่ระบบ" },
@@ -103,89 +88,11 @@ const logActions = [
   { value: "data_export", label: "ส่งออกข้อมูล" },
 ];
 
-const mockLogs: SecurityLog[] = [
-  {
-    id: "1",
-    timestamp: "2024-07-15T10:30:00Z",
-    user_id: "user1",
-    user_name: "สมชาย ใจดี",
-    user_email: "somchai@company.com",
-    action: "login",
-    resource: "dashboard",
-    ip_address: "192.168.1.100",
-    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-    location: "กรุงเทพฯ, ไทย",
-    success: true,
-    risk_level: "low",
-    details: { login_method: "password" },
-  },
-  {
-    id: "2",
-    timestamp: "2024-07-15T09:45:00Z",
-    user_id: "user2",
-    user_name: "สมหญิง รักษ์ดี",
-    user_email: "somying@company.com",
-    action: "api_key_create",
-    resource: "api_keys",
-    ip_address: "203.154.123.45",
-    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    location: "เชียงใหม่, ไทย",
-    success: true,
-    risk_level: "medium",
-    details: { api_key_name: "Mobile App API" },
-  },
-  {
-    id: "3",
-    timestamp: "2024-07-15T08:20:00Z",
-    user_id: "unknown",
-    user_name: "ไม่ทราบ",
-    user_email: "unknown@suspicious.com",
-    action: "login",
-    resource: "dashboard",
-    ip_address: "45.67.89.123",
-    user_agent: "Unknown Bot/1.0",
-    location: "ต่างประเทศ",
-    success: false,
-    risk_level: "high",
-    details: { reason: "invalid_credentials", attempts: 5 },
-  },
-  {
-    id: "4",
-    timestamp: "2024-07-15T07:15:00Z",
-    user_id: "admin",
-    user_name: "ผู้ดูแลระบบ",
-    user_email: "admin@company.com",
-    action: "user_delete",
-    resource: "users",
-    ip_address: "192.168.1.10",
-    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-    location: "กรุงเทพฯ, ไทย",
-    success: true,
-    risk_level: "critical",
-    details: { deleted_user: "test@company.com" },
-  },
-  {
-    id: "5",
-    timestamp: "2024-07-15T06:30:00Z",
-    user_id: "user3",
-    user_name: "วิชัย อำนาจ",
-    user_email: "vichai@company.com",
-    action: "password_change",
-    resource: "profile",
-    ip_address: "192.168.1.150",
-    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    location: "กรุงเทพฯ, ไทย",
-    success: true,
-    risk_level: "medium",
-    details: { forced_change: false },
-  },
-];
-
 function SecurityLogsPage() {
   const toast = useToast();
-  const [logs, setLogs] = useState<SecurityLog[]>(mockLogs);
-  const [filteredLogs, setFilteredLogs] = useState<SecurityLog[]>(mockLogs);
-  const [selectedLog, setSelectedLog] = useState<SecurityLog | null>(null);
+  const { logs, loading, error, refresh } = useSecurityLogs();
+  const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
+  const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Filters
@@ -198,129 +105,75 @@ function SecurityLogsPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
 
-  // Apply filters
-  React.useEffect(() => {
-    let filtered = logs;
+  // Apply filters to logs
+  useEffect(() => {
+    let result = [...logs];
 
     if (searchTerm) {
-      filtered = filtered.filter(
+      result = result.filter(
         (log) =>
-          log.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          log.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          log.ip_address.includes(searchTerm) ||
-          log.action.toLowerCase().includes(searchTerm.toLowerCase())
+          log.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.resource?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (actionFilter) {
-      filtered = filtered.filter((log) => log.action === actionFilter);
+      result = result.filter((log) => log.action === actionFilter);
     }
 
     if (riskFilter) {
-      filtered = filtered.filter((log) => log.risk_level === riskFilter);
+      result = result.filter((log) => log.risk_level === riskFilter);
     }
 
     if (successFilter) {
-      filtered = filtered.filter((log) =>
-        successFilter === "success" ? log.success : !log.success
-      );
+      const isSuccess = successFilter === "success";
+      result = result.filter((log) => log.success === isSuccess);
     }
 
-    if (dateRange) {
-      const today = new Date();
-      let startDate = new Date();
+    setFilteredLogs(result);
+  }, [logs, searchTerm, actionFilter, riskFilter, successFilter]);
 
-      switch (dateRange) {
-        case "today":
-          startDate.setHours(0, 0, 0, 0);
-          break;
-        case "week":
-          startDate.setDate(today.getDate() - 7);
-          break;
-        case "month":
-          startDate.setMonth(today.getMonth() - 1);
-          break;
-        default:
-          startDate = new Date(0); // All time
-      }
-
-      filtered = filtered.filter((log) => new Date(log.timestamp) >= startDate);
-    }
-
-    setFilteredLogs(filtered);
-  }, [logs, searchTerm, actionFilter, riskFilter, successFilter, dateRange]);
-
-  const handleViewDetails = (log: SecurityLog) => {
+  const handleViewDetails = (log: any) => {
     setSelectedLog(log);
     onOpen();
   };
 
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
+  const handleExportLogs = () => {
+    // In a real implementation, this would export the logs to a file
     toast({
-      title: "รีเฟรชข้อมูลแล้ว",
-      status: "success",
-      duration: 2000,
+      title: "ส่งออกบันทึกความปลอดภัย",
+      description: "กำลังเตรียมไฟล์สำหรับดาวน์โหลด",
+      status: "info",
+      duration: 3000,
       isClosable: true,
     });
   };
 
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      await refresh();
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถโหลดบันทึกความปลอดภัยได้",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleExport = () => {
-    // Create CSV content
-    const headers = [
-      "วันเวลา",
-      "ผู้ใช้",
-      "อีเมล",
-      "การกระทำ",
-      "ทรัพยากร",
-      "IP Address",
-      "สถานที่",
-      "สถานะ",
-      "ระดับความเสี่ยง",
-    ];
-
-    const csvContent = [
-      headers.join(","),
-      ...filteredLogs.map((log) =>
-        [
-          new Date(log.timestamp).toLocaleString("th-TH"),
-          log.user_name,
-          log.user_email,
-          logActions.find((a) => a.value === log.action)?.label || log.action,
-          log.resource,
-          log.ip_address,
-          log.location,
-          log.success ? "สำเร็จ" : "ล้มเหลว",
-          log.risk_level,
-        ].join(",")
-      ),
-    ].join("\n");
-
-    // Download file
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `security-logs-${new Date().toISOString().split("T")[0]}.csv`
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "ส่งออกข้อมูลสำเร็จ",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
+    handleExportLogs();
   };
 
   const clearFilters = () => {
@@ -331,8 +184,8 @@ function SecurityLogsPage() {
     setDateRange("");
   };
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
+  const getRiskColor = (riskLevel: string) => {
+    switch (riskLevel) {
       case "low":
         return "green";
       case "medium":
@@ -346,8 +199,8 @@ function SecurityLogsPage() {
     }
   };
 
-  const getRiskLabel = (risk: string) => {
-    switch (risk) {
+  const getRiskLabel = (riskLevel: string) => {
+    switch (riskLevel) {
       case "low":
         return "ต่ำ";
       case "medium":
@@ -357,22 +210,34 @@ function SecurityLogsPage() {
       case "critical":
         return "วิกฤต";
       default:
-        return risk;
+        return "ไม่ทราบ";
     }
   };
 
   const getActionIcon = (action: string) => {
     switch (action) {
       case "login":
+        return <FiUser />;
       case "logout":
-        return FiUser;
+        return <FiUser />;
+      case "password_change":
+        return <FiKey />;
       case "api_key_create":
+        return <FiKey />;
       case "api_key_delete":
-        return FiKey;
+        return <FiKey />;
+      case "user_create":
+        return <FiUser />;
+      case "user_delete":
+        return <FiUser />;
+      case "role_change":
+        return <FiSettings />;
       case "settings_change":
-        return FiSettings;
+        return <FiSettings />;
+      case "data_export":
+        return <FiDownload />;
       default:
-        return FiShield;
+        return <FiShield />;
     }
   };
 
@@ -655,7 +520,10 @@ function SecurityLogsPage() {
                     </Td>
                     <Td>
                       <HStack spacing={2}>
-                        <Icon as={getActionIcon(log.action)} color="gray.500" />
+                        <Icon
+                          as={() => getActionIcon(log.action)}
+                          color="gray.500"
+                        />
                         <VStack align="start" spacing={1}>
                           <Text fontSize="sm" fontWeight="medium">
                             {logActions.find((a) => a.value === log.action)

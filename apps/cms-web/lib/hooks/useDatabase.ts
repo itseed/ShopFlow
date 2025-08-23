@@ -4,12 +4,14 @@ import {
   productService,
   categoryService,
   orderService,
+  supplierService,
   type ProductFilters,
   type CreateProductData,
   type UpdateProductData,
   type CategoryFilters,
   type CreateCategoryData,
   type UpdateCategoryData,
+  type SupplierFilters,
 } from "@shopflow/api";
 
 // Query Keys
@@ -18,9 +20,12 @@ export const QUERY_KEYS = {
   PRODUCT: "product",
   CATEGORIES: "categories",
   CATEGORY: "category",
+  SUPPLIERS: "suppliers",
+  SUPPLIER: "supplier",
   ORDERS: "orders",
   ORDER: "order",
   LOW_STOCK: "low-stock",
+  FEATURED_PRODUCTS: "featured-products",
 } as const;
 
 // Product Hooks
@@ -63,6 +68,21 @@ export function useLowStockProducts() {
       return response.data || [];
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// Featured Products Hook
+export function useFeaturedProducts(limit?: number) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.FEATURED_PRODUCTS, limit],
+    queryFn: async () => {
+      const response = await productService.getFeatured(limit);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch featured products");
+      }
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -333,5 +353,50 @@ export function useOrder(id: string) {
       return response.data;
     },
     enabled: !!id,
+  });
+}
+
+// Supplier Hooks
+export function useSuppliers(filters?: SupplierFilters) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.SUPPLIERS, filters],
+    queryFn: async () => {
+      const response = await supplierService.getAll(filters);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch suppliers");
+      }
+      return response.data || [];
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useSupplier(id: string) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.SUPPLIER, id],
+    queryFn: async () => {
+      const response = await supplierService.getById(id);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch supplier");
+      }
+      return response.data;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useSupplierSearch(query: string, limit = 10) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.SUPPLIERS, "search", query, limit],
+    queryFn: async () => {
+      if (!query || query.length < 2) return [];
+
+      const response = await supplierService.search(query, limit);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to search suppliers");
+      }
+      return response.data || [];
+    },
+    enabled: query.length >= 2,
   });
 }

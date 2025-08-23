@@ -195,3 +195,41 @@ SELECT
 FROM products p
 LEFT JOIN categories c ON p.category_id = c.id
 ORDER BY c.name, p.name;
+
+-- Sample data for ShopFlow CMS testing
+-- Insert this data after the schema has been created
+
+-- Insert sample branches
+INSERT INTO branches (id, name, address, phone, email) VALUES
+('123e4567-e89b-12d3-a456-426614174000', 'Main Store', '123 Main Street, Bangkok', '+66-2-123-4567', 'main@shopflow.com'),
+('123e4567-e89b-12d3-a456-426614174001', 'Branch 2', '456 Side Street, Bangkok', '+66-2-234-5678', 'branch2@shopflow.com');
+
+-- Insert sample categories
+INSERT INTO categories (id, name, description, display_order) VALUES
+('a1b2c3d4-e5f6-7890-1234-567890abcdef', 'Electronics', 'Electronic devices and gadgets', 1),
+('b2c3d4e5-f6g7-8901-2345-678901bcdefg', 'Clothing', 'Fashion and apparel', 2),
+('c3d4e5f6-g7h8-9012-3456-789012cdefgh', 'Food & Beverages', 'Food and drink items', 3);
+
+-- Insert sample products
+INSERT INTO products (id, name, description, price, discount_price, stock, min_stock, category_id) VALUES
+('p1a2b3c4-d5e6-7890-1234-567890abcdef', 'iPhone 15', 'Latest Apple smartphone', 35000.00, 32000.00, 10, 3, 'a1b2c3d4-e5f6-7890-1234-567890abcdef'),
+('p2b3c4d5-e6f7-8901-2345-678901bcdefg', 'Samsung Galaxy S24', 'Latest Samsung smartphone', 28000.00, NULL, 15, 5, 'a1b2c3d4-e5f6-7890-1234-567890abcdef'),
+('p3c4d5e6-f7g8-9012-3456-789012cdefgh', 'MacBook Pro 14"', 'Professional laptop for developers', 65000.00, 60000.00, 5, 2, 'a1b2c3d4-e5f6-7890-1234-567890abcdef'),
+('p4d5e6f7-g8h9-0123-4567-890123defghi', 'T-Shirt Basic', 'Comfortable cotton t-shirt', 299.00, NULL, 50, 10, 'b2c3d4e5-f6g7-8901-2345-678901bcdefg'),
+('p5e6f7g8-h9i0-1234-5678-901234efghij', 'Jeans Regular', 'Classic blue jeans', 899.00, 699.00, 25, 8, 'b2c3d4e5-f6g7-8901-2345-678901bcdefg'),
+('p6f7g8h9-i0j1-2345-6789-012345fghijk', 'Coffee Premium', 'Premium arabica coffee beans', 450.00, NULL, 30, 10, 'c3d4e5f6-g7h8-9012-3456-789012cdefgh');
+
+-- Insert sample orders (need auth.users first, so these will be inserted when users are created)
+-- For now, create orders without user references
+INSERT INTO orders (id, order_number, customer_name, customer_phone, subtotal, tax, total, payment_method, status, branch_id) VALUES
+('o1a2b3c4-d5e6-7890-1234-567890abcdef', 'ORD-20240823-0001', 'John Doe', '+66-81-123-4567', 35000.00, 2450.00, 37450.00, 'card', 'completed', '123e4567-e89b-12d3-a456-426614174000'),
+('o2b3c4d5-e6f7-8901-2345-678901bcdefg', 'ORD-20240823-0002', 'Jane Smith', '+66-82-234-5678', 1198.00, 83.86, 1281.86, 'cash', 'completed', '123e4567-e89b-12d3-a456-426614174000'),
+('o3c4d5e6-f7g8-9012-3456-789012cdefgh', 'ORD-20240823-0003', 'Bob Wilson', '+66-83-345-6789', 28000.00, 1960.00, 29960.00, 'bank_transfer', 'pending', '123e4567-e89b-12d3-a456-426614174001');
+
+-- Insert sample order items
+INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, total_price) VALUES
+('o1a2b3c4-d5e6-7890-1234-567890abcdef', 'p1a2b3c4-d5e6-7890-1234-567890abcdef', 'iPhone 15', 1, 35000.00, 35000.00),
+('o2b3c4d5-e6f7-8901-2345-678901bcdefg', 'p4d5e6f7-g8h9-0123-4567-890123defghi', 'T-Shirt Basic', 2, 299.00, 598.00),
+('o2b3c4d5-e6f7-8901-2345-678901bcdefg', 'p6f7g8h9-i0j1-2345-6789-012345fghijk', 'Coffee Premium', 1, 450.00, 450.00),
+('o2b3c4d5-e6f7-8901-2345-678901bcdefg', 'p5e6f7g8-h9i0-1234-5678-901234efghij', 'Jeans Regular', 1, 699.00, 699.00),
+('o3c4d5e6-f7g8-9012-3456-789012cdefgh', 'p2b3c4d5-e6f7-8901-2345-678901bcdefg', 'Samsung Galaxy S24', 1, 28000.00, 28000.00);

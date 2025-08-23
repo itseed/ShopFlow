@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../../_app";
 import Layout from "../../../components/Layout";
@@ -76,6 +76,7 @@ import {
   FiServer,
 } from "react-icons/fi";
 import Link from "next/link";
+import { useDatabaseInfo } from "../../../lib/hooks/useSystemStatus";
 
 interface DatabaseStatus {
   size: number;
@@ -101,63 +102,59 @@ interface BackupJob {
   retention_days: number;
 }
 
-const mockDatabaseStatus: DatabaseStatus = {
-  size: 2.5, // GB
-  tables: 45,
-  records: 125000,
-  connections: 8,
-  uptime: "15d 6h 23m",
-  last_backup: "2024-07-15T02:00:00Z",
-  performance_score: 92,
-};
-
-const mockBackupJobs: BackupJob[] = [
-  {
-    id: "1",
-    name: "Daily Full Backup",
-    type: "full",
-    schedule: "0 2 * * *", // Daily at 2 AM
-    last_run: "2024-07-15T02:00:00Z",
-    next_run: "2024-07-16T02:00:00Z",
-    status: "success",
-    size: 2.1,
-    duration: 1800, // 30 minutes
-    auto_cleanup: true,
-    retention_days: 30,
-  },
-  {
-    id: "2",
-    name: "Hourly Incremental",
-    type: "incremental",
-    schedule: "0 * * * *", // Every hour
-    last_run: "2024-07-15T14:00:00Z",
-    next_run: "2024-07-15T15:00:00Z",
-    status: "running",
-    size: 0.05,
-    duration: 300, // 5 minutes
-    auto_cleanup: true,
-    retention_days: 7,
-  },
-  {
-    id: "3",
-    name: "Weekly Differential",
-    type: "differential",
-    schedule: "0 1 * * 0", // Weekly on Sunday at 1 AM
-    last_run: "2024-07-14T01:00:00Z",
-    next_run: "2024-07-21T01:00:00Z",
-    status: "success",
-    size: 0.8,
-    duration: 900, // 15 minutes
-    auto_cleanup: true,
-    retention_days: 90,
-  },
-];
-
 function DatabasePage() {
   const toast = useToast();
-  const [databaseStatus, setDatabaseStatus] =
-    useState<DatabaseStatus>(mockDatabaseStatus);
-  const [backupJobs, setBackupJobs] = useState<BackupJob[]>(mockBackupJobs);
+  const { dbInfo, loading, error, refresh } = useDatabaseInfo();
+  const [databaseStatus, setDatabaseStatus] = useState<DatabaseStatus>({
+    size: 2.5, // GB
+    tables: 45,
+    records: 125000,
+    connections: 8,
+    uptime: "15d 6h 23m",
+    last_backup: "2024-07-15T02:00:00Z",
+    performance_score: 92,
+  });
+  const [backupJobs, setBackupJobs] = useState<BackupJob[]>([
+    {
+      id: "1",
+      name: "Daily Full Backup",
+      type: "full",
+      schedule: "0 2 * * *", // Daily at 2 AM
+      last_run: "2024-07-15T02:00:00Z",
+      next_run: "2024-07-16T02:00:00Z",
+      status: "success",
+      size: 2.1,
+      duration: 1800, // 30 minutes
+      auto_cleanup: true,
+      retention_days: 30,
+    },
+    {
+      id: "2",
+      name: "Hourly Incremental",
+      type: "incremental",
+      schedule: "0 * * * *", // Every hour
+      last_run: "2024-07-15T14:00:00Z",
+      next_run: "2024-07-15T15:00:00Z",
+      status: "running",
+      size: 0.05,
+      duration: 300, // 5 minutes
+      auto_cleanup: true,
+      retention_days: 7,
+    },
+    {
+      id: "3",
+      name: "Weekly Differential",
+      type: "differential",
+      schedule: "0 1 * * 0", // Weekly on Sunday at 1 AM
+      last_run: "2024-07-14T01:00:00Z",
+      next_run: "2024-07-21T01:00:00Z",
+      status: "success",
+      size: 0.8,
+      duration: 900, // 15 minutes
+      auto_cleanup: true,
+      retention_days: 90,
+    },
+  ]);
   const [selectedJob, setSelectedJob] = useState<BackupJob | null>(null);
   const [isBackupRunning, setIsBackupRunning] = useState(false);
   const [isRestoreRunning, setIsRestoreRunning] = useState(false);
@@ -195,74 +192,56 @@ function DatabasePage() {
     setIsBackupRunning(true);
     setBackupProgress(0);
 
-    // Simulate backup progress
+    // Simulate backup progress for now since we don't have real backup implementation
     const interval = setInterval(() => {
       setBackupProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           setIsBackupRunning(false);
           toast({
-            title: "สำรองข้อมูลสำเร็จ",
-            description: "ข้อมูลได้ถูกสำรองไว้เรียบร้อยแล้ว",
+            title: "การสำรองข้อมูลเสร็จสมบูรณ์",
             status: "success",
-            duration: 5000,
+            duration: 3000,
             isClosable: true,
           });
           return 100;
         }
-        return prev + Math.random() * 15;
+        return prev + 10;
       });
-    }, 500);
-
-    onBackupModalClose();
+    }, 300);
   };
 
-  const handleRestore = async () => {
+  const handleRestoreBackup = async () => {
     setIsRestoreRunning(true);
 
-    // Simulate restore process
+    // Simulate restore progress for now since we don't have real restore implementation
     setTimeout(() => {
       setIsRestoreRunning(false);
       toast({
-        title: "กู้คืนข้อมูลสำเร็จ",
-        description: "ข้อมูลได้ถูกกู้คืนเรียบร้อยแล้ว",
+        title: "การกู้คืนข้อมูลเสร็จสมบูรณ์",
         status: "success",
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
-      onRestoreModalClose();
     }, 3000);
   };
 
   const handleCreateBackupJob = () => {
-    if (!newBackupForm.name || !newBackupForm.schedule) {
-      toast({
-        title: "กรุณากรอกข้อมูลให้ครบถ้วน",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
     const newJob: BackupJob = {
       id: Date.now().toString(),
-      ...newBackupForm,
+      name: newBackupForm.name,
+      type: newBackupForm.type,
+      schedule: newBackupForm.schedule,
       last_run: "",
-      next_run: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+      next_run: "",
       status: "pending",
       size: 0,
       duration: 0,
+      auto_cleanup: newBackupForm.auto_cleanup,
+      retention_days: newBackupForm.retention_days,
     };
 
     setBackupJobs((prev) => [...prev, newJob]);
-    setNewBackupForm({
-      name: "",
-      type: "full",
-      schedule: "",
-      retention_days: 30,
-      auto_cleanup: true,
-    });
     onNewJobModalClose();
 
     toast({
@@ -275,12 +254,39 @@ function DatabasePage() {
 
   const handleDeleteBackupJob = (jobId: string) => {
     setBackupJobs((prev) => prev.filter((job) => job.id !== jobId));
+
     toast({
       title: "ลบงานสำรองข้อมูลสำเร็จ",
       status: "success",
       duration: 3000,
       isClosable: true,
     });
+  };
+
+  const formatFileSize = (sizeInGB: number) => {
+    if (sizeInGB < 1) {
+      return `${(sizeInGB * 1024).toFixed(1)} MB`;
+    }
+    return `${sizeInGB.toFixed(1)} GB`;
+  };
+
+  const getPerformanceColor = (score: number) => {
+    if (score >= 80) return "green";
+    if (score >= 60) return "yellow";
+    return "red";
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "full":
+        return "เต็ม";
+      case "incremental":
+        return "เพิ่มเติม";
+      case "differential":
+        return "ต่าง biệt";
+      default:
+        return type;
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -313,36 +319,20 @@ function DatabasePage() {
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "full":
-        return "เต็มรูปแบบ";
-      case "incremental":
-        return "เพิ่มเติม";
-      case "differential":
-        return "ความแตกต่าง";
-      default:
-        return type;
-    }
-  };
-
   const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
-  };
-
-  const formatFileSize = (sizeInGB: number) => {
-    if (sizeInGB < 1) {
-      return `${(sizeInGB * 1024).toFixed(0)} MB`;
+    if (seconds < 60) {
+      return `${seconds} วินาที`;
+    } else if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)} นาที`;
+    } else {
+      return `${Math.floor(seconds / 3600)} ชั่วโมง ${Math.floor(
+        (seconds % 3600) / 60
+      )} นาที`;
     }
-    return `${sizeInGB.toFixed(2)} GB`;
   };
 
-  const getPerformanceColor = (score: number) => {
-    if (score >= 90) return "green";
-    if (score >= 70) return "yellow";
-    return "red";
+  const handleRestore = () => {
+    handleRestoreBackup();
   };
 
   return (

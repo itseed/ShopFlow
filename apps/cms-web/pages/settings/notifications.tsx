@@ -73,6 +73,7 @@ import {
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
 import { NextPageWithLayout } from "../_app";
+import { useNotificationSettings } from "../../lib/hooks/useNotifications";
 
 interface NotificationRule {
   id: number;
@@ -90,9 +91,6 @@ function NotificationsPage() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [slackEnabled, setSlackEnabled] = useState(false);
   const [quietHoursEnabled, setQuietHoursEnabled] = useState(true);
-  const toast = useToast();
-  const { isOpen, onOpen, onClose } = useDisclosure();
-
   const [notificationRules, setNotificationRules] = useState<
     NotificationRule[]
   >([
@@ -129,18 +127,59 @@ function NotificationsPage() {
       conditions: "เมื่อมีการเข้าสู่ระบบจากตำแหน่งใหม่",
     },
   ]);
+  const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const handleSave = () => {
+  // Use the notification settings hook instead of mock data
+  const { settings, saving, updateSettings } = useNotificationSettings();
+
+  // Initialize state with real settings if available
+  useState(() => {
+    if (settings) {
+      // Set initial state based on real settings
+      setEmailEnabled(settings.emailEnabled ?? true);
+      setSmsEnabled(settings.smsEnabled ?? true);
+      setPushEnabled(settings.pushEnabled ?? true);
+      setSlackEnabled(settings.slackEnabled ?? false);
+      setQuietHoursEnabled(settings.quietHoursEnabled ?? true);
+    }
+  });
+
+  const handleSave = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const result = await updateSettings({
+        emailEnabled,
+        smsEnabled,
+        pushEnabled,
+        slackEnabled,
+        quietHoursEnabled,
+      });
+
+      if (result.success) {
+        toast({
+          title: "บันทึกการตั้งค่าการแจ้งเตือนสำเร็จ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
       toast({
-        title: "บันทึกการตั้งค่าการแจ้งเตือนสำเร็จ",
-        status: "success",
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถบันทึกการตั้งค่าได้",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const notificationStats = [

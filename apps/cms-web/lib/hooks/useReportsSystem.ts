@@ -25,6 +25,8 @@ export const REPORTS_QUERY_KEYS = {
   DASHBOARD_SUMMARY: "dashboard-summary",
   CUSTOM: "custom-reports",
   EXPORTS: "report-exports",
+  CUSTOMERS: "customer-reports",
+  PROFIT_LOSS: "profit-loss-reports",
 } as const;
 
 // Export formats
@@ -784,4 +786,56 @@ export function useAdvancedReportFilters() {
     applyPreset,
     setFilters,
   };
+}
+
+// Customer Analytics Reports Hook
+export function useCustomerReports(filters: EnhancedReportFilters = {}) {
+  let finalFilters = { ...filters };
+  if (filters.preset && filters.preset !== "custom") {
+    const dateRange = getDateRangeFromPreset(filters.preset);
+    finalFilters = {
+      ...finalFilters,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    };
+  }
+
+  return useQuery({
+    queryKey: [REPORTS_QUERY_KEYS.CUSTOMERS, finalFilters],
+    queryFn: async () => {
+      const response = await reportService.getCustomerReport(finalFilters);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch customer reports");
+      }
+      return response.data || [];
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// Profit & Loss Reports Hook
+export function useProfitLossReports(filters: EnhancedReportFilters = {}) {
+  let finalFilters = { ...filters };
+  if (filters.preset && filters.preset !== "custom") {
+    const dateRange = getDateRangeFromPreset(filters.preset);
+    finalFilters = {
+      ...finalFilters,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    };
+  }
+
+  return useQuery({
+    queryKey: [REPORTS_QUERY_KEYS.PROFIT_LOSS, finalFilters],
+    queryFn: async () => {
+      const response = await reportService.getProfitLossReport(finalFilters);
+      if (!response.success) {
+        throw new Error(
+          response.error || "Failed to fetch profit/loss reports"
+        );
+      }
+      return response.data || [];
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
 }

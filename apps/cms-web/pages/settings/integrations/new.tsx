@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../../_app";
 import Layout from "../../../components/Layout";
@@ -202,78 +202,53 @@ const integrationServices: IntegrationService[] = [
     popular: true,
     features: [
       "ติดตามผู้เข้าชม",
-      "วิเคราะห์การซื้อ",
-      "รายงานแบบเรียลไทม์",
-      "กรวยการขาย",
+      "วิเคราะห์พฤติกรรม",
+      "รายงานการแปลง",
+      "การตลาดแบบ remarketing",
     ],
-    pricing: "ฟรี",
+    pricing: "ฟรี (GA4)",
     documentation_url: "https://developers.google.com/analytics",
     setup_complexity: "medium",
-    requirements: ["Tracking ID", "API Key"],
+    requirements: ["Measurement ID", "Stream ID"],
   },
 ];
 
-const setupSteps: IntegrationStep[] = [
-  {
-    id: "1",
-    title: "เลือกบริการ",
-    description: "เลือกบริการที่ต้องการเชื่อมต่อ",
-    completed: false,
-  },
-  {
-    id: "2",
-    title: "กรอกข้อมูล",
-    description: "กรอกข้อมูลการเชื่อมต่อและการตั้งค่า",
-    completed: false,
-  },
-  {
-    id: "3",
-    title: "ทดสอบ",
-    description: "ทดสอบการเชื่อมต่อและการทำงาน",
-    completed: false,
-  },
-  {
-    id: "4",
-    title: "เปิดใช้งาน",
-    description: "เปิดใช้งานการเชื่อมต่อ",
-    completed: false,
-  },
+const categories = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: "payment", label: "การชำระเงิน" },
+  { value: "shipping", label: "การจัดส่ง" },
+  { value: "marketing", label: "การตลาด" },
+  { value: "analytics", label: "การวิเคราะห์" },
+  { value: "communication", label: "การสื่อสาร" },
+  { value: "storage", label: "การจัดเก็บข้อมูล" },
 ];
 
 function NewIntegrationPage() {
   const toast = useToast();
-  const [selectedService, setSelectedService] =
-    useState<IntegrationService | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [activeService, setActiveService] = useState<IntegrationService | null>(
+    null
+  );
+  const [formData, setFormData] = useState<any>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [connectionData, setConnectionData] = useState<{
-    [key: string]: string;
-  }>({});
+  const [connectionData, setConnectionData] = useState<any>({});
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<
     "success" | "failed" | null
   >(null);
 
+  const steps = [
+    { title: "เลือกบริการ", description: "เลือกบริการที่ต้องการเชื่อมต่อ" },
+    { title: "กำหนดค่า", description: "ป้อนข้อมูลการเชื่อมต่อ" },
+    { title: "ทดสอบ", description: "ทดสอบการเชื่อมต่อ" },
+    { title: "บันทึก", description: "บันทึกการตั้งค่า" },
+  ];
+
   const { activeStep, setActiveStep } = useSteps({
     index: 0,
-    count: setupSteps.length,
+    count: steps.length,
   });
-
-  const {
-    isOpen: isSetupModalOpen,
-    onOpen: onSetupModalOpen,
-    onClose: onSetupModalClose,
-  } = useDisclosure();
-
-  const categories = [
-    { value: "all", label: "ทั้งหมด" },
-    { value: "payment", label: "ชำระเงิน", icon: FiCreditCard },
-    { value: "shipping", label: "จัดส่ง", icon: FiTruck },
-    { value: "marketing", label: "การตลาด", icon: FiMail },
-    { value: "analytics", label: "วิเคราะห์", icon: FiBarChart },
-    { value: "communication", label: "การสื่อสาร", icon: FiMessageCircle },
-    { value: "storage", label: "จัดเก็บข้อมูล", icon: FiCloud },
-  ];
 
   const filteredServices = integrationServices.filter((service) => {
     const matchesCategory =
@@ -285,81 +260,99 @@ function NewIntegrationPage() {
   });
 
   const handleSelectService = (service: IntegrationService) => {
-    setSelectedService(service);
+    setActiveService(service);
     setConnectionData({});
     setConnectionTestResult(null);
-    setActiveStep(0);
-    onSetupModalOpen();
-  };
-
-  const handleNextStep = () => {
-    if (activeStep < setupSteps.length - 1) {
-      setActiveStep(activeStep + 1);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (activeStep > 0) {
-      setActiveStep(activeStep - 1);
-    }
+    setActiveStep(1);
   };
 
   const handleTestConnection = async () => {
-    setIsTestingConnection(true);
+    if (!activeService) return;
 
-    // Simulate API call
-    setTimeout(() => {
-      // Random success/failure for demo
+    setIsTestingConnection(true);
+    try {
+      // Simulate connection test
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Random success/failure for demo purposes
       const success = Math.random() > 0.3;
       setConnectionTestResult(success ? "success" : "failed");
-      setIsTestingConnection(false);
 
       if (success) {
         toast({
           title: "ทดสอบการเชื่อมต่อสำเร็จ",
+          description: `เชื่อมต่อกับ ${activeService?.name} สำเร็จ`,
           status: "success",
           duration: 3000,
           isClosable: true,
         });
       } else {
         toast({
-          title: "ทดสอบการเชื่อมต่อล้มเหลว",
-          description: "กรุณาตรวจสอบข้อมูลการเชื่อมต่อ",
+          title: "ทดสอบการเชื่อมต่อไม่สำเร็จ",
+          description: `ไม่สามารถเชื่อมต่อกับ ${activeService?.name} ได้`,
           status: "error",
           duration: 3000,
           isClosable: true,
         });
       }
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถทดสอบการเชื่อมต่อได้",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
-  const handleCompleteSetup = () => {
-    toast({
-      title: "เชื่อมต่อเรียบร้อยแล้ว",
-      description: `เชื่อมต่อกับ ${selectedService?.name} สำเร็จ`,
-      status: "success",
-      duration: 5000,
-      isClosable: true,
-    });
-    onSetupModalClose();
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // In a real implementation, this would save the integration settings to the database
+      // For now, we'll just simulate success
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      toast({
+        title: "บันทึกการเชื่อมต่อสำเร็จ",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Redirect to integrations page
+      window.location.href = "/settings/integrations";
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถบันทึกการเชื่อมต่อได้",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "payment":
-        return FiCreditCard;
-      case "shipping":
-        return FiTruck;
-      case "marketing":
-        return FiMail;
-      case "analytics":
-        return FiBarChart;
-      case "communication":
-        return FiMessageCircle;
-      case "storage":
-        return FiCloud;
+  const getComplexityLabel = (complexity: string) => {
+    switch (complexity) {
+      case "easy":
+        return "ง่าย";
+      case "medium":
+        return "ปานกลาง";
+      case "advanced":
+        return "ยาก";
       default:
-        return FiZap;
+        return complexity;
     }
   };
 
@@ -376,301 +369,22 @@ function NewIntegrationPage() {
     }
   };
 
-  const getComplexityLabel = (complexity: string) => {
-    switch (complexity) {
-      case "easy":
-        return "ง่าย";
-      case "medium":
-        return "ปานกลาง";
-      case "advanced":
-        return "ซับซ้อน";
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "payment":
+        return FiCreditCard;
+      case "shipping":
+        return FiTruck;
+      case "marketing":
+        return FiBarChart;
+      case "analytics":
+        return FiBarChart;
+      case "communication":
+        return FiMessageCircle;
+      case "storage":
+        return FiDatabase;
       default:
-        return complexity;
-    }
-  };
-
-  const renderStepContent = () => {
-    if (!selectedService) return null;
-
-    switch (activeStep) {
-      case 0:
-        return (
-          <VStack spacing={4} align="stretch">
-            <HStack spacing={4}>
-              <Image
-                src={selectedService.logo}
-                alt={selectedService.name}
-                boxSize="60px"
-                borderRadius="lg"
-              />
-              <VStack align="start" spacing={1}>
-                <HStack spacing={2}>
-                  <Heading size="md">{selectedService.name}</Heading>
-                  {selectedService.popular && (
-                    <Badge colorScheme="purple" variant="solid">
-                      ยอดนิยม
-                    </Badge>
-                  )}
-                </HStack>
-                <Text color="gray.600">{selectedService.description}</Text>
-                <HStack spacing={2}>
-                  <Badge
-                    colorScheme={getComplexityColor(
-                      selectedService.setup_complexity
-                    )}
-                    variant="outline"
-                  >
-                    {getComplexityLabel(selectedService.setup_complexity)}
-                  </Badge>
-                  <Text fontSize="sm" color="gray.500">
-                    {selectedService.pricing}
-                  </Text>
-                </HStack>
-              </VStack>
-            </HStack>
-
-            <Divider />
-
-            <Box>
-              <Text fontWeight="semibold" mb={2}>
-                ฟีเจอร์
-              </Text>
-              <List spacing={1}>
-                {selectedService.features.map((feature, index) => (
-                  <ListItem key={index}>
-                    <ListIcon as={FiCheck} color="green.500" />
-                    {feature}
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-
-            <Box>
-              <Text fontWeight="semibold" mb={2}>
-                ข้อกำหนด
-              </Text>
-              <List spacing={1}>
-                {selectedService.requirements.map((requirement, index) => (
-                  <ListItem key={index}>
-                    <ListIcon as={FiKey} color="blue.500" />
-                    {requirement}
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-
-            <Alert status="info" borderRadius="md">
-              <AlertIcon />
-              <Box>
-                <Text fontSize="sm">
-                  หากต้องการข้อมูลเพิ่มเติม สามารถดู
-                  <Button
-                    as="a"
-                    href={selectedService.documentation_url}
-                    target="_blank"
-                    variant="link"
-                    colorScheme="blue"
-                    size="sm"
-                    ml={1}
-                    rightIcon={<FiExternalLink />}
-                  >
-                    เอกสารประกอบ
-                  </Button>
-                </Text>
-              </Box>
-            </Alert>
-          </VStack>
-        );
-
-      case 1:
-        return (
-          <VStack spacing={4} align="stretch">
-            <Text fontWeight="semibold">กรอกข้อมูลการเชื่อมต่อ</Text>
-
-            {selectedService.requirements.map((requirement, index) => (
-              <FormControl key={index} isRequired>
-                <FormLabel>{requirement}</FormLabel>
-                <Input
-                  placeholder={`กรอก ${requirement}`}
-                  value={connectionData[requirement] || ""}
-                  onChange={(e) =>
-                    setConnectionData((prev) => ({
-                      ...prev,
-                      [requirement]: e.target.value,
-                    }))
-                  }
-                  type={
-                    requirement.toLowerCase().includes("secret")
-                      ? "password"
-                      : "text"
-                  }
-                />
-              </FormControl>
-            ))}
-
-            <FormControl>
-              <FormLabel>ชื่อการเชื่อมต่อ (ไม่บังคับ)</FormLabel>
-              <Input
-                placeholder={`การเชื่อมต่อ ${selectedService.name}`}
-                value={connectionData.name || ""}
-                onChange={(e) =>
-                  setConnectionData((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>คำอธิบาย (ไม่บังคับ)</FormLabel>
-              <Textarea
-                placeholder="อธิบายการใช้งานการเชื่อมต่อนี้"
-                value={connectionData.description || ""}
-                onChange={(e) =>
-                  setConnectionData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                rows={3}
-              />
-            </FormControl>
-
-            <FormControl>
-              <HStack justify="space-between">
-                <FormLabel mb={0}>เปิดใช้งานทันที</FormLabel>
-                <Switch
-                  isChecked={connectionData.enabled !== "false"}
-                  onChange={(e) =>
-                    setConnectionData((prev) => ({
-                      ...prev,
-                      enabled: e.target.checked.toString(),
-                    }))
-                  }
-                />
-              </HStack>
-            </FormControl>
-          </VStack>
-        );
-
-      case 2:
-        return (
-          <VStack spacing={4} align="stretch">
-            <Text fontWeight="semibold">ทดสอบการเชื่อมต่อ</Text>
-
-            <Alert status="info" borderRadius="md">
-              <AlertIcon />
-              <Text fontSize="sm">
-                เราจะทดสอบการเชื่อมต่อเพื่อให้แน่ใจว่าข้อมูลถูกต้อง
-              </Text>
-            </Alert>
-
-            <Box p={4} border="1px" borderColor="gray.200" borderRadius="md">
-              <VStack spacing={3} align="stretch">
-                <Text fontSize="sm" fontWeight="semibold">
-                  ข้อมูลการเชื่อมต่อ
-                </Text>
-                {selectedService.requirements.map((requirement, index) => (
-                  <HStack key={index} justify="space-between">
-                    <Text fontSize="sm" color="gray.600">
-                      {requirement}:
-                    </Text>
-                    <Code fontSize="xs">
-                      {connectionData[requirement]
-                        ? requirement.toLowerCase().includes("secret")
-                          ? "••••••••"
-                          : connectionData[requirement]
-                        : "ไม่ได้กรอก"}
-                    </Code>
-                  </HStack>
-                ))}
-              </VStack>
-            </Box>
-
-            <Button
-              colorScheme="blue"
-              onClick={handleTestConnection}
-              isLoading={isTestingConnection}
-              loadingText="กำลังทดสอบ..."
-            >
-              ทดสอบการเชื่อมต่อ
-            </Button>
-
-            {connectionTestResult && (
-              <Alert
-                status={
-                  connectionTestResult === "success" ? "success" : "error"
-                }
-                borderRadius="md"
-              >
-                <AlertIcon />
-                <Box>
-                  <Text fontWeight="medium">
-                    {connectionTestResult === "success"
-                      ? "การทดสอบสำเร็จ"
-                      : "การทดสอบล้มเหลว"}
-                  </Text>
-                  <Text fontSize="sm">
-                    {connectionTestResult === "success"
-                      ? "การเชื่อมต่อทำงานได้ปกติ สามารถดำเนินการต่อได้"
-                      : "ไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบข้อมูลอีกครั้ง"}
-                  </Text>
-                </Box>
-              </Alert>
-            )}
-          </VStack>
-        );
-
-      case 3:
-        return (
-          <VStack spacing={4} align="stretch">
-            <VStack spacing={2}>
-              <Icon as={FiCheck} boxSize={12} color="green.500" />
-              <Text fontSize="lg" fontWeight="semibold">
-                พร้อมเปิดใช้งาน!
-              </Text>
-              <Text color="gray.600" textAlign="center">
-                การเชื่อมต่อกับ {selectedService.name} พร้อมใช้งานแล้ว
-              </Text>
-            </VStack>
-
-            <Alert status="success" borderRadius="md">
-              <AlertIcon />
-              <Box>
-                <Text fontWeight="medium">การตั้งค่าเสร็จสมบูรณ์</Text>
-                <Text fontSize="sm">ระบบจะเริ่มใช้งานการเชื่อมต่อนี้ทันที</Text>
-              </Box>
-            </Alert>
-
-            <Accordion allowToggle>
-              <AccordionItem>
-                <AccordionButton>
-                  <Box flex="1" textAlign="left">
-                    <Text fontWeight="semibold">การตั้งค่าเพิ่มเติม</Text>
-                  </Box>
-                  <AccordionIcon />
-                </AccordionButton>
-                <AccordionPanel pb={4}>
-                  <VStack spacing={3} align="stretch">
-                    <Text fontSize="sm" color="gray.600">
-                      สามารถปรับแต่งการตั้งค่าเพิ่มเติมได้ในหน้าจัดการการเชื่อมต่อ
-                    </Text>
-                    <List spacing={1} fontSize="sm">
-                      <ListItem>• ตั้งค่า Webhook และ Callback URL</ListItem>
-                      <ListItem>• จัดการสิทธิ์การเข้าถึง</ListItem>
-                      <ListItem>• ดูประวัติการใช้งาน</ListItem>
-                      <ListItem>• ตั้งค่าการแจ้งเตือน</ListItem>
-                    </List>
-                  </VStack>
-                </AccordionPanel>
-              </AccordionItem>
-            </Accordion>
-          </VStack>
-        );
-
-      default:
-        return null;
+        return FiZap;
     }
   };
 
@@ -756,7 +470,7 @@ function NewIntegrationPage() {
 
             <Flex wrap="wrap" gap={3}>
               {categories.map((category) => {
-                const IconComponent = category.icon || FiZap;
+                const IconComponent = FiZap;
                 return (
                   <Button
                     key={category.value}
@@ -776,7 +490,10 @@ function NewIntegrationPage() {
                     }}
                     transition="all 0.2s"
                   >
-                    {category.label}
+                    <HStack spacing={3}>
+                      <Icon as={FiZap} color="gray.500" />
+                      <Text>{category.label}</Text>
+                    </HStack>
                   </Button>
                 );
               })}
@@ -1012,15 +729,19 @@ function NewIntegrationPage() {
       )}
 
       {/* Setup Modal */}
-      <Modal isOpen={isSetupModalOpen} onClose={onSetupModalClose} size="2xl">
+      <Modal
+        isOpen={!!activeService}
+        onClose={() => setActiveService(null)}
+        size="2xl"
+      >
         <ModalOverlay />
         <ModalContent maxH="90vh" overflowY="auto">
           <ModalHeader>
             <VStack align="start" spacing={2}>
               <Text>ตั้งค่าการเชื่อมต่อ</Text>
-              {selectedService && (
+              {activeService && (
                 <Progress
-                  value={((activeStep + 1) / setupSteps.length) * 100}
+                  value={((activeStep + 1) / steps.length) * 100}
                   colorScheme="blue"
                   size="sm"
                   w="100%"
@@ -1033,7 +754,7 @@ function NewIntegrationPage() {
             <VStack spacing={6} align="stretch">
               {/* Stepper */}
               <Stepper index={activeStep} orientation="horizontal" size="sm">
-                {setupSteps.map((step, index) => (
+                {steps.map((step, index) => (
                   <Step key={index}>
                     <StepIndicator>
                       <StepStatus
@@ -1052,24 +773,92 @@ function NewIntegrationPage() {
               </Stepper>
 
               {/* Step Content */}
-              <Box minH="300px">{renderStepContent()}</Box>
+              <Box minH="300px">
+                {activeService && (
+                  <VStack spacing={4} align="stretch">
+                    <Text fontWeight="semibold">กรอกข้อมูลการเชื่อมต่อ</Text>
+
+                    {activeService.requirements.map((requirement, index) => (
+                      <FormControl key={index} isRequired>
+                        <FormLabel>{requirement}</FormLabel>
+                        <Input
+                          placeholder={`กรอก ${requirement}`}
+                          value={connectionData[requirement] || ""}
+                          onChange={(e) =>
+                            setConnectionData((prev: any) => ({
+                              ...prev,
+                              [requirement]: e.target.value,
+                            }))
+                          }
+                          type={
+                            requirement.toLowerCase().includes("secret")
+                              ? "password"
+                              : "text"
+                          }
+                        />
+                      </FormControl>
+                    ))}
+
+                    <FormControl>
+                      <FormLabel>ชื่อการเชื่อมต่อ (ไม่บังคับ)</FormLabel>
+                      <Input
+                        placeholder={`การเชื่อมต่อ ${activeService.name}`}
+                        value={connectionData.name || ""}
+                        onChange={(e) =>
+                          setConnectionData((prev: any) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>คำอธิบาย (ไม่บังคับ)</FormLabel>
+                      <Textarea
+                        placeholder="อธิบายการใช้งานการเชื่อมต่อนี้"
+                        value={connectionData.description || ""}
+                        onChange={(e) =>
+                          setConnectionData((prev: any) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        rows={3}
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <HStack justify="space-between">
+                        <FormLabel mb={0}>เปิดใช้งานทันที</FormLabel>
+                        <Switch
+                          isChecked={connectionData.enabled !== "false"}
+                          onChange={(e) =>
+                            setConnectionData((prev: any) => ({
+                              ...prev,
+                              enabled: e.target.checked.toString(),
+                            }))
+                          }
+                        />
+                      </HStack>
+                    </FormControl>
+                  </VStack>
+                )}
+              </Box>
             </VStack>
           </ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
-              <Button
-                variant="ghost"
-                onClick={activeStep === 0 ? onSetupModalClose : handlePrevStep}
-              >
-                {activeStep === 0 ? "ยกเลิก" : "ก่อนหน้า"}
+              <Button variant="ghost" onClick={() => setActiveService(null)}>
+                ยกเลิก
               </Button>
-              {activeStep < setupSteps.length - 1 ? (
+              {activeStep < steps.length - 1 ? (
                 <Button
                   colorScheme="blue"
-                  onClick={handleNextStep}
+                  onClick={() => setActiveStep(activeStep + 1)}
                   isDisabled={
                     (activeStep === 1 &&
-                      selectedService?.requirements.some(
+                      activeService?.requirements.some(
                         (req) => !connectionData[req]
                       )) ||
                     (activeStep === 2 && connectionTestResult !== "success")
@@ -1078,7 +867,7 @@ function NewIntegrationPage() {
                   ถัดไป
                 </Button>
               ) : (
-                <Button colorScheme="green" onClick={handleCompleteSetup}>
+                <Button colorScheme="green" onClick={handleSave}>
                   เสร็จสิ้น
                 </Button>
               )}

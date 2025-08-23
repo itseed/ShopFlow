@@ -4,6 +4,9 @@ import { NextPageWithLayout } from "../../_app";
 import Layout from "../../../components/Layout";
 import { withAuth } from "../../../lib/auth";
 import { useRouter } from "next/router";
+import { useCreateEmployee } from "../../../lib/hooks/useEmployees";
+import { CreateUserData } from "@shopflow/api";
+import { UserRole } from "@shopflow/types";
 import {
   Box,
   VStack,
@@ -49,21 +52,17 @@ import {
 } from "react-icons/fi";
 import Link from "next/link";
 
-// Employee interface
-interface Employee {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  employee_id: string;
-  position: string;
-  department: string;
-  branch_id: string;
-  role: string;
-  permissions: string[];
-  is_active: boolean;
+// Extended Employee interface that includes CreateUserData fields
+interface ExtendedEmployeeFormData extends Partial<CreateUserData> {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  employee_id?: string;
+  position?: string;
+  department?: string;
+  permissions?: string[];
   salary?: number;
-  hire_date: string;
+  hire_date?: string;
   manager_id?: string;
 }
 
@@ -86,17 +85,10 @@ const branches = [
 const roles = [
   { value: "admin", label: "ผู้ดูแลระบบ", description: "สิทธิ์เต็มทุกระบบ" },
   {
-    value: "manager",
-    label: "ผู้จัดการ",
-    description: "จัดการข้อมูลและพนักงาน",
+    value: "staff",
+    label: "พนักงาน",
+    description: "ใช้งานระบบตามที่กำหนด",
   },
-  { value: "supervisor", label: "หัวหน้างาน", description: "ดูแลงานในฝ่าย" },
-  {
-    value: "employee",
-    label: "พนักงานทั่วไป",
-    description: "ใช้งานระบบพื้นฐาน",
-  },
-  { value: "viewer", label: "ผู้ดูข้อมูล", description: "ดูข้อมูลเท่านั้น" },
 ];
 
 const allPermissions = [
@@ -118,8 +110,8 @@ const allPermissions = [
 function NewEmployeePage() {
   const router = useRouter();
   const toast = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<Employee>({
+  const { createEmployee, isCreating } = useCreateEmployee();
+  const [formData, setFormData] = useState<ExtendedEmployeeFormData>({
     first_name: "",
     last_name: "",
     email: "",
@@ -128,10 +120,11 @@ function NewEmployeePage() {
     position: "",
     department: "",
     branch_id: "",
-    role: "employee",
+    role: "staff" as UserRole,
     permissions: ["products.view", "orders.view", "customers.view"],
     is_active: true,
     hire_date: new Date().toISOString().split("T")[0],
+    password: "",
   });
 
   const handleSave = async () => {
@@ -139,11 +132,11 @@ function NewEmployeePage() {
       !formData.first_name ||
       !formData.last_name ||
       !formData.email ||
-      !formData.employee_id
+      !formData.password
     ) {
       toast({
         title: "กรุณากรอกข้อมูลให้ครบถ้วน",
-        description: "ชื่อ นามสกุล อีเมล และรหัสพนักงานเป็นข้อมูลที่จำเป็น",
+        description: "ชื่อ นามสกุล อีเมล และรหัสผ่านเป็นข้อมูลที่จำเป็น",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -151,14 +144,22 @@ function NewEmployeePage() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Combine first_name and last_name for display_name
+      const display_name = `${formData.first_name} ${formData.last_name}`;
+
+      await createEmployee({
+        email: formData.email || "",
+        password: formData.password || "",
+        display_name,
+        role: formData.role || "staff",
+        branch_id: formData.branch_id,
+        is_active: formData.is_active,
+      });
 
       toast({
         title: "เพิ่มพนักงานใหม่สำเร็จ",
-        description: `พนักงาน "${formData.first_name} ${formData.last_name}" ถูกเพิ่มเข้าสู่ระบบแล้ว`,
+        description: `พนักงาน "${display_name}" ถูกเพิ่มเข้าสู่ระบบแล้ว`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -168,13 +169,14 @@ function NewEmployeePage() {
     } catch (error) {
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถเพิ่มพนักงานได้ กรุณาลองใหม่อีกครั้ง",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถเพิ่มพนักงานได้ กรุณาลองใหม่อีกครั้ง",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -222,7 +224,7 @@ function NewEmployeePage() {
           "reports.view",
         ];
         break;
-      case "employee":
+      case "staff":
         defaultPermissions = ["products.view", "orders.view", "customers.view"];
         break;
       case "viewer":
@@ -235,15 +237,21 @@ function NewEmployeePage() {
         break;
     }
 
-    setFormData((prev) => ({ ...prev, role, permissions: defaultPermissions }));
+    setFormData((prev) => ({
+      ...prev,
+      role: role as UserRole,
+      permissions: defaultPermissions,
+    }));
   };
 
   const togglePermission = (permission: string) => {
     setFormData((prev) => ({
       ...prev,
-      permissions: prev.permissions.includes(permission)
-        ? prev.permissions.filter((p) => p !== permission)
-        : [...prev.permissions, permission],
+      permissions: prev.permissions
+        ? prev.permissions.includes(permission)
+          ? prev.permissions.filter((p) => p !== permission)
+          : [...prev.permissions, permission]
+        : [permission],
     }));
   };
 
@@ -252,13 +260,13 @@ function NewEmployeePage() {
       "first_name",
       "last_name",
       "email",
-      "employee_id",
+      "password",
       "position",
       "department",
       "branch_id",
     ];
     const filledFields = requiredFields.filter(
-      (field) => formData[field as keyof Employee]
+      (field) => formData[field as keyof ExtendedEmployeeFormData]
     );
     return Math.round((filledFields.length / requiredFields.length) * 100);
   };
@@ -416,6 +424,22 @@ function NewEmployeePage() {
                     />
                   </FormControl>
                 </SimpleGrid>
+
+                <FormControl isRequired>
+                  <FormLabel>รหัสผ่าน</FormLabel>
+                  <Input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
+                    placeholder="รหัสผ่านสำหรับเข้าสู่ระบบ"
+                  />
+                  <FormHelperText>รหัสผ่านสำหรับเข้าสู่ระบบ CMS</FormHelperText>
+                </FormControl>
               </VStack>
             </CardBody>
           </Card>
@@ -590,7 +614,7 @@ function NewEmployeePage() {
 
               <Box>
                 <Text fontWeight="medium" mb={3}>
-                  สิทธิ์เฉพาะ ({formData.permissions.length} รายการ)
+                  สิทธิ์เฉพาะ ({formData.permissions?.length || 0} รายการ)
                 </Text>
                 <Wrap spacing={2}>
                   {allPermissions.map((permission) => (
@@ -598,11 +622,13 @@ function NewEmployeePage() {
                       <Tag
                         size="md"
                         variant={
+                          formData.permissions &&
                           formData.permissions.includes(permission.value)
                             ? "solid"
                             : "outline"
                         }
                         colorScheme={
+                          formData.permissions &&
                           formData.permissions.includes(permission.value)
                             ? "blue"
                             : "gray"
@@ -611,7 +637,7 @@ function NewEmployeePage() {
                         onClick={() => togglePermission(permission.value)}
                       >
                         <TagLabel>{permission.label}</TagLabel>
-                        {formData.permissions.includes(permission.value) && (
+                        {formData.permissions?.includes(permission.value) && (
                           <TagCloseButton
                             onClick={(e) => {
                               e.stopPropagation();
@@ -656,7 +682,7 @@ function NewEmployeePage() {
               <Button
                 leftIcon={<FiSave />}
                 colorScheme="blue"
-                isLoading={isLoading}
+                isLoading={isCreating}
                 loadingText="กำลังบันทึก..."
                 onClick={handleSave}
                 size="lg"

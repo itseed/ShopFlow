@@ -65,14 +65,6 @@ export interface DashboardStats {
   active_users: number;
 }
 
-export interface LowStockAlert {
-  product_id: string;
-  product_name: string;
-  current_stock: number;
-  min_stock: number;
-  category_name?: string;
-}
-
 // Form validation types
 export interface FieldError {
   field: string;

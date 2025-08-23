@@ -1,4 +1,4 @@
-import { ReactElement, useState } from "react";
+import { ReactElement, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Box,
@@ -26,6 +26,16 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
+  Spinner,
+  Alert,
+  AlertIcon,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  Progress,
+  Tooltip,
+  AlertDescription,
 } from "@chakra-ui/react";
 import {
   FiSettings,
@@ -51,6 +61,11 @@ import {
   FiCloudDrizzle,
   FiLink,
   FiGlobe,
+  FiCheckCircle,
+  FiXCircle,
+  FiAlertCircle,
+  FiZap,
+  FiWifi,
 } from "react-icons/fi";
 import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
@@ -61,24 +76,98 @@ import {
 import { AdminOnly } from "../../components/auth/RoleGuard";
 import { useHasPermission } from "../../lib/hooks/useAuthEnhanced";
 import { NextPageWithLayout } from "../_app";
+import {
+  useSystemStatus,
+  useDatabaseInfo,
+  useSystemSettings,
+  useConnectionTest,
+} from "../../lib/hooks/useSystemStatus";
+import { formatDistanceToNow } from "date-fns";
+import { th } from "date-fns/locale";
 
 function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const hasPermission = useHasPermission();
   const toast = useToast();
 
-  const handleSave = () => {
+  // System monitoring hooks
+  const {
+    status,
+    loading: statusLoading,
+    error: statusError,
+    refresh: refreshStatus,
+  } = useSystemStatus();
+  const {
+    dbInfo,
+    loading: dbLoading,
+    error: dbError,
+    refresh: refreshDbInfo,
+  } = useDatabaseInfo();
+  const {
+    settings,
+    loading: settingsLoading,
+    saving,
+    updateSettings,
+    error: settingsError,
+  } = useSystemSettings();
+  const { testing, testConnection } = useConnectionTest();
+
+  const handleSave = async () => {
+    if (!settings) return;
+
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const result = await updateSettings(settings);
+      if (result.success) {
+        toast({
+          title: "บันทึกการตั้งค่าสำเร็จ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
       toast({
-        title: "บันทึกการตั้งค่าสำเร็จ",
+        title: "เกิดข้อผิดพลาด",
+        description:
+          error instanceof Error
+            ? error.message
+            : "ไม่สามารถบันทึกการตั้งค่าได้",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    const result = await testConnection();
+    if (result.success) {
+      toast({
+        title: "การเชื่อมต่อสำเร็จ",
+        description: "ระบบทำงานปกติทุกส่วน",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
-    }, 1000);
+    } else {
+      toast({
+        title: "การเชื่อมต่อล้มเหลว",
+        description: result.error || "มีปัญหาในการเชื่อมต่อระบบ",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
+
+  const getStatusColor = (isWorking: boolean) => (isWorking ? "green" : "red");
+  const getStatusIcon = (isWorking: boolean) =>
+    isWorking ? FiCheckCircle : FiXCircle;
 
   const settingsMenus = [
     {
@@ -378,7 +467,7 @@ function SettingsPage() {
           ))}
       </SimpleGrid>
 
-      {/* General Settings */}
+      {/* General Settings with Real Data */}
       <PermissionGuard permission="settings.edit">
         <Card mb={6}>
           <CardHeader>
@@ -388,166 +477,431 @@ function SettingsPage() {
             </HStack>
           </CardHeader>
           <CardBody>
-            <VStack spacing={6} align="stretch">
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                <FormControl>
-                  <FormLabel>ชื่อบริษัท</FormLabel>
-                  <Input defaultValue="บริษัท ShopFlow จำกัด" />
-                </FormControl>
+            {settingsError && (
+              <Alert status="error" mb={4}>
+                <AlertIcon />
+                <AlertDescription>{settingsError}</AlertDescription>
+              </Alert>
+            )}
 
-                <FormControl>
-                  <FormLabel>เลขประจำตัวผู้เสียภาษี</FormLabel>
-                  <Input defaultValue="0-1234-56789-01-2" />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>อีเมลติดต่อหลัก</FormLabel>
-                  <Input defaultValue="contact@shopflow.com" type="email" />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>เบอร์โทรศัพท์</FormLabel>
-                  <Input defaultValue="02-123-4567" />
-                </FormControl>
-              </SimpleGrid>
-
-              <FormControl>
-                <FormLabel>ที่อยู่บริษัท</FormLabel>
-                <Textarea
-                  defaultValue="123 ถนนสุขุมวิท แขวงคลองตัน เขตคลองตัน กรุงเทพฯ 10110"
-                  rows={3}
-                />
-              </FormControl>
-
-              <Divider />
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                <FormControl>
-                  <FormLabel>สกุลเงิน</FormLabel>
-                  <Select defaultValue="THB">
-                    <option value="THB">บาท (THB)</option>
-                    <option value="USD">ดอลลาร์ (USD)</option>
-                    <option value="EUR">ยูโร (EUR)</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>เขตเวลา</FormLabel>
-                  <Select defaultValue="Asia/Bangkok">
-                    <option value="Asia/Bangkok">GMT+7 (Asia/Bangkok)</option>
-                    <option value="UTC">GMT+0 (UTC)</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>รูปแบบวันที่</FormLabel>
-                  <Select defaultValue="DD/MM/YYYY">
-                    <option value="DD/MM/YYYY">วัน/เดือน/ปี</option>
-                    <option value="MM/DD/YYYY">เดือน/วัน/ปี</option>
-                    <option value="YYYY-MM-DD">ปี-เดือน-วัน</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>ภาษาหลัก</FormLabel>
-                  <Select defaultValue="th">
-                    <option value="th">ไทย</option>
-                    <option value="en">English</option>
-                  </Select>
-                </FormControl>
-              </SimpleGrid>
-
-              <Divider />
-
-              <VStack spacing={4} align="stretch">
-                <Text fontWeight="semibold">การตั้งค่าระบบ</Text>
-
-                <HStack justify="space-between">
-                  <VStack align="start" spacing={1}>
-                    <Text>โหมดการพัฒนา (Development Mode)</Text>
-                    <Text fontSize="sm" color="gray.600">
-                      เปิดใช้งานสำหรับการทดสอบระบบ
-                    </Text>
-                  </VStack>
-                  <Switch colorScheme="orange" />
-                </HStack>
-
-                <HStack justify="space-between">
-                  <VStack align="start" spacing={1}>
-                    <Text>การบันทึก Log อัตโนมัติ</Text>
-                    <Text fontSize="sm" color="gray.600">
-                      บันทึกการทำงานของระบบสำหรับการวิเคราะห์
-                    </Text>
-                  </VStack>
-                  <Switch defaultChecked colorScheme="blue" />
-                </HStack>
-
-                <HStack justify="space-between">
-                  <VStack align="start" spacing={1}>
-                    <Text>การสำรองข้อมูลอัตโนมัติ</Text>
-                    <Text fontSize="sm" color="gray.600">
-                      สำรองข้อมูลทุกวันในเวลา 02:00 น.
-                    </Text>
-                  </VStack>
-                  <Switch defaultChecked colorScheme="green" />
-                </HStack>
-
-                <HStack justify="space-between">
-                  <VStack align="start" spacing={1}>
-                    <Text>การแจ้งเตือนผ่าน Email</Text>
-                    <Text fontSize="sm" color="gray.600">
-                      ส่งการแจ้งเตือนสำคัญผ่านอีเมล
-                    </Text>
-                  </VStack>
-                  <Switch defaultChecked colorScheme="purple" />
-                </HStack>
+            {settingsLoading ? (
+              <VStack spacing={4}>
+                <Spinner size="lg" />
+                <Text>กำลังโหลดการตั้งค่า...</Text>
               </VStack>
-            </VStack>
+            ) : settings ? (
+              <VStack spacing={6} align="stretch">
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <FormControl>
+                    <FormLabel>ชื่อบริษัท</FormLabel>
+                    <Input
+                      value={settings.companyName}
+                      onChange={(e) =>
+                        updateSettings({ companyName: e.target.value })
+                      }
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>เลขประจำตัวผู้เสียภาษี</FormLabel>
+                    <Input
+                      value={settings.taxId}
+                      onChange={(e) =>
+                        updateSettings({ taxId: e.target.value })
+                      }
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>อีเมลติดต่อหลัก</FormLabel>
+                    <Input
+                      value={settings.email}
+                      type="email"
+                      onChange={(e) =>
+                        updateSettings({ email: e.target.value })
+                      }
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>เบอร์โทรศัพท์</FormLabel>
+                    <Input
+                      value={settings.phone}
+                      onChange={(e) =>
+                        updateSettings({ phone: e.target.value })
+                      }
+                    />
+                  </FormControl>
+                </SimpleGrid>
+
+                <FormControl>
+                  <FormLabel>ที่อยู่บริษัท</FormLabel>
+                  <Textarea
+                    value={settings.address}
+                    onChange={(e) =>
+                      updateSettings({ address: e.target.value })
+                    }
+                    rows={3}
+                  />
+                </FormControl>
+
+                <Divider />
+
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <FormControl>
+                    <FormLabel>สกุลเงิน</FormLabel>
+                    <Select
+                      value={settings.currency}
+                      onChange={(e) =>
+                        updateSettings({ currency: e.target.value })
+                      }
+                    >
+                      <option value="THB">บาท (THB)</option>
+                      <option value="USD">ดอลลาร์ (USD)</option>
+                      <option value="EUR">ยูโร (EUR)</option>
+                    </Select>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>เขตเวลา</FormLabel>
+                    <Select
+                      value={settings.timezone}
+                      onChange={(e) =>
+                        updateSettings({ timezone: e.target.value })
+                      }
+                    >
+                      <option value="Asia/Bangkok">GMT+7 (Asia/Bangkok)</option>
+                      <option value="UTC">GMT+0 (UTC)</option>
+                    </Select>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>รูปแบบวันที่</FormLabel>
+                    <Select
+                      value={settings.dateFormat}
+                      onChange={(e) =>
+                        updateSettings({ dateFormat: e.target.value })
+                      }
+                    >
+                      <option value="DD/MM/YYYY">วัน/เดือน/ปี</option>
+                      <option value="MM/DD/YYYY">เดือน/วัน/ปี</option>
+                      <option value="YYYY-MM-DD">ปี-เดือน-วัน</option>
+                    </Select>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>ภาษาหลัก</FormLabel>
+                    <Select
+                      value={settings.language}
+                      onChange={(e) =>
+                        updateSettings({ language: e.target.value })
+                      }
+                    >
+                      <option value="th">ไทย</option>
+                      <option value="en">English</option>
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+
+                <Divider />
+
+                <VStack spacing={4} align="stretch">
+                  <Text fontWeight="semibold">การตั้งค่าระบบ</Text>
+
+                  <HStack justify="space-between">
+                    <VStack align="start" spacing={1}>
+                      <Text>โหมดการพัฒนา (Development Mode)</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        เปิดใช้งานสำหรับการทดสอบระบบ
+                      </Text>
+                    </VStack>
+                    <Switch
+                      colorScheme="orange"
+                      isChecked={settings.developmentMode}
+                      onChange={(e) =>
+                        updateSettings({ developmentMode: e.target.checked })
+                      }
+                    />
+                  </HStack>
+
+                  <HStack justify="space-between">
+                    <VStack align="start" spacing={1}>
+                      <Text>การบันทึก Log อัตโนมัติ</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        บันทึกการทำงานของระบบสำหรับการวิเคราะห์
+                      </Text>
+                    </VStack>
+                    <Switch
+                      colorScheme="blue"
+                      isChecked={settings.autoLogging}
+                      onChange={(e) =>
+                        updateSettings({ autoLogging: e.target.checked })
+                      }
+                    />
+                  </HStack>
+
+                  <HStack justify="space-between">
+                    <VStack align="start" spacing={1}>
+                      <Text>การสำรองข้อมูลอัตโนมัติ</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        สำรองข้อมูลทุกวันในเวลา 02:00 น.
+                      </Text>
+                    </VStack>
+                    <Switch
+                      colorScheme="green"
+                      isChecked={settings.autoBackup}
+                      onChange={(e) =>
+                        updateSettings({ autoBackup: e.target.checked })
+                      }
+                    />
+                  </HStack>
+
+                  <HStack justify="space-between">
+                    <VStack align="start" spacing={1}>
+                      <Text>การแจ้งเตือนผ่าน Email</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        ส่งการแจ้งเตือนสำคัญผ่านอีเมล
+                      </Text>
+                    </VStack>
+                    <Switch
+                      colorScheme="purple"
+                      isChecked={settings.emailNotifications}
+                      onChange={(e) =>
+                        updateSettings({ emailNotifications: e.target.checked })
+                      }
+                    />
+                  </HStack>
+                </VStack>
+              </VStack>
+            ) : (
+              <Alert status="warning">
+                <AlertIcon />
+                <AlertDescription>ไม่สามารถโหลดการตั้งค่าได้</AlertDescription>
+              </Alert>
+            )}
           </CardBody>
         </Card>
       </PermissionGuard>
 
-      {/* System Status */}
+      {/* System Status with Real Data */}
       <Card mb={6}>
         <CardHeader>
-          <HStack>
-            <Icon as={FiServer} boxSize={5} />
-            <Heading size="md">สถานะระบบ</Heading>
+          <HStack justify="space-between">
+            <HStack>
+              <Icon as={FiServer} boxSize={5} />
+              <Heading size="md">สถานะระบบ</Heading>
+            </HStack>
+            <HStack spacing={2}>
+              <Button
+                size="sm"
+                leftIcon={<FiRefreshCw />}
+                onClick={() => {
+                  refreshStatus();
+                  refreshDbInfo();
+                }}
+                isLoading={statusLoading || dbLoading}
+                variant="outline"
+              >
+                รีเฟรช
+              </Button>
+              <Button
+                size="sm"
+                leftIcon={<FiZap />}
+                onClick={handleTestConnection}
+                isLoading={testing}
+                colorScheme="blue"
+              >
+                ทดสอบการเชื่อมต่อ
+              </Button>
+            </HStack>
           </HStack>
         </CardHeader>
         <CardBody>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-            <VStack spacing={2}>
-              <Icon as={FiDatabase} boxSize={8} color="green.500" />
-              <Text fontWeight="semibold">ฐานข้อมูล</Text>
-              <Badge colorScheme="green">เชื่อมต่อปกติ</Badge>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
-                อัปเดตล่าสุด: 5 นาทีที่แล้ว
-              </Text>
-            </VStack>
+          {statusError && (
+            <Alert status="error" mb={4}>
+              <AlertIcon />
+              <AlertDescription>{statusError}</AlertDescription>
+            </Alert>
+          )}
 
-            <VStack spacing={2}>
-              <Icon as={FiMail} boxSize={8} color="blue.500" />
-              <Text fontWeight="semibold">ระบบอีเมล</Text>
-              <Badge colorScheme="blue">ทำงานปกติ</Badge>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
-                ส่งอีเมลล่าสุด: 1 ชั่วโมงที่แล้ว
-              </Text>
+          {statusLoading ? (
+            <VStack spacing={4}>
+              <Spinner size="lg" />
+              <Text>กำลังตรวจสอบสถานะระบบ...</Text>
             </VStack>
+          ) : status ? (
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+              {/* Database Status */}
+              <VStack spacing={3}>
+                <Icon
+                  as={getStatusIcon(status.database.connected)}
+                  boxSize={10}
+                  color={`${getStatusColor(status.database.connected)}.500`}
+                />
+                <VStack spacing={1}>
+                  <Text fontWeight="semibold">ฐานข้อมูล</Text>
+                  <Badge
+                    colorScheme={getStatusColor(status.database.connected)}
+                  >
+                    {status.database.connected ? "เชื่อมต่อปกติ" : "ขัดข้อง"}
+                  </Badge>
+                  <Text fontSize="sm" color="gray.600" textAlign="center">
+                    {status.database.responseTime &&
+                      `${status.database.responseTime}ms`}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" textAlign="center">
+                    ตรวจสอบ:{" "}
+                    {formatDistanceToNow(status.database.lastCheck, {
+                      locale: th,
+                      addSuffix: true,
+                    })}
+                  </Text>
+                </VStack>
+              </VStack>
 
-            <VStack spacing={2}>
-              <Icon as={FiShield} boxSize={8} color="purple.500" />
-              <Text fontWeight="semibold">ความปลอดภัย</Text>
-              <Badge colorScheme="purple">ป้องกันแล้ว</Badge>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
-                ตรวจสอบล่าสุด: 30 นาทีที่แล้ว
-              </Text>
-            </VStack>
-          </SimpleGrid>
+              {/* Auth Status */}
+              <VStack spacing={3}>
+                <Icon
+                  as={getStatusIcon(status.auth.working)}
+                  boxSize={10}
+                  color={`${getStatusColor(status.auth.working)}.500`}
+                />
+                <VStack spacing={1}>
+                  <Text fontWeight="semibold">การรับรองตัวตน</Text>
+                  <Badge colorScheme={getStatusColor(status.auth.working)}>
+                    {status.auth.working ? "ทำงานปกติ" : "ขัดข้อง"}
+                  </Badge>
+                  <Text fontSize="xs" color="gray.500" textAlign="center">
+                    ตรวจสอบ:{" "}
+                    {formatDistanceToNow(status.auth.lastCheck, {
+                      locale: th,
+                      addSuffix: true,
+                    })}
+                  </Text>
+                </VStack>
+              </VStack>
+
+              {/* Storage Status */}
+              <VStack spacing={3}>
+                <Icon
+                  as={getStatusIcon(status.storage.working)}
+                  boxSize={10}
+                  color={`${getStatusColor(status.storage.working)}.500`}
+                />
+                <VStack spacing={1}>
+                  <Text fontWeight="semibold">จัดเก็บไฟล์</Text>
+                  <Badge colorScheme={getStatusColor(status.storage.working)}>
+                    {status.storage.working ? "ทำงานปกติ" : "ขัดข้อง"}
+                  </Badge>
+                  <Text fontSize="xs" color="gray.500" textAlign="center">
+                    ตรวจสอบ:{" "}
+                    {formatDistanceToNow(status.storage.lastCheck, {
+                      locale: th,
+                      addSuffix: true,
+                    })}
+                  </Text>
+                </VStack>
+              </VStack>
+
+              {/* Realtime Status */}
+              <VStack spacing={3}>
+                <Icon
+                  as={status.realtime.connected ? FiWifi : FiXCircle}
+                  boxSize={10}
+                  color={`${getStatusColor(status.realtime.connected)}.500`}
+                />
+                <VStack spacing={1}>
+                  <Text fontWeight="semibold">Realtime</Text>
+                  <Badge
+                    colorScheme={getStatusColor(status.realtime.connected)}
+                  >
+                    {status.realtime.connected ? "เชื่อมต่อแล้ว" : "ขัดข้อง"}
+                  </Badge>
+                  <Text fontSize="xs" color="gray.500" textAlign="center">
+                    ตรวจสอบ:{" "}
+                    {formatDistanceToNow(status.realtime.lastCheck, {
+                      locale: th,
+                      addSuffix: true,
+                    })}
+                  </Text>
+                </VStack>
+              </VStack>
+            </SimpleGrid>
+          ) : (
+            <Alert status="warning">
+              <AlertIcon />
+              <AlertDescription>
+                ไม่สามารถโหลดข้อมูลสถานะระบบได้
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Database Information */}
+          {dbInfo && (
+            <Box mt={6}>
+              <Divider mb={4} />
+              <VStack spacing={4}>
+                <Text fontWeight="semibold" fontSize="lg">
+                  ข้อมูลฐานข้อมูล
+                </Text>
+                <SimpleGrid
+                  columns={{ base: 2, md: 4, lg: 6 }}
+                  spacing={4}
+                  w="full"
+                >
+                  <Stat>
+                    <StatLabel>เวอร์ชัน Schema</StatLabel>
+                    <StatNumber fontSize="lg">
+                      {dbInfo.schemaVersion || "N/A"}
+                    </StatNumber>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>สินค้า</StatLabel>
+                    <StatNumber fontSize="lg">
+                      {dbInfo.totalProducts?.toLocaleString() || 0}
+                    </StatNumber>
+                    <StatHelpText>รายการ</StatHelpText>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>คำสั่งซื้อ</StatLabel>
+                    <StatNumber fontSize="lg">
+                      {dbInfo.totalOrders?.toLocaleString() || 0}
+                    </StatNumber>
+                    <StatHelpText>รายการ</StatHelpText>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>ลูกค้า</StatLabel>
+                    <StatNumber fontSize="lg">
+                      {dbInfo.totalCustomers?.toLocaleString() || 0}
+                    </StatNumber>
+                    <StatHelpText>คน</StatHelpText>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>สาขา</StatLabel>
+                    <StatNumber fontSize="lg">
+                      {dbInfo.totalBranches?.toLocaleString() || 0}
+                    </StatNumber>
+                    <StatHelpText>แห่ง</StatHelpText>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>สำรองข้อมูล</StatLabel>
+                    <StatNumber fontSize="sm">
+                      {dbInfo.lastBackup
+                        ? formatDistanceToNow(dbInfo.lastBackup, {
+                            locale: th,
+                            addSuffix: true,
+                          })
+                        : "ไม่มีข้อมูล"}
+                    </StatNumber>
+                  </Stat>
+                </SimpleGrid>
+              </VStack>
+            </Box>
+          )}
         </CardBody>
       </Card>
 
-      {/* Save Button */}
+      {/* Save Button with Real State */}
       <Card>
         <CardBody>
           <HStack justify="space-between">
@@ -558,14 +912,25 @@ function SettingsPage() {
               </Text>
             </VStack>
             <HStack spacing={3}>
-              <Button leftIcon={<FiRefreshCw />} variant="outline">
+              <Button
+                leftIcon={<FiRefreshCw />}
+                variant="outline"
+                onClick={() => {
+                  refreshStatus();
+                  refreshDbInfo();
+                  window.location.reload(); // Simple reset for now
+                }}
+                isDisabled={saving || isLoading}
+              >
                 รีเซ็ต
               </Button>
               <Button
                 leftIcon={<FiSave />}
                 colorScheme="blue"
-                isLoading={isLoading}
+                isLoading={saving || isLoading}
+                loadingText="กำลังบันทึก..."
                 onClick={handleSave}
+                isDisabled={!settings || settingsLoading}
               >
                 บันทึกการตั้งค่า
               </Button>

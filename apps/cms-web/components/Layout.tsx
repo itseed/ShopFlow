@@ -53,6 +53,10 @@ import {
   FiDollarSign,
   FiPieChart,
   FiStar,
+  FiTruck,
+  FiKey,
+  FiTool,
+  FiPlus,
 } from "react-icons/fi";
 import { useAuth } from "../lib/auth";
 import {
@@ -73,11 +77,7 @@ interface NavigationItem {
   href?: string;
   icon: any;
   hasSubmenu?: boolean;
-  submenu?: {
-    name: string;
-    href: string;
-    icon: any;
-  }[];
+  submenu?: NavigationItem[];
 }
 
 const navigation: NavigationItem[] = [
@@ -90,6 +90,7 @@ const navigation: NavigationItem[] = [
       { name: "ภาพรวม", href: "/catalog", icon: FiGrid },
       { name: "สินค้า", href: "/catalog/products", icon: FiPackage },
       { name: "หมวดหมู่", href: "/catalog/categories", icon: FiGrid },
+      { name: "ซัพพลายเออร์", href: "/catalog/suppliers", icon: FiTruck },
     ],
   },
   { name: "คำสั่งซื้อ", href: "/orders", icon: FiShoppingCart },
@@ -134,13 +135,55 @@ const navigation: NavigationItem[] = [
       { name: "ภาพรวม", href: "/settings", icon: FiSettings },
       { name: "จัดการสาขา", href: "/settings/branches", icon: FiMapPin },
       { name: "จัดการพนักงาน", href: "/settings/employees", icon: FiUserPlus },
-      { name: "ความปลอดภัย", href: "/settings/security", icon: FiShield },
+      {
+        name: "ความปลอดภัย",
+        icon: FiShield,
+        hasSubmenu: true,
+        submenu: [
+          { name: "ภาพรวม", href: "/settings/security", icon: FiShield },
+          {
+            name: "บันทึกความปลอดภัย",
+            href: "/settings/security/logs",
+            icon: FiShield,
+          },
+          {
+            name: "จัดการ API Keys",
+            href: "/settings/security/api-keys",
+            icon: FiKey,
+          },
+        ],
+      },
       { name: "การแจ้งเตือน", href: "/settings/notifications", icon: FiBell },
-      { name: "ระบบและเซิร์ฟเวอร์", href: "/settings/system", icon: FiServer },
+      {
+        name: "ระบบและเซิร์ฟเวอร์",
+        icon: FiServer,
+        hasSubmenu: true,
+        submenu: [
+          { name: "ภาพรวม", href: "/settings/system", icon: FiServer },
+          {
+            name: "ฐานข้อมูล",
+            href: "/settings/system/database",
+            icon: FiDatabase,
+          },
+          {
+            name: "การบำรุงรักษา",
+            href: "/settings/system/maintenance",
+            icon: FiTool,
+          },
+        ],
+      },
       {
         name: "การเชื่อมต่อ",
-        href: "/settings/integrations",
         icon: FiDatabase,
+        hasSubmenu: true,
+        submenu: [
+          { name: "ภาพรวม", href: "/settings/integrations", icon: FiDatabase },
+          {
+            name: "เชื่อมต่อใหม่",
+            href: "/settings/integrations/new",
+            icon: FiPlus,
+          },
+        ],
       },
     ],
   },
@@ -191,11 +234,25 @@ export default function Layout({
     }));
   };
 
-  const isSubmenuActive = (submenu: NavigationItem["submenu"]) => {
-    return submenu?.some((subItem) => router.pathname === subItem.href);
+  const isSubmenuActive = (submenu: NavigationItem["submenu"]): boolean => {
+    return (
+      submenu?.some((subItem) => {
+        if (router.pathname === subItem.href) return true;
+        // Check if any nested submenu items are active
+        if (subItem.submenu) {
+          return isSubmenuActive(subItem.submenu);
+        }
+        return false;
+      }) ?? false
+    );
   };
 
-  const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
+  // Recursive function to render navigation items with nested submenus
+  const renderNavigationItem = (
+    item: NavigationItem,
+    isMobile = false,
+    depth = 0
+  ) => {
     const isActive = item.href ? router.pathname === item.href : false;
     const hasActiveSubmenu = item.submenu
       ? isSubmenuActive(item.submenu)
@@ -220,14 +277,20 @@ export default function Layout({
           normalBg: "transparent",
         };
 
+    // Calculate padding based on depth
+    const paddingLeft = depth * 8;
+    const borderRadius = depth > 0 ? "lg" : "xl";
+    const paddingY = depth > 0 ? 3 : 4;
+    const fontSize = depth > 0 ? "sm" : "sm";
+
     if (item.hasSubmenu && item.submenu) {
       return (
         <Box key={item.name}>
           <Flex
             align="center"
-            p={4}
+            p={paddingY}
             mx={2}
-            borderRadius="xl"
+            borderRadius={borderRadius}
             cursor="pointer"
             bg={hasActiveSubmenu ? navColors.activeBg : navColors.normalBg}
             color={
@@ -249,8 +312,9 @@ export default function Layout({
             transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             position="relative"
             onClick={() => toggleMenu(item.name)}
+            pl={paddingLeft}
           >
-            {hasActiveSubmenu && !isMobile && (
+            {hasActiveSubmenu && !isMobile && depth === 0 && (
               <Box
                 position="absolute"
                 left="0"
@@ -262,12 +326,12 @@ export default function Layout({
                 borderRadius="0 4px 4px 0"
               />
             )}
-            <Box mr={4} fontSize="20" zIndex="1">
+            <Box mr={4} fontSize={depth > 0 ? "16" : "20"} zIndex="1">
               <item.icon />
             </Box>
             <Text
               fontWeight={hasActiveSubmenu ? "semibold" : "medium"}
-              fontSize="sm"
+              fontSize={fontSize}
               fontFamily="body"
               flex={1}
               zIndex="1"
@@ -285,13 +349,19 @@ export default function Layout({
           </Flex>
 
           <Collapse in={isExpanded} animateOpacity>
-            <VStack spacing={1} align="stretch" pl={8} pt={2} pb={2}>
+            <VStack spacing={1} align="stretch" pt={2} pb={2}>
               {item.submenu.map((subItem) => {
+                // If this submenu item has its own submenu, render it recursively
+                if (subItem.hasSubmenu && subItem.submenu) {
+                  return renderNavigationItem(subItem, isMobile, depth + 1);
+                }
+
+                // Otherwise, render as a regular link
                 const isSubActive = router.pathname === subItem.href;
                 return (
                   <Link
                     key={subItem.name}
-                    href={subItem.href}
+                    href={subItem.href || "#"}
                     style={{
                       textDecoration: "none",
                       outline: "none",
@@ -336,8 +406,9 @@ export default function Layout({
                       }}
                       transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
                       position="relative"
+                      pl={paddingLeft + 8}
                     >
-                      {isSubActive && !isMobile && (
+                      {isSubActive && !isMobile && depth === 0 && (
                         <Box
                           position="absolute"
                           left="0"
@@ -373,7 +444,7 @@ export default function Layout({
       return (
         <Link
           key={item.name}
-          href={item.href!}
+          href={item.href || "#"}
           style={{
             textDecoration: "none",
             outline: "none",
@@ -383,9 +454,9 @@ export default function Layout({
         >
           <Flex
             align="center"
-            p={4}
+            p={paddingY}
             mx={2}
-            borderRadius="xl"
+            borderRadius={borderRadius}
             cursor="pointer"
             bg={isActive ? navColors.activeBg : navColors.normalBg}
             color={isActive ? navColors.activeColor : navColors.normalColor}
@@ -404,8 +475,9 @@ export default function Layout({
             }}
             transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             position="relative"
+            pl={paddingLeft}
           >
-            {isActive && !isMobile && (
+            {isActive && !isMobile && depth === 0 && (
               <Box
                 position="absolute"
                 left="0"
@@ -417,12 +489,12 @@ export default function Layout({
                 borderRadius="0 4px 4px 0"
               />
             )}
-            <Box mr={4} fontSize="20" zIndex="1">
+            <Box mr={4} fontSize={depth > 0 ? "16" : "20"} zIndex="1">
               <item.icon />
             </Box>
             <Text
               fontWeight={isActive ? "semibold" : "medium"}
-              fontSize="sm"
+              fontSize={fontSize}
               fontFamily="body"
               zIndex="1"
               letterSpacing="tight"

@@ -48,6 +48,20 @@ export {
   type BranchPerformance,
 } from "./services/branchService";
 export {
+  customerService,
+  type CustomerFilters,
+  type CreateCustomerData,
+  type UpdateCustomerData,
+  type CustomerWithStats,
+} from "./services/customerService";
+export {
+  supplierService,
+  type SupplierFilters,
+  type CreateSupplierData,
+  type UpdateSupplierData,
+  type SupplierWithStats,
+} from "./services/supplierService";
+export {
   reportService,
   type SalesReport,
   type ProductReport,
@@ -57,6 +71,9 @@ export {
   type BranchComparisonReport,
   type ReportFilters,
 } from "./services/reportService";
+export { stockMovementService } from "./services/stockMovementService";
+export { purchaseOrderService } from "./services/purchaseOrderService";
+export { inventoryService } from "./services/inventoryService";
 export {
   realtimeService,
   RealtimeService,
@@ -74,6 +91,24 @@ export type {
   Category,
   Order,
   OrderItem,
+  Customer,
+  Supplier,
   ProductStatus,
   CategoryStatus,
+  StockMovementType,
+  PurchaseOrderStatus,
+  AdjustmentReason,
+  StockMovement,
+  CreateStockMovement,
+  StockMovementFilters,
+  PurchaseOrder,
+  PurchaseOrderFormData,
+  PurchaseOrderFilters,
+  UpdatePurchaseOrderStatus,
+  ReceivePurchaseOrderItem,
+  InventorySummary,
+  ProductInventoryStatus,
+  InventoryAdjustment,
+  CreateInventoryAdjustment,
+  LowStockAlert,
 } from "@shopflow/types";

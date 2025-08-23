@@ -90,7 +90,7 @@ const mockProduct = {
   price: 65,
   cost: 25,
   stock: 150,
-  low_stock_threshold: 20,
+  min_stock: 20,
   status: "active",
   images: [
     "https://images.unsplash.com/photo-1551030173-122aabc4489c?w=400&h=400&fit=crop&crop=center",
@@ -165,7 +165,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
     price: product.price,
     cost: product.cost,
     stock: product.stock,
-    low_stock_threshold: product.low_stock_threshold,
+    min_stock: product.min_stock,
     status: product.status,
     barcode: product.barcode,
     tags: product.tags.join(", "),
@@ -246,7 +246,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
 
   const getStockStatus = () => {
     if (product.stock <= 0) return { color: "red", text: "หมด", icon: FiX };
-    if (product.stock <= product.low_stock_threshold)
+    if (product.stock <= product.min_stock)
       return { color: "yellow", text: "ใกล้หมด", icon: FiAlertTriangle };
     return { color: "green", text: "พอเพียง", icon: FiCheck };
   };
@@ -431,7 +431,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                   <StatLabel>สต็อกคงเหลือ</StatLabel>
                   <StatNumber>{product.stock}</StatNumber>
                   <StatHelpText>
-                    ขั้นต่ำ: {product.low_stock_threshold} หน่วย
+                    ขั้นต่ำ: {product.min_stock} หน่วย
                   </StatHelpText>
                 </Stat>
 
@@ -688,11 +688,11 @@ const ProductDetailPage: NextPageWithLayout = () => {
                 <FormControl>
                   <FormLabel>สต็อกขั้นต่ำ</FormLabel>
                   <NumberInput
-                    value={editFormData.low_stock_threshold}
+                    value={editFormData.min_stock}
                     onChange={(_, value) =>
                       setEditFormData({
                         ...editFormData,
-                        low_stock_threshold: value,
+                        min_stock: value,
                       })
                     }
                     min={0}
