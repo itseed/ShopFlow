@@ -142,15 +142,18 @@ Phase 1 focuses on simplifying the codebase by 30-40% while maintaining all core
 
 ## ⏳ **Next Steps**
 
-### **Remaining Tasks** (Phase 1)
+### **Completed Tasks** ✅
 
-#### **Week 5-6: API Services Consolidation**
-- [ ] Create `coreService.ts` (Products + Categories + Inventory)
-- [ ] Create `orderService.ts` (Orders + Payments + Customers)
-- [ ] Create `reportService.ts` (Analytics & Reports)
-- [ ] Create `systemService.ts` (Settings + Users + Branches)
+#### **Week 5-6: API Services Consolidation** ✅
+- [x] Create `coreService.ts` (Products + Categories + Inventory)
+- [x] Create `orderService.ts` (Orders + Payments + Customers)
+- [x] Create `reportService.ts` (Analytics & Reports)
+- [x] Create `systemService.ts` (Settings + Users + Branches)
+- [x] Update index.ts with new exports
 - [ ] Update imports across applications
 - [ ] Remove old service files
+
+### **Remaining Tasks** (Phase 1)
 
 #### **Week 7-8: React Hooks Optimization**
 - [ ] Create `@shopflow/hooks` package
@@ -193,8 +196,8 @@ Phase 1 focuses on simplifying the codebase by 30-40% while maintaining all core
 ### **Current Progress**
 - ✅ Database migration script created
 - ✅ Pages cleanup completed (33 files removed)
-- ⏳ API consolidation (pending)
-- ⏳ Hooks optimization (pending)
+- ✅ **API consolidation completed (4 core services)**
+- ⏳ Hooks optimization (in progress)
 - ⏳ Component simplification (pending)
 
 ---
