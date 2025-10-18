@@ -9,10 +9,8 @@ import type { Database } from "@shopflow/types";
 
 type User = Database["public"]["Tables"]["users"]["Row"];
 type Branch = Database["public"]["Tables"]["branches"]["Row"];
-type BranchSettings =
-  Database["public"]["Tables"]["branch_settings"]["Row"];
-type SystemSettings =
-  Database["public"]["Tables"]["system_settings"]["Row"];
+type BranchSettings = Database["public"]["Tables"]["branch_settings"]["Row"];
+type SystemSettings = Database["public"]["Tables"]["system_settings"]["Row"];
 
 /**
  * User Management
@@ -211,7 +209,10 @@ export const branches = {
   /**
    * Get branch statistics
    */
-  async getStats(branchId: string, params?: { startDate?: string; endDate?: string }) {
+  async getStats(
+    branchId: string,
+    params?: { startDate?: string; endDate?: string }
+  ) {
     let ordersQuery = supabase
       .from("orders")
       .select("id, total_amount, status")
@@ -573,4 +574,3 @@ export const systemService = {
 };
 
 export default systemService;
-

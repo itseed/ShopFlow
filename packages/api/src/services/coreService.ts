@@ -4,18 +4,19 @@
  * Phase 1: Foundation Refactor
  */
 
-import { supabase } from '../supabase';
-import type { Database } from '@shopflow/types';
+import { supabase } from "../supabase";
+import type { Database } from "@shopflow/types";
 
-type Product = Database['public']['Tables']['products']['Row'];
-type ProductInsert = Database['public']['Tables']['products']['Insert'];
-type ProductUpdate = Database['public']['Tables']['products']['Update'];
+type Product = Database["public"]["Tables"]["products"]["Row"];
+type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
+type ProductUpdate = Database["public"]["Tables"]["products"]["Update"];
 
-type Category = Database['public']['Tables']['categories']['Row'];
-type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
-type CategoryUpdate = Database['public']['Tables']['categories']['Update'];
+type Category = Database["public"]["Tables"]["categories"]["Row"];
+type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
+type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
 
-type InventoryMovement = Database['public']['Tables']['inventory_movements']['Row'];
+type InventoryMovement =
+  Database["public"]["Tables"]["inventory_movements"]["Row"];
 
 /**
  * Product Management
@@ -33,23 +34,25 @@ export const products = {
     offset?: number;
   }) {
     let query = supabase
-      .from('products')
-      .select('*, categories(id, name)', { count: 'exact' });
+      .from("products")
+      .select("*, categories(id, name)", { count: "exact" });
 
     if (params?.branchId) {
-      query = query.eq('branch_id', params.branchId);
+      query = query.eq("branch_id", params.branchId);
     }
 
     if (params?.categoryId) {
-      query = query.eq('category_id', params.categoryId);
+      query = query.eq("category_id", params.categoryId);
     }
 
     if (params?.search) {
-      query = query.or(`name.ilike.%${params.search}%,sku.ilike.%${params.search}%`);
+      query = query.or(
+        `name.ilike.%${params.search}%,sku.ilike.%${params.search}%`
+      );
     }
 
     if (params?.inStock) {
-      query = query.gt('stock_quantity', 0);
+      query = query.gt("stock_quantity", 0);
     }
 
     if (params?.limit) {
@@ -57,10 +60,13 @@ export const products = {
     }
 
     if (params?.offset) {
-      query = query.range(params.offset, params.offset + (params.limit || 10) - 1);
+      query = query.range(
+        params.offset,
+        params.offset + (params.limit || 10) - 1
+      );
     }
 
-    query = query.order('name');
+    query = query.order("name");
 
     const { data, error, count } = await query;
 
@@ -74,9 +80,9 @@ export const products = {
    */
   async getById(id: string) {
     const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(id, name)')
-      .eq('id', id)
+      .from("products")
+      .select("*, categories(id, name)")
+      .eq("id", id)
       .single();
 
     if (error) throw error;
@@ -88,12 +94,12 @@ export const products = {
    */
   async getBySku(sku: string, branchId?: string) {
     let query = supabase
-      .from('products')
-      .select('*, categories(id, name)')
-      .eq('sku', sku);
+      .from("products")
+      .select("*, categories(id, name)")
+      .eq("sku", sku);
 
     if (branchId) {
-      query = query.eq('branch_id', branchId);
+      query = query.eq("branch_id", branchId);
     }
 
     const { data, error } = await query.single();
@@ -107,7 +113,7 @@ export const products = {
    */
   async create(product: ProductInsert) {
     const { data, error } = await supabase
-      .from('products')
+      .from("products")
       .insert(product)
       .select()
       .single();
@@ -121,9 +127,9 @@ export const products = {
    */
   async update(id: string, updates: ProductUpdate) {
     const { data, error } = await supabase
-      .from('products')
+      .from("products")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -135,10 +141,7 @@ export const products = {
    * Delete product
    */
   async delete(id: string) {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("products").delete().eq("id", id);
 
     if (error) throw error;
     return { success: true };
@@ -149,16 +152,16 @@ export const products = {
    */
   async getLowStock(branchId?: string, threshold: number = 10) {
     let query = supabase
-      .from('products')
-      .select('*, categories(id, name)')
-      .lte('stock_quantity', threshold)
-      .gt('stock_quantity', 0);
+      .from("products")
+      .select("*, categories(id, name)")
+      .lte("stock_quantity", threshold)
+      .gt("stock_quantity", 0);
 
     if (branchId) {
-      query = query.eq('branch_id', branchId);
+      query = query.eq("branch_id", branchId);
     }
 
-    const { data, error } = await query.order('stock_quantity');
+    const { data, error } = await query.order("stock_quantity");
 
     if (error) throw error;
     return data as Product[];
@@ -169,15 +172,15 @@ export const products = {
    */
   async getOutOfStock(branchId?: string) {
     let query = supabase
-      .from('products')
-      .select('*, categories(id, name)')
-      .eq('stock_quantity', 0);
+      .from("products")
+      .select("*, categories(id, name)")
+      .eq("stock_quantity", 0);
 
     if (branchId) {
-      query = query.eq('branch_id', branchId);
+      query = query.eq("branch_id", branchId);
     }
 
-    const { data, error } = await query.order('name');
+    const { data, error } = await query.order("name");
 
     if (error) throw error;
     return data as Product[];
@@ -191,27 +194,22 @@ export const categories = {
   /**
    * Get all categories
    */
-  async getAll(params?: {
-    branchId?: string;
-    parentId?: string | null;
-  }) {
-    let query = supabase
-      .from('categories')
-      .select('*');
+  async getAll(params?: { branchId?: string; parentId?: string | null }) {
+    let query = supabase.from("categories").select("*");
 
     if (params?.branchId) {
-      query = query.eq('branch_id', params.branchId);
+      query = query.eq("branch_id", params.branchId);
     }
 
     if (params?.parentId !== undefined) {
       if (params.parentId === null) {
-        query = query.is('parent_id', null);
+        query = query.is("parent_id", null);
       } else {
-        query = query.eq('parent_id', params.parentId);
+        query = query.eq("parent_id", params.parentId);
       }
     }
 
-    query = query.order('name');
+    query = query.order("name");
 
     const { data, error } = await query;
 
@@ -224,9 +222,9 @@ export const categories = {
    */
   async getById(id: string) {
     const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', id)
+      .from("categories")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error) throw error;
@@ -238,7 +236,7 @@ export const categories = {
    */
   async create(category: CategoryInsert) {
     const { data, error } = await supabase
-      .from('categories')
+      .from("categories")
       .insert(category)
       .select()
       .single();
@@ -252,9 +250,9 @@ export const categories = {
    */
   async update(id: string, updates: CategoryUpdate) {
     const { data, error } = await supabase
-      .from('categories')
+      .from("categories")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -266,10 +264,7 @@ export const categories = {
    * Delete category
    */
   async delete(id: string) {
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("categories").delete().eq("id", id);
 
     if (error) throw error;
     return { success: true };
@@ -280,15 +275,13 @@ export const categories = {
    */
   async getTree(branchId?: string) {
     // Get all categories
-    let query = supabase
-      .from('categories')
-      .select('*');
+    let query = supabase.from("categories").select("*");
 
     if (branchId) {
-      query = query.eq('branch_id', branchId);
+      query = query.eq("branch_id", branchId);
     }
 
-    const { data, error } = await query.order('name');
+    const { data, error } = await query.order("name");
 
     if (error) throw error;
 
@@ -298,12 +291,12 @@ export const categories = {
     const rootCategories: (Category & { children: Category[] })[] = [];
 
     // Initialize map
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       categoryMap.set(cat.id, { ...cat, children: [] });
     });
 
     // Build tree
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       const category = categoryMap.get(cat.id)!;
       if (cat.parent_id) {
         const parent = categoryMap.get(cat.parent_id);
@@ -326,23 +319,20 @@ export const inventory = {
   /**
    * Get stock levels for products
    */
-  async getStockLevels(params?: {
-    branchId?: string;
-    productIds?: string[];
-  }) {
+  async getStockLevels(params?: { branchId?: string; productIds?: string[] }) {
     let query = supabase
-      .from('products')
-      .select('id, name, sku, stock_quantity, unit, categories(name)');
+      .from("products")
+      .select("id, name, sku, stock_quantity, unit, categories(name)");
 
     if (params?.branchId) {
-      query = query.eq('branch_id', params.branchId);
+      query = query.eq("branch_id", params.branchId);
     }
 
     if (params?.productIds && params.productIds.length > 0) {
-      query = query.in('id', params.productIds);
+      query = query.in("id", params.productIds);
     }
 
-    const { data, error } = await query.order('name');
+    const { data, error } = await query.order("name");
 
     if (error) throw error;
     return data;
@@ -355,40 +345,61 @@ export const inventory = {
     productId: string;
     branchId: string;
     quantity: number;
-    movementType: 'sale' | 'purchase' | 'adjustment_in' | 'adjustment_out' | 'transfer_in' | 'transfer_out' | 'return';
+    movementType:
+      | "sale"
+      | "purchase"
+      | "adjustment_in"
+      | "adjustment_out"
+      | "transfer_in"
+      | "transfer_out"
+      | "return";
     referenceType?: string;
     referenceId?: string;
     notes?: string;
     userId?: string;
   }) {
-    const { productId, branchId, quantity, movementType, referenceType, referenceId, notes, userId } = params;
+    const {
+      productId,
+      branchId,
+      quantity,
+      movementType,
+      referenceType,
+      referenceId,
+      notes,
+      userId,
+    } = params;
 
     // Get current stock
     const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('stock_quantity')
-      .eq('id', productId)
+      .from("products")
+      .select("stock_quantity")
+      .eq("id", productId)
       .single();
 
     if (productError) throw productError;
 
     // Calculate new stock
-    const isPositive = ['purchase', 'adjustment_in', 'transfer_in', 'return'].includes(movementType);
+    const isPositive = [
+      "purchase",
+      "adjustment_in",
+      "transfer_in",
+      "return",
+    ].includes(movementType);
     const newStock = isPositive
       ? product.stock_quantity + quantity
       : product.stock_quantity - quantity;
 
     // Update product stock
     const { error: updateError } = await supabase
-      .from('products')
+      .from("products")
       .update({ stock_quantity: Math.max(0, newStock) })
-      .eq('id', productId);
+      .eq("id", productId);
 
     if (updateError) throw updateError;
 
     // Record movement
     const { data: movement, error: movementError } = await supabase
-      .from('inventory_movements')
+      .from("inventory_movements")
       .insert({
         product_id: productId,
         branch_id: branchId,
@@ -423,34 +434,34 @@ export const inventory = {
     limit?: number;
   }) {
     let query = supabase
-      .from('inventory_movements')
-      .select('*, products(name, sku)');
+      .from("inventory_movements")
+      .select("*, products(name, sku)");
 
     if (params?.productId) {
-      query = query.eq('product_id', params.productId);
+      query = query.eq("product_id", params.productId);
     }
 
     if (params?.branchId) {
-      query = query.eq('branch_id', params.branchId);
+      query = query.eq("branch_id", params.branchId);
     }
 
     if (params?.movementType) {
-      query = query.eq('movement_type', params.movementType);
+      query = query.eq("movement_type", params.movementType);
     }
 
     if (params?.startDate) {
-      query = query.gte('created_at', params.startDate);
+      query = query.gte("created_at", params.startDate);
     }
 
     if (params?.endDate) {
-      query = query.lte('created_at', params.endDate);
+      query = query.lte("created_at", params.endDate);
     }
 
     if (params?.limit) {
       query = query.limit(params.limit);
     }
 
-    query = query.order('created_at', { ascending: false });
+    query = query.order("created_at", { ascending: false });
 
     const { data, error } = await query;
 
@@ -463,12 +474,10 @@ export const inventory = {
    */
   async getLowStockView(branchId?: string) {
     // This uses the low_stock_view created in migration
-    let query = supabase
-      .from('low_stock_view')
-      .select('*');
+    let query = supabase.from("low_stock_view").select("*");
 
     if (branchId) {
-      query = query.eq('branch_id', branchId);
+      query = query.eq("branch_id", branchId);
     }
 
     const { data, error } = await query;
@@ -488,4 +497,3 @@ export const coreService = {
 };
 
 export default coreService;
-

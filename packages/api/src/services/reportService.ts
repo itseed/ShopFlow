@@ -18,10 +18,7 @@ export const sales = {
   /**
    * Get daily sales report
    */
-  async daily(params: {
-    branchId?: string;
-    date?: string;
-  }) {
+  async daily(params: { branchId?: string; date?: string }) {
     const date = params.date || new Date().toISOString().split("T")[0];
     const startDate = `${date}T00:00:00`;
     const endDate = `${date}T23:59:59`;
@@ -46,7 +43,10 @@ export const sales = {
       date,
       totalOrders: orders.length,
       completedOrders: completed.length,
-      totalRevenue: completed.reduce((sum, o) => sum + (o.total_amount || 0), 0),
+      totalRevenue: completed.reduce(
+        (sum, o) => sum + (o.total_amount || 0),
+        0
+      ),
       averageOrderValue:
         completed.length > 0
           ? completed.reduce((sum, o) => sum + (o.total_amount || 0), 0) /
@@ -94,7 +94,10 @@ export const sales = {
     return {
       totalOrders: orders.length,
       completedOrders: completed.length,
-      totalRevenue: completed.reduce((sum, o) => sum + (o.total_amount || 0), 0),
+      totalRevenue: completed.reduce(
+        (sum, o) => sum + (o.total_amount || 0),
+        0
+      ),
       averageOrderValue:
         completed.length > 0
           ? completed.reduce((sum, o) => sum + (o.total_amount || 0), 0) /
@@ -272,10 +275,7 @@ export const inventory = {
   /**
    * Get low stock report
    */
-  async lowStock(params: {
-    branchId?: string;
-    threshold?: number;
-  }) {
+  async lowStock(params: { branchId?: string; threshold?: number }) {
     const threshold = params.threshold || 10;
 
     let query = supabase
@@ -427,8 +427,7 @@ export const dashboard = {
       productsQuery = productsQuery.eq("branch_id", params.branchId);
     }
 
-    const { count: totalProducts, error: productsError } =
-      await productsQuery;
+    const { count: totalProducts, error: productsError } = await productsQuery;
     if (productsError) throw productsError;
 
     // Get low stock count
@@ -442,8 +441,7 @@ export const dashboard = {
       lowStockQuery = lowStockQuery.eq("branch_id", params.branchId);
     }
 
-    const { count: lowStockCount, error: lowStockError } =
-      await lowStockQuery;
+    const { count: lowStockCount, error: lowStockError } = await lowStockQuery;
     if (lowStockError) throw lowStockError;
 
     // Get customers count
@@ -472,10 +470,7 @@ export const dashboard = {
   /**
    * Get trends analysis
    */
-  async trends(params: {
-    branchId?: string;
-    days?: number;
-  }) {
+  async trends(params: { branchId?: string; days?: number }) {
     const days = params.days || 7;
     const startDate = new Date(
       Date.now() - days * 24 * 60 * 60 * 1000
