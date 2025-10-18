@@ -326,4 +326,3 @@ export function useCreateAuditLog() {
     }) => systemService.auditLogs.create(log),
   });
 }
-

@@ -306,4 +306,3 @@ export function usePaymentHistory(params?: {
     staleTime: 5 * 60 * 1000,
   });
 }
-

@@ -1,7 +1,7 @@
 /**
  * ShopFlow Hooks Package
  * Consolidated React Hooks - Phase 1 Refactor
- * 
+ *
  * This package provides optimized React Query hooks for all ShopFlow operations.
  * All hooks are configured with appropriate caching, staleTime, and refetch strategies.
  */
@@ -20,4 +20,3 @@ export * from "./useSystem";
 
 // Auth Hooks - Authentication and Permissions
 export * from "./useAuth";
-

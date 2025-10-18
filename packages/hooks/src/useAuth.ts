@@ -245,4 +245,3 @@ export function useIsAuthenticated() {
   const { data: session } = useSession();
   return !!session;
 }
-

@@ -145,14 +145,10 @@ export function useDashboardOverview(params: {
 }
 
 // Get trends analysis
-export function useTrends(params: {
-  branchId?: string;
-  days?: number;
-}) {
+export function useTrends(params: { branchId?: string; days?: number }) {
   return useQuery({
     queryKey: ["dashboard", "trends", params],
     queryFn: () => reportService.dashboard.trends(params),
     staleTime: 5 * 60 * 1000,
   });
 }
-

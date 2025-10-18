@@ -261,4 +261,3 @@ export function useLowStockView(branchId?: string) {
     refetchInterval: 5 * 60 * 1000,
   });
 }
-
