@@ -1,3 +1,6 @@
+import { Category } from "./Category";
+import { Supplier } from "./Supplier";
+
 // Enhanced Product types for CMS
 export interface Product {
   id: string;
@@ -10,15 +13,15 @@ export interface Product {
   cost_price?: number;
   discount_price?: number;
   stock: number;
-  min_stock?: number;
-  max_stock?: number;
-  unit?: string; // Unit of measurement (default: 'pcs')
-  weight?: number; // For shipping calculations
+  min_stock?: number | null;
+  max_stock?: number | null;
+  unit?: string | null; // Unit of measurement (default: 'pcs')
+  weight?: number | null; // For shipping calculations
   dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
-  };
+    length: number;
+    width: number;
+    height: number;
+  } | null;
   category_id?: string;
   category?: Category; // For populated queries
   supplier_id?: string;
@@ -33,6 +36,11 @@ export interface Product {
   created_at?: string;
   updated_at?: string;
   created_by?: string;
+}
+
+export interface LowStockProduct extends Product {
+  category_name: string;
+  supplier_name: string;
 }
 
 export type ProductStatus =
@@ -199,17 +207,4 @@ export interface ProductAnalytics {
   inventory_turns: number;
   last_sold_date?: string;
   trend: "up" | "down" | "stable";
-}
-
-// Category reference (will be defined in Category.ts)
-interface Category {
-  id: string;
-  name: string;
-}
-
-// Supplier reference (will be defined in Supplier.ts)
-interface Supplier {
-  id: string;
-  name: string;
-  supplier_code?: string;
 }

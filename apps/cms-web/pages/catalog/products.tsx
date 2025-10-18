@@ -3,15 +3,16 @@ import { ReactElement } from "react";
 import { NextPageWithLayout } from "../_app";
 import Layout from "../../components/Layout";
 import ImageUpload from "../../components/ImageUpload";
-import { Product, ProductStatus } from "@shopflow/types";
+import { Product, ProductStatus, Supplier } from "@shopflow/types";
 import { withAuth } from "../../lib/auth";
 import {
   useProducts,
   useCategories,
+  useSuppliers,
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
-} from "../../lib/hooks/useDatabase";
+} from "../../lib/hooks";
 import {
   Box,
   VStack,
@@ -82,15 +83,17 @@ import { IoAdd } from "react-icons/io5";
 
 const ProductsPage: NextPageWithLayout = () => {
   // React Query hooks
+  const [searchQuery, setSearchQuery] = useState("");
   const {
     data: productsData,
     isLoading: productsLoading,
     error: productsError,
-  } = useProducts();
+  } = useProducts({ searchQuery });
 
   const { data: categories = [], isLoading: categoriesLoading } = useCategories(
     { status: "active" }
   );
+  const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
 
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
@@ -98,11 +101,10 @@ const ProductsPage: NextPageWithLayout = () => {
 
   // Extract products data
   const products = productsData || [];
-  const loading = productsLoading || categoriesLoading;
+  const loading = productsLoading || categoriesLoading || suppliersLoading;
   const error = productsError?.message || "";
 
   // Local state
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
@@ -111,8 +113,20 @@ const ProductsPage: NextPageWithLayout = () => {
     price: 0,
     stock: 0,
     category_id: "",
+    supplier_id: "",
     status: "active" as ProductStatus,
     images: [] as string[], // Changed from File[] to string[]
+    barcode: "",
+    cost_price: 0,
+    short_description: "",
+    max_stock: 0,
+    unit: "",
+    weight: 0,
+    dimensions: { length: 0, width: 0, height: 0 },
+    brand: "",
+    tags: [] as string[],
+    is_featured: false,
+    is_trackable: true,
     hasVariants: false,
     variants: [] as {
       id: string;
@@ -242,8 +256,20 @@ const ProductsPage: NextPageWithLayout = () => {
       price: 0,
       stock: 0,
       category_id: "",
+      supplier_id: "",
       status: "active",
       images: [],
+      barcode: "",
+      cost_price: 0,
+      short_description: "",
+      max_stock: 0,
+      unit: "",
+      weight: 0,
+      dimensions: { length: 0, width: 0, height: 0 },
+      brand: "",
+      tags: [],
+      is_featured: false,
+      is_trackable: true,
       hasVariants: false,
       variants: [],
     });
@@ -259,8 +285,20 @@ const ProductsPage: NextPageWithLayout = () => {
       price: product.price,
       stock: product.stock,
       category_id: product.category_id || "",
+      supplier_id: product.supplier_id || "",
       status: product.status,
       images: product.images || [],
+      barcode: product.barcode || "",
+      cost_price: product.cost_price || 0,
+      short_description: product.short_description || "",
+      max_stock: product.max_stock || 0,
+      unit: product.unit || "",
+      weight: product.weight || 0,
+      dimensions: product.dimensions || { length: 0, width: 0, height: 0 },
+      brand: product.brand || "",
+      tags: product.tags || [],
+      is_featured: product.is_featured || false,
+      is_trackable: product.is_trackable || true,
       hasVariants:
         (product as Product & { hasVariants?: boolean }).hasVariants || false,
       variants:
@@ -287,16 +325,7 @@ const ProductsPage: NextPageWithLayout = () => {
   const handleSaveProduct = async () => {
     try {
       const productData = {
-        name: formData.name,
-        description: formData.description,
-        price: formData.price,
-        stock: formData.stock,
-        category_id: formData.category_id || undefined,
-        status: formData.status as "active" | "inactive" | "out_of_stock",
-        images:
-          formData.images.length > 0
-            ? formData.images
-            : selectedProduct?.images || undefined,
+        ...formData,
       };
 
       if (selectedProduct) {
@@ -647,6 +676,27 @@ const ProductsPage: NextPageWithLayout = () => {
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel fontFamily="heading">ซัพพลายเออร์</FormLabel>
+                <Select
+                  value={formData.supplier_id}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      supplier_id: e.target.value,
+                    }))
+                  }
+                  fontFamily="body"
+                >
+                  <option value="">เลือกซัพพลายเออร์</option>
+                  {suppliers.map((supplier: Supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
                     </option>
                   ))}
                 </Select>

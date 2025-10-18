@@ -247,18 +247,30 @@ export class PurchaseOrderService {
 
         // Create stock movement for received items
         if (item.quantity_received > 0) {
+          // Get current product stock to calculate before/after quantities
+          const { data: productData } = await supabase
+            .from("products")
+            .select("stock_quantity")
+            .eq("id", updatedItem.product_id)
+            .single();
+
+          const quantityBefore = productData?.stock_quantity || 0;
+          const quantityAfter = quantityBefore + item.quantity_received;
+
           await stockMovementService.createStockMovement(
             {
               product_id: updatedItem.product_id,
               movement_type: "purchase",
               quantity_change: item.quantity_received,
+              quantity_before: quantityBefore,
+              quantity_after: quantityAfter,
               unit_cost: item.actual_unit_cost || updatedItem.unit_cost,
               reference_type: "purchase_order",
               reference_id: purchaseOrderId,
               reason: "Purchase order receipt",
               notes: item.notes,
-            },
-            userId
+              created_by: userId,
+            }
           );
         }
 

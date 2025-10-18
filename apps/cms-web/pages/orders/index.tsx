@@ -7,12 +7,13 @@ import {
   OrderStatus,
   PaymentStatus,
   CustomerType,
+  OrderCustomerType,
   ShopType,
   DeliveryMethod,
   OrderPriority,
 } from "@shopflow/types";
 import { withAuth } from "../../lib/auth";
-import { useOrders, useOrderStats } from "../../lib/hooks/useOrderManagement";
+import { useOrders, useOrderStats, useUpdateOrder } from "../../lib/hooks/useOrders";
 import {
   Box,
   VStack,
@@ -209,7 +210,7 @@ const getPaymentStatusText = (status: PaymentStatus): string => {
   }
 };
 
-const getCustomerTypeText = (type: CustomerType): string => {
+const getCustomerTypeText = (type: OrderCustomerType | CustomerType): string => {
   switch (type) {
     case "registered":
       return "ลูกค้าประจำ";
@@ -219,6 +220,16 @@ const getCustomerTypeText = (type: CustomerType): string => {
       return "สั่งทางโทรศัพท์";
     case "repeat_customer":
       return "ลูกค้าเก่า";
+    case "individual":
+      return "บุคคลทั่วไป";
+    case "business":
+      return "ธุรกิจ";
+    case "regular":
+      return "ลูกค้าทั่วไป";
+    case "vip":
+      return "VIP";
+    case "wholesale":
+      return "ขายส่ง";
     default:
       return type;
   }
@@ -274,7 +285,8 @@ function OrdersPage() {
   // Real data from API
   const [filters, setFilters] = useState<any>({});
   const { data: orders = [], isLoading, refetch } = useOrders(filters);
-  const { data: orderStats } = useOrderStats();
+  const { data: orderStats, isLoading: statsLoading } = useOrderStats();
+  const updateOrderMutation = useUpdateOrder();
 
   // Local state for UI
   const [searchTerm, setSearchTerm] = useState("");
@@ -285,46 +297,7 @@ function OrdersPage() {
   const [priorityFilter, setPriorityFilter] = useState<OrderPriority | "">("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Calculate stats from real data
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(
-    (order) => order.status === "pending" || order.status === "confirmed"
-  ).length;
-  const processingOrders = orders.filter(
-    (order) => order.status === "processing"
-  ).length;
-  const completedOrders = orders.filter(
-    (order) => order.status === "completed"
-  ).length;
-  const totalRevenue = orders
-    .filter((order) => order.status === "completed")
-    .reduce((sum, order) => sum + (order.total || 0), 0);
-
-  // Filter orders based on search and filters
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      !searchTerm ||
-      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_phone?.includes(searchTerm) ||
-      order.shop_name?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = !statusFilter || order.status === statusFilter;
-    const matchesCustomerType =
-      !customerTypeFilter || order.customer_type === customerTypeFilter;
-    const matchesPriority =
-      !priorityFilter || order.priority === priorityFilter;
-
-    return (
-      matchesSearch && matchesStatus && matchesCustomerType && matchesPriority
-    );
-  });
-
-  const {
-    isOpen: isDetailOpen,
-    onOpen: onDetailOpen,
-    onClose: onDetailClose,
-  } = useDisclosure();
+  const { isOpen: isDetailOpen, onOpen: onDetailOpen, onClose: onDetailClose, } = useDisclosure();
   const toast = useToast();
 
   const handleViewOrder = (order: Order) => {
@@ -333,16 +306,21 @@ function OrdersPage() {
   };
 
   const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
-    // TODO: Implement order status update with useUpdateOrder hook
-    // For now, just show toast notification
-    toast({
-      title: "อัปเดตสถานะสำเร็จ",
-      description: `เปลี่ยนสถานะเป็น ${getStatusText(newStatus)}`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
+    updateOrderMutation.mutateAsync({ id: orderId, data: { status: newStatus } });
+  };
+
+  const handleFilterChange = () => {
+    setFilters({
+      search: searchTerm,
+      status: statusFilter,
+      customer_type: customerTypeFilter,
+      priority: priorityFilter,
     });
   };
+
+  useEffect(() => {
+    handleFilterChange();
+  }, [searchTerm, statusFilter, customerTypeFilter, priorityFilter]);
 
   return (
     <Box>
@@ -370,7 +348,7 @@ function OrdersPage() {
                 <Flex justify="space-between" align="center">
                   <Box>
                     <StatLabel>คำสั่งซื้อทั้งหมด</StatLabel>
-                    <StatNumber>{totalOrders}</StatNumber>
+                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : orderStats?.totalOrders}</StatNumber>
                   </Box>
                   <Icon as={FiShoppingCart} boxSize={8} color="blue.500" />
                 </Flex>
@@ -383,10 +361,10 @@ function OrdersPage() {
               <Stat>
                 <Flex justify="space-between" align="center">
                   <Box>
-                    <StatLabel>รอดำเนินการ</StatLabel>
-                    <StatNumber>{pendingOrders}</StatNumber>
+                    <StatLabel>ยอดขายวันนี้</StatLabel>
+                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : `฿${orderStats?.todayRevenue.toLocaleString()}`}</StatNumber>
                   </Box>
-                  <Icon as={FiClock} boxSize={8} color="yellow.500" />
+                  <Icon as={FiTrendingUp} boxSize={8} color="green.500" />
                 </Flex>
               </Stat>
             </CardBody>
@@ -397,10 +375,10 @@ function OrdersPage() {
               <Stat>
                 <Flex justify="space-between" align="center">
                   <Box>
-                    <StatLabel>สำเร็จแล้ว</StatLabel>
-                    <StatNumber>{completedOrders}</StatNumber>
+                    <StatLabel>คำสั่งซื้อวันนี้</StatLabel>
+                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : orderStats?.todayOrders}</StatNumber>
                   </Box>
-                  <Icon as={FiCheckCircle} boxSize={8} color="green.500" />
+                  <Icon as={FiCalendar} boxSize={8} color="purple.500" />
                 </Flex>
               </Stat>
             </CardBody>
@@ -412,7 +390,7 @@ function OrdersPage() {
                 <Flex justify="space-between" align="center">
                   <Box>
                     <StatLabel>ยอดขายรวม</StatLabel>
-                    <StatNumber>฿{totalRevenue.toLocaleString()}</StatNumber>
+                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : `฿${orderStats?.totalRevenue.toLocaleString()}`}</StatNumber>
                   </Box>
                   <Icon as={FiDollarSign} boxSize={8} color="green.500" />
                 </Flex>
@@ -492,7 +470,7 @@ function OrdersPage() {
         <CardHeader>
           <HStack justify="space-between">
             <Text fontSize="lg" fontWeight="semibold">
-              รายการคำสั่งซื้อ ({filteredOrders.length})
+              รายการคำสั่งซื้อ ({orders.length})
             </Text>
           </HStack>
         </CardHeader>
@@ -518,7 +496,7 @@ function OrdersPage() {
                 </Tr>
               </Thead>
               <Tbody>
-                {filteredOrders.map((order) => (
+                {orders.map((order) => (
                   <Tr key={order.id}>
                     <Td>
                       <VStack align="start" spacing={1}>

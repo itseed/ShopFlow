@@ -2,16 +2,18 @@
 export interface Category {
   id: string;
   name: string;
-  description?: string;
-  parent_id?: string; // For hierarchical categories
+  description?: string | null;
+  parent_id?: string | null; // For hierarchical categories
   parent?: Category; // For populated queries
   children?: Category[]; // For nested structure
-  display_order: number;
-  is_active: boolean;
-  image_url?: string; // URL to category image
-  icon?: string; // Icon name for UI
-  path?: string; // Materialized path for hierarchy (e.g., '/electronics/phones/')
-  level: number; // Hierarchy level (0 for root categories)
+  display_order?: number;
+  is_active?: boolean;
+  status?: "active" | "inactive"; // Added for compatibility
+  image_url?: string | null; // URL to category image
+  image?: string | null; // Alias for image_url (for compatibility)
+  icon?: string | null; // Icon name for UI
+  path?: string | null; // Materialized path for hierarchy (e.g., '/electronics/phones/')
+  level?: number; // Hierarchy level (0 for root categories)
   created_at?: string;
   updated_at?: string;
 }

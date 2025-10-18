@@ -75,40 +75,44 @@ import {
   POSCard,
   LoadingSpinner,
 } from "../../components";
-import { SalesTransaction } from "@shopflow/types";
+import { Order, OrderStatus, PaymentStatus, CustomerType, ShopType, DeliveryMethod, OrderPriority } from "@shopflow/types";
 import { formatCurrency } from "../../lib/sales";
 import { useRouter } from "next/router";
 import OrderTable from "../../components/orders/OrderTable";
+import { useOrders, useOrderStats } from "../../lib/hooks/useSale";
 
 interface OrderFilters {
-  searchTerm: string;
-  status: string;
-  dateRange: string;
-  paymentMethod: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
+  searchTerm?: string;
+  status?: OrderStatus;
+  dateRange?: string;
+  paymentMethod?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 const OrdersPage = () => {
-  const [orders, setOrders] = useState<SalesTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<OrderFilters>({
     searchTerm: "",
-    status: "all",
-    dateRange: "today",
-    paymentMethod: "all",
-    sortBy: "createdAt",
+    status: undefined,
+    dateRange: "all",
+    paymentMethod: undefined,
+    sortBy: "created_at",
     sortOrder: "desc",
   });
-  const [selectedOrder, setSelectedOrder] = useState<SalesTransaction | null>(
-    null
-  );
-  const [stats, setStats] = useState({
-    totalOrders: 0,
-    totalAmount: 0,
-    averageOrderValue: 0,
-    completedOrders: 0,
+
+  const { data: orders = [], isLoading, refetch } = useOrders({
+    search: filters.searchTerm,
+    status: filters.status,
+    paymentMethod: filters.paymentMethod,
+    dateFrom: filters.dateRange === "today" ? new Date().toISOString().split("T")[0] : undefined,
+    dateTo: filters.dateRange === "today" ? new Date().toISOString().split("T")[0] : undefined,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
   });
+
+  const { data: orderStats, isLoading: statsLoading } = useOrderStats();
+
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage] = useState(10);
   const paginatedOrders = orders.slice((currentPage - 1) * perPage, currentPage * perPage);
@@ -127,273 +131,30 @@ const OrdersPage = () => {
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
 
-  useEffect(() => {
-    loadOrders();
-  }, [filters]);
-
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      // Simulate API call with mock data
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const mockOrders: SalesTransaction[] = [
-        {
-          id: "tx_001",
-          transactionNumber: "TXN-2024-001",
-          cart: {
-            id: "cart_001",
-            items: [
-              {
-                id: "item_001",
-                product: {
-                  id: "prod_001",
-                  name: "กาแฟอเมริกาโน่",
-                  description: "กาแฟอเมริกาโน่ เข้มข้น",
-                  price: 45,
-                  barcode: "1234567890001",
-                  category: "เครื่องดื่ม",
-                  stock: 50,
-                  isActive: true,
-                  taxRate: 0.07,
-                  discountEligible: true,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-                quantity: 2,
-                unitPrice: 45,
-                discountAmount: 0,
-                discountPercentage: 0,
-                taxAmount: 6.3,
-                subtotal: 90,
-                total: 90,
-              },
-            ],
-            subtotal: 90,
-            discountAmount: 0,
-            taxAmount: 6.3,
-            total: 96.3,
-            itemCount: 2,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          payments: [
-            {
-              id: "pay_001",
-              type: "cash",
-              amount: 96.3,
-              received: 100,
-              change: 3.7,
-              status: "completed",
-              createdAt: new Date(),
-            },
-          ],
-          customer: {
-            id: "cust_001",
-            name: "คุณสมชาย",
-            phone: "081-234-5678",
-          },
-          cashier: {
-            id: "cashier_001",
-            name: "พนักงานเก็บเงิน",
-            username: "cashier01",
-          },
-          branch: {
-            id: "branch_001",
-            name: "สาขาหลัก",
-          },
-          status: "completed",
-          receipt: {
-            printed: true,
-            emailSent: false,
-            receiptNumber: "R20241201001",
-          },
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          completedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        },
-        {
-          id: "tx_002",
-          transactionNumber: "TXN-2024-002",
-          cart: {
-            id: "cart_002",
-            items: [
-              {
-                id: "item_002",
-                product: {
-                  id: "prod_002",
-                  name: "ข้าวผัดกุ้ง",
-                  description: "ข้าวผัดกุ้งสด",
-                  price: 120,
-                  barcode: "1234567890002",
-                  category: "อาหาร",
-                  stock: 20,
-                  isActive: true,
-                  taxRate: 0.07,
-                  discountEligible: true,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-                quantity: 1,
-                unitPrice: 120,
-                discountAmount: 10,
-                discountPercentage: 0,
-                taxAmount: 7.7,
-                subtotal: 120,
-                total: 110,
-              },
-            ],
-            subtotal: 120,
-            discountAmount: 10,
-            taxAmount: 7.7,
-            total: 117.7,
-            itemCount: 1,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          payments: [
-            {
-              id: "pay_002",
-              type: "card",
-              amount: 117.7,
-              cardType: "visa",
-              cardLastFour: "1234",
-              status: "completed",
-              createdAt: new Date(),
-            },
-          ],
-          cashier: {
-            id: "cashier_001",
-            name: "พนักงานเก็บเงิน",
-            username: "cashier01",
-          },
-          branch: {
-            id: "branch_001",
-            name: "สาขาหลัก",
-          },
-          status: "completed",
-          receipt: {
-            printed: true,
-            emailSent: false,
-            receiptNumber: "R20241201002",
-          },
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-          completedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        },
-        {
-          id: "tx_003",
-          transactionNumber: "TXN-2024-003",
-          cart: {
-            id: "cart_003",
-            items: [
-              {
-                id: "item_003",
-                product: {
-                  id: "prod_003",
-                  name: "น้ำส้มคั้น",
-                  description: "น้ำส้มคั้นสด",
-                  price: 35,
-                  barcode: "1234567890003",
-                  category: "เครื่องดื่ม",
-                  stock: 30,
-                  isActive: true,
-                  taxRate: 0.07,
-                  discountEligible: true,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-                quantity: 3,
-                unitPrice: 35,
-                discountAmount: 0,
-                discountPercentage: 0,
-                taxAmount: 7.35,
-                subtotal: 105,
-                total: 105,
-              },
-            ],
-            subtotal: 105,
-            discountAmount: 0,
-            taxAmount: 7.35,
-            total: 112.35,
-            itemCount: 3,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          payments: [
-            {
-              id: "pay_003",
-              type: "digital",
-              amount: 112.35,
-              status: "completed",
-              createdAt: new Date(),
-            },
-          ],
-          cashier: {
-            id: "cashier_002",
-            name: "พนักงานเก็บเงิน 2",
-            username: "cashier02",
-          },
-          branch: {
-            id: "branch_001",
-            name: "สาขาหลัก",
-          },
-          status: "pending",
-          receipt: {
-            printed: false,
-            emailSent: false,
-            receiptNumber: "R20241201003",
-          },
-          createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-        },
-      ];
-
-      setOrders(mockOrders);
-      
-      // Calculate stats
-      const totalAmount = mockOrders.reduce((sum, order) => sum + order.cart.total, 0);
-      const completedOrders = mockOrders.filter(order => order.status === "completed").length;
-      
-      setStats({
-        totalOrders: mockOrders.length,
-        totalAmount,
-        averageOrderValue: mockOrders.length > 0 ? totalAmount / mockOrders.length : 0,
-        completedOrders,
-      });
-    } catch (error) {
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถโหลดข้อมูลออเดอร์ได้",
-        status: "error",
-        duration: 3000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleViewOrder = (order: SalesTransaction) => {
+  const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
     onOpen();
   };
 
-  const handleViewReceipt = (order: SalesTransaction) => {
+  const handleViewReceipt = (order: Order) => {
     toast({
       title: "ดูใบเสร็จ",
-      description: `กำลังเปิดใบเสร็จ ${order.receipt?.receiptNumber}`,
+      description: `กำลังเปิดใบเสร็จ ${order.order_number}`,
       status: "info",
       duration: 2000,
     });
   };
 
-  const handleRefundOrder = (order: SalesTransaction) => {
+  const handleRefundOrder = (order: Order) => {
     toast({
       title: "คืนเงิน",
-      description: `กำลังดำเนินการคืนเงินสำหรับ ${order.transactionNumber}`,
+      description: `กำลังดำเนินการคืนเงินสำหรับ ${order.order_number}`,
       status: "warning",
       duration: 3000,
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case "completed":
         return "green";
@@ -408,7 +169,7 @@ const OrdersPage = () => {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: OrderStatus) => {
     switch (status) {
       case "completed":
         return "สำเร็จ";
@@ -423,27 +184,31 @@ const OrdersPage = () => {
     }
   };
 
-  const getPaymentMethodText = (payment: any) => {
-    switch (payment.type) {
+  const getPaymentMethodText = (paymentMethod: string) => {
+    switch (paymentMethod) {
       case "cash":
         return "เงินสด";
       case "card":
-        return `บัตร${payment.cardType || ""} (${payment.cardLastFour || ""})`;
-      case "qr":
-        return "QR Payment";
+        return `บัตรเครดิต/เดบิต`;
+      case "e_wallet":
+        return "E-wallet";
+      case "bank_transfer":
+        return "โอนเงิน";
+      case "credit":
+        return "เครดิต";
       default:
         return "ไม่ทราบ";
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat("th-TH", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(date);
+    }).format(new Date(dateString));
   };
 
   return (
@@ -474,23 +239,23 @@ const OrdersPage = () => {
                 📋 ประวัติการสั่งซื้อ
               </Heading>
               <Text fontSize="lg" opacity={0.9}>
-                ออเดอร์ทั้งหมด {stats.totalOrders} รายการ
+                ออเดอร์ทั้งหมด {statsLoading ? <Spinner size="sm" /> : orderStats?.totalOrders} รายการ
               </Text>
             </VStack>
             <VStack align="end" spacing={2}>
               <HStack spacing={4}>
                 <Stat color="white">
                   <StatLabel fontSize="sm">ยอดขายรวม</StatLabel>
-                  <StatNumber fontSize="2xl">{formatCurrency(stats.totalAmount)}</StatNumber>
+                  <StatNumber fontSize="2xl">{statsLoading ? <Spinner size="sm" /> : formatCurrency(orderStats?.totalRevenue || 0)}</StatNumber>
                 </Stat>
                 <Stat color="white">
                   <StatLabel fontSize="sm">ออเดอร์สำเร็จ</StatLabel>
-                  <StatNumber fontSize="2xl">{stats.completedOrders}</StatNumber>
+                  <StatNumber fontSize="2xl">{statsLoading ? <Spinner size="sm" /> : orderStats?.totalOrders}</StatNumber>
                 </Stat>
               </HStack>
               <HStack spacing={2}>
                 <Icon as={IoTrendingUp} color="yellow.300" />
-                <Text fontSize="sm" opacity={0.9}>เฉลี่ย {formatCurrency(stats.averageOrderValue)} ต่อออเดอร์</Text>
+                <Text fontSize="sm" opacity={0.9}>เฉลี่ย {statsLoading ? <Spinner size="sm" /> : formatCurrency(orderStats?.averageOrderValue || 0)} ต่อออเดอร์</Text>
               </HStack>
             </VStack>
           </Flex>
@@ -512,7 +277,7 @@ const OrdersPage = () => {
                 <VStack align="start" spacing={1}>
                   <Stat>
                     <StatLabel fontSize="sm" color="gray.600">ออเดอร์ทั้งหมด</StatLabel>
-                    <StatNumber fontSize="2xl" fontWeight="bold" color="blue.500">{stats.totalOrders}</StatNumber>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="blue.500">{statsLoading ? <Spinner size="sm" /> : orderStats?.totalOrders}</StatNumber>
                   </Stat>
                 </VStack>
               </HStack>
@@ -533,7 +298,7 @@ const OrdersPage = () => {
                 <VStack align="start" spacing={1}>
                   <Stat>
                     <StatLabel fontSize="sm" color="gray.600">ยอดขายรวม</StatLabel>
-                    <StatNumber fontSize="2xl" fontWeight="bold" color="green.500">{formatCurrency(stats.totalAmount)}</StatNumber>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="green.500">{statsLoading ? <Spinner size="sm" /> : formatCurrency(orderStats?.totalRevenue || 0)}</StatNumber>
                   </Stat>
                 </VStack>
               </HStack>
@@ -554,7 +319,7 @@ const OrdersPage = () => {
                 <VStack align="start" spacing={1}>
                   <Stat>
                     <StatLabel fontSize="sm" color="gray.600">เฉลี่ยต่อออเดอร์</StatLabel>
-                    <StatNumber fontSize="2xl" fontWeight="bold" color="purple.500">{formatCurrency(stats.averageOrderValue)}</StatNumber>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="purple.500">{statsLoading ? <Spinner size="sm" /> : formatCurrency(orderStats?.averageOrderValue || 0)}</StatNumber>
                   </Stat>
                 </VStack>
               </HStack>
@@ -575,7 +340,7 @@ const OrdersPage = () => {
                 <VStack align="start" spacing={1}>
                   <Stat>
                     <StatLabel fontSize="sm" color="gray.600">ออเดอร์สำเร็จ</StatLabel>
-                    <StatNumber fontSize="2xl" fontWeight="bold" color="orange.500">{stats.completedOrders}</StatNumber>
+                    <StatNumber fontSize="2xl" fontWeight="bold" color="orange.500">{statsLoading ? <Spinner size="sm" /> : orderStats?.totalOrders}</StatNumber>
                   </Stat>
                 </VStack>
               </HStack>
@@ -608,7 +373,7 @@ const OrdersPage = () => {
               <Select
                 value={filters.status}
                 onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, status: e.target.value }))
+                  setFilters((prev) => ({ ...prev, status: e.target.value as OrderStatus }))
                 }
                 w="200px"
                 size="lg"
@@ -654,7 +419,9 @@ const OrdersPage = () => {
                 <option value="all">วิธีชำระทั้งหมด</option>
                 <option value="cash">เงินสด</option>
                 <option value="card">บัตรเครดิต/เดบิต</option>
-                <option value="digital">ชำระดิจิทัล</option>
+                <option value="e_wallet">E-wallet</option>
+                <option value="bank_transfer">โอนเงิน</option>
+                <option value="credit">เครดิต</option>
               </Select>
 
               <Select
@@ -666,8 +433,8 @@ const OrdersPage = () => {
                 size="lg"
                 borderRadius="xl"
               >
-                <option value="createdAt">วันที่สร้าง</option>
-                <option value="transactionNumber">เลขที่คำสั่ง</option>
+                <option value="created_at">วันที่สร้าง</option>
+                <option value="order_number">เลขที่คำสั่ง</option>
                 <option value="total">ยอดรวม</option>
               </Select>
 
@@ -689,8 +456,8 @@ const OrdersPage = () => {
 
               <TouchButton
                 leftIcon={<IoRefresh />}
-                onClick={loadOrders}
-                isLoading={loading}
+                onClick={refetch}
+                isLoading={isLoading}
                 variant="secondary"
                 size="lg"
                 borderRadius="xl"
@@ -716,7 +483,7 @@ const OrdersPage = () => {
         <POSCard variant="elevated" bg={cardBg} borderColor={borderColor}>
           <OrderTable
             orders={paginatedOrders}
-            loading={loading}
+            loading={isLoading}
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
@@ -754,23 +521,23 @@ const OrdersPage = () => {
                     <HStack justify="space-between">
                       <Text fontSize="sm">เลขที่คำสั่ง:</Text>
                       <Text fontSize="sm" fontWeight="medium">
-                        {selectedOrder.transactionNumber}
+                        {selectedOrder.order_number}
                       </Text>
                     </HStack>
                     <HStack justify="space-between">
                       <Text fontSize="sm">วันที่/เวลา:</Text>
                       <Text fontSize="sm">
-                        {formatDate(selectedOrder.createdAt)}
+                        {formatDate(selectedOrder.created_at)}
                       </Text>
                     </HStack>
                     <HStack justify="space-between">
                       <Text fontSize="sm">พนักงาน:</Text>
-                      <Text fontSize="sm">{selectedOrder.cashier.name}</Text>
+                      <Text fontSize="sm">{selectedOrder.cashier_id}</Text>
                     </HStack>
-                    {selectedOrder.customer && (
+                    {selectedOrder.customer_name && (
                       <HStack justify="space-between">
                         <Text fontSize="sm">ลูกค้า:</Text>
-                        <Text fontSize="sm">{selectedOrder.customer.name}</Text>
+                        <Text fontSize="sm">{selectedOrder.customer_name}</Text>
                       </HStack>
                     )}
                   </VStack>
@@ -784,18 +551,18 @@ const OrdersPage = () => {
                     รายการสินค้า
                   </Text>
                   <VStack spacing={2} align="stretch">
-                    {selectedOrder.cart.items.map((item, index) => (
+                    {selectedOrder.items.map((item, index) => (
                       <HStack key={index} justify="space-between">
                         <VStack align="start" spacing={0}>
                           <Text fontSize="sm" fontWeight="medium">
-                            {item.product.name}
+                            {item.product_name}
                           </Text>
                           <Text fontSize="xs" color="gray.500">
-                            {formatCurrency(item.unitPrice)} x {item.quantity}
+                            {formatCurrency(item.unit_price)} x {item.quantity}
                           </Text>
                         </VStack>
                         <Text fontSize="sm" fontWeight="medium">
-                          {formatCurrency(item.total)}
+                          {formatCurrency(item.total_price)}
                         </Text>
                       </HStack>
                     ))}
@@ -813,21 +580,21 @@ const OrdersPage = () => {
                     <HStack justify="space-between">
                       <Text fontSize="sm">ยอดรวม:</Text>
                       <Text fontSize="sm">
-                        {formatCurrency(selectedOrder.cart.subtotal)}
+                        {formatCurrency(selectedOrder.subtotal)}
                       </Text>
                     </HStack>
-                    {selectedOrder.cart.discountAmount > 0 && (
+                    {selectedOrder.discount_amount > 0 && (
                       <HStack justify="space-between">
                         <Text fontSize="sm">ส่วนลด:</Text>
                         <Text fontSize="sm" color="red.500">
-                          -{formatCurrency(selectedOrder.cart.discountAmount)}
+                          -{formatCurrency(selectedOrder.discount_amount)}
                         </Text>
                       </HStack>
                     )}
                     <HStack justify="space-between">
                       <Text fontSize="sm">ภาษี:</Text>
                       <Text fontSize="sm">
-                        {formatCurrency(selectedOrder.cart.taxAmount)}
+                        {formatCurrency(selectedOrder.tax)}
                       </Text>
                     </HStack>
                     <Divider />
@@ -836,7 +603,7 @@ const OrdersPage = () => {
                         ยอดสุทธิ:
                       </Text>
                       <Text fontSize="md" fontWeight="bold">
-                        {formatCurrency(selectedOrder.cart.total)}
+                        {formatCurrency(selectedOrder.total)}
                       </Text>
                     </HStack>
                   </VStack>
@@ -849,38 +616,20 @@ const OrdersPage = () => {
                   <Text fontSize="md" fontWeight="medium" mb={2}>
                     วิธีการชำระเงิน
                   </Text>
-                  {selectedOrder.payments.map((payment, index) => (
-                    <VStack key={index} spacing={2} align="stretch">
-                      <HStack justify="space-between">
-                        <Text fontSize="sm">วิธีการ:</Text>
-                        <Text fontSize="sm">
-                          {getPaymentMethodText(payment)}
-                        </Text>
-                      </HStack>
-                      <HStack justify="space-between">
-                        <Text fontSize="sm">จำนวน:</Text>
-                        <Text fontSize="sm">
-                          {formatCurrency(payment.amount)}
-                        </Text>
-                      </HStack>
-                      {payment.type === "cash" && payment.received && (
-                        <>
-                          <HStack justify="space-between">
-                            <Text fontSize="sm">เงินที่รับ:</Text>
-                            <Text fontSize="sm">
-                              {formatCurrency(payment.received)}
-                            </Text>
-                          </HStack>
-                          <HStack justify="space-between">
-                            <Text fontSize="sm">เงินทอน:</Text>
-                            <Text fontSize="sm">
-                              {formatCurrency(payment.change || 0)}
-                            </Text>
-                          </HStack>
-                        </>
-                      )}
-                    </VStack>
-                  ))}
+                  <VStack spacing={2} align="stretch">
+                    <HStack justify="space-between">
+                      <Text fontSize="sm">วิธีการ:</Text>
+                      <Text fontSize="sm">
+                        {getPaymentMethodText(selectedOrder.payment_method)}
+                      </Text>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontSize="sm">สถานะ:</Text>
+                      <Text fontSize="sm">
+                        {getPaymentStatusText(selectedOrder.payment_status)}
+                      </Text>
+                    </HStack>
+                  </VStack>
                 </Box>
               </VStack>
             </ModalBody>

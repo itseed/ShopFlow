@@ -197,7 +197,11 @@ export function useDashboard(
   }, [filters.timeRange]);
 
   // Query for sales data
-  const { data: salesData = [], isLoading: salesLoading } = useQuery({
+  const {
+    data: salesData = [],
+    isLoading: salesLoading,
+    error: salesError,
+  } = useQuery({
     queryKey: ["dashboard", "sales", dateRange, branchId],
     queryFn: async () => {
       const response = await reportService.getSalesReport({
@@ -206,14 +210,17 @@ export function useDashboard(
         branchId,
         groupBy: filters.timeRange === "today" ? "day" : "day",
       });
-      if (!response.success) throw new Error(response.error || "Failed to fetch sales report");
+      if (!response.success)
+        throw new Error(response.error || "Failed to fetch sales report");
       return response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2, // Retry only 2 times
+    retryDelay: 1000, // 1 second delay
   });
 
   // Query for comparison sales data
-  const { data: compareSalesData = [] } = useQuery({
+  const { data: compareSalesData = [], error: compareError } = useQuery({
     queryKey: ["dashboard", "sales-compare", dateRange, branchId],
     queryFn: async () => {
       const response = await reportService.getSalesReport({
@@ -222,14 +229,21 @@ export function useDashboard(
         branchId,
         groupBy: filters.timeRange === "today" ? "day" : "day",
       });
-      if (!response.success) throw new Error(response.error || "Failed to fetch sales report");
+      if (!response.success)
+        throw new Error(response.error || "Failed to fetch sales report");
       return response.data || [];
     },
     staleTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Query for product reports
-  const { data: productData = [], isLoading: productsLoading } = useQuery({
+  const {
+    data: productData = [],
+    isLoading: productsLoading,
+    error: productsError,
+  } = useQuery({
     queryKey: ["dashboard", "products", dateRange, branchId],
     queryFn: async () => {
       const response = await reportService.getProductReport({
@@ -237,14 +251,21 @@ export function useDashboard(
         endDate: dateRange.endDate,
         branchId,
       });
-      if (!response.success) throw new Error(response.error || "Failed to fetch product report");
+      if (!response.success)
+        throw new Error(response.error || "Failed to fetch product report");
       return response.data || [];
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Query for customer reports
-  const { data: customerData = [], isLoading: customersLoading } = useQuery({
+  const {
+    data: customerData = [],
+    isLoading: customersLoading,
+    error: customersError,
+  } = useQuery({
     queryKey: ["dashboard", "customers", dateRange, branchId],
     queryFn: async () => {
       const response = await reportService.getCustomerReport({
@@ -252,25 +273,39 @@ export function useDashboard(
         endDate: dateRange.endDate,
         branchId,
       });
-      if (!response.success) throw new Error(response.error || "Failed to fetch customer report");
+      if (!response.success)
+        throw new Error(response.error || "Failed to fetch customer report");
       return response.data || [];
     },
     staleTime: 10 * 60 * 1000,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Query for inventory data
-  const { data: inventoryData = [], isLoading: inventoryLoading } = useQuery({
+  const {
+    data: inventoryData = [],
+    isLoading: inventoryLoading,
+    error: inventoryError,
+  } = useQuery({
     queryKey: ["dashboard", "inventory", branchId],
     queryFn: async () => {
       const response = await reportService.getInventoryReport({ branchId });
-      if (!response.success) throw new Error(response.error || "Failed to fetch inventory report");
+      if (!response.success)
+        throw new Error(response.error || "Failed to fetch inventory report");
       return response.data || [];
     },
     staleTime: 15 * 60 * 1000, // 15 minutes
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Query for branch comparison (only when viewing all branches)
-  const { data: branchData = [], isLoading: branchLoading } = useQuery({
+  const {
+    data: branchData = [],
+    isLoading: branchLoading,
+    error: branchError,
+  } = useQuery({
     queryKey: ["dashboard", "branches", dateRange],
     queryFn: async () => {
       if (branchId) return []; // Don't fetch when specific branch is selected
@@ -278,21 +313,67 @@ export function useDashboard(
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
       });
-      if (!response.success) throw new Error(response.error || "Failed to fetch branch comparison report");
+      if (!response.success)
+        throw new Error(
+          response.error || "Failed to fetch branch comparison report"
+        );
       return response.data || [];
     },
     enabled: !branchId, // Only run when viewing all branches
     staleTime: 10 * 60 * 1000,
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  // Calculate dashboard metrics
+  // Aggregate all errors
+  const error =
+    salesError ||
+    compareError ||
+    productsError ||
+    customersError ||
+    inventoryError ||
+    branchError;
+
+  // Calculate dashboard metrics with fallback data
   const metrics = useMemo((): DashboardMetrics => {
+    // Fallback data when API fails
+    const fallbackMetrics: DashboardMetrics = {
+      todaySales: 0,
+      yesterdaySales: 0,
+      salesGrowth: 0,
+      todayOrders: 0,
+      yesterdayOrders: 0,
+      ordersGrowth: 0,
+      todayCustomers: 0,
+      totalCustomers: 0,
+      customerGrowth: 0,
+      totalProducts: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0,
+      todayProfit: 0,
+      profitMargin: 0,
+      profitGrowth: 0,
+      b2bSales: 0,
+      retailSales: 0,
+      b2bPercentage: 0,
+      pendingPayments: 0,
+      completedPayments: 0,
+      deliveryOrders: 0,
+      pickupOrders: 0,
+      deliveryPercentage: 0,
+    };
+
+    // If there's an error, return fallback data
+    if (error) {
+      return fallbackMetrics;
+    }
+
     const currentSales = salesData.reduce(
-      (sum, day) => sum + day.totalSales,
+      (sum, day) => sum + (day.totalSales || 0),
       0
     );
     const currentOrders = salesData.reduce(
-      (sum, day) => sum + day.totalOrders,
+      (sum, day) => sum + (day.totalOrders || 0),
       0
     );
     const currentProfit = salesData.reduce(
@@ -317,11 +398,11 @@ export function useDashboard(
     );
 
     const compareSales = compareSalesData.reduce(
-      (sum, day) => sum + day.totalSales,
+      (sum, day) => sum + (day.totalSales || 0),
       0
     );
     const compareOrders = compareSalesData.reduce(
-      (sum, day) => sum + day.totalOrders,
+      (sum, day) => sum + (day.totalOrders || 0),
       0
     );
     const compareProfit = compareSalesData.reduce(
@@ -350,11 +431,11 @@ export function useDashboard(
     ).length;
 
     const totalCustomers = customerData.reduce(
-      (sum, day) => sum + day.totalCustomers,
+      (sum, day) => sum + (day.totalCustomers || 0),
       0
     );
     const newCustomers = customerData.reduce(
-      (sum, day) => sum + day.newCustomers,
+      (sum, day) => sum + (day.newCustomers || 0),
       0
     );
 
@@ -384,16 +465,33 @@ export function useDashboard(
       deliveryPercentage:
         currentOrders > 0 ? (currentDelivery / currentOrders) * 100 : 0,
     };
-  }, [salesData, compareSalesData, customerData, inventoryData]);
+  }, [salesData, compareSalesData, customerData, inventoryData, error]);
 
-  // Process chart data
+  // Process chart data with fallback
   const chartData = useMemo((): DashboardChartData => {
+    // Fallback chart data
+    const fallbackChartData: DashboardChartData = {
+      salesChart: [],
+      categoryChart: [
+        { name: "ไม่มีข้อมูล", value: 100, revenue: 0, color: "#E2E8F0" },
+      ],
+      customerTypeChart: [
+        { type: "ไม่มีข้อมูล", count: 0, revenue: 0, color: "#E2E8F0" },
+      ],
+      branchPerformance: [],
+    };
+
+    // If there's an error, return fallback data
+    if (error) {
+      return fallbackChartData;
+    }
+
     // Sales chart
     const salesChart = salesData.map((day) => ({
       date: day.date,
-      sales: day.totalSales,
+      sales: day.totalSales || 0,
       profit: day.totalProfit || 0,
-      orders: day.totalOrders,
+      orders: day.totalOrders || 0,
     }));
 
     // Category chart (simplified - would need category revenue data)
@@ -456,10 +554,10 @@ export function useDashboard(
     const branchPerformance = branchData.map((branch) => ({
       branchId: branch.branchId,
       branchName: branch.branchName,
-      sales: branch.totalSales,
-      orders: branch.totalOrders,
-      performance: (branch.totalSales / 50000) * 100, // Target 50k per branch
-      status: branch.performance,
+      sales: branch.totalSales || 0,
+      orders: branch.totalOrders || 0,
+      performance: ((branch.totalSales || 0) / 50000) * 100, // Target 50k per branch
+      status: branch.performance || "average",
     }));
 
     return {
@@ -468,20 +566,32 @@ export function useDashboard(
       customerTypeChart,
       branchPerformance,
     };
-  }, [salesData, branchData, metrics]);
+  }, [salesData, branchData, metrics, error]);
 
-  // Top performers
+  // Top performers with fallback
   const topPerformers = useMemo((): TopPerformers => {
+    // Fallback data
+    const fallbackTopPerformers: TopPerformers = {
+      products: [],
+      customers: [],
+      categories: [],
+    };
+
+    // If there's an error, return fallback data
+    if (error) {
+      return fallbackTopPerformers;
+    }
+
     const products = productData
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
       .slice(0, 5)
       .map((product) => ({
-        id: product.productId,
-        name: product.productName,
-        sales: product.quantitySold,
-        revenue: product.revenue,
+        id: product.productId || "unknown",
+        name: product.productName || "ไม่ระบุชื่อ",
+        sales: product.quantitySold || 0,
+        revenue: product.revenue || 0,
         growth: 0, // Would need historical data
-        stock: product.stockLevel,
+        stock: product.stockLevel || 0,
       }));
 
     return {
@@ -489,7 +599,7 @@ export function useDashboard(
       customers: [], // Would need customer order data
       categories: [], // Would need category-specific data
     };
-  }, [productData]);
+  }, [productData, error]);
 
   const isLoading =
     salesLoading || productsLoading || customersLoading || inventoryLoading;
@@ -499,7 +609,7 @@ export function useDashboard(
     chartData,
     topPerformers,
     isLoading,
-    error: null, // Could add error handling
+    error: error?.message || null,
     refetch: () => {
       // Refetch all queries
     },

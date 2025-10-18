@@ -45,6 +45,8 @@ import {
   Textarea,
   useDisclosure,
   Switch,
+  NumberInput,
+  NumberInputField,
 } from "@chakra-ui/react";
 import {
   FiUsers,
@@ -64,41 +66,11 @@ import Layout from "../../components/Layout";
 import { withAuth } from "../../lib/auth";
 import {
   useCustomers,
-  useCustomerStats,
   useCreateCustomer,
   useUpdateCustomer,
   useDeleteCustomer,
-} from "../../lib/hooks/useCustomers";
-
-// Customer with stats type
-interface CustomerWithStats {
-  id: string;
-  customerNumber: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  dateOfBirth?: Date;
-  gender?: "male" | "female" | "other";
-  notes?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  totalOrders: number;
-  totalSpent: number;
-  lastOrderDate?: string;
-  orderCount: number;
-}
-
-interface CustomerFormData {
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  gender?: "male" | "female" | "other";
-  notes?: string;
-  isActive?: boolean;
-}
+} from "../../lib/hooks";
+import { Customer, CustomerFormData } from "@shopflow/types";
 
 const getStatusColor = (isActive: boolean) => {
   return isActive ? "green" : "gray";
@@ -123,11 +95,9 @@ function CustomersPage() {
     isActive: statusFilter === "all" ? undefined : statusFilter === "active",
   };
 
-  const { customers, loading, error, refetch } = useCustomers(filters);
-  const { stats, loading: statsLoading } = useCustomerStats();
-  const { createCustomer, isCreating } = useCreateCustomer();
-  const { updateCustomer, isUpdating } = useUpdateCustomer();
-  const { deleteCustomer, isDeleting } = useDeleteCustomer();
+  const { data: customers = [], isLoading, error, refetch } = useCustomers(filters);
+  const createCustomerMutation = useCreateCustomer();
+  const updateCustomerMutation = useUpdateCustomer();
 
   // Modal states
   const {
@@ -138,49 +108,67 @@ function CustomersPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [selectedCustomer, setSelectedCustomer] =
-    useState<CustomerWithStats | null>(null);
+    useState<Customer | null>(null);
   const [formData, setFormData] = useState<CustomerFormData>({
-    name: "",
-    phone: "",
+    first_name: "",
+    last_name: "",
+    company_name: "",
     email: "",
+    phone: "",
     address: "",
-    gender: undefined,
+    city: "",
+    postal_code: "",
+    country: "Thailand",
+    customer_type: "individual",
+    status: "active",
+    credit_limit: 0,
     notes: "",
-    isActive: true,
   });
 
   const handleAddCustomer = () => {
     setSelectedCustomer(null);
     setFormData({
-      name: "",
-      phone: "",
+      first_name: "",
+      last_name: "",
+      company_name: "",
       email: "",
+      phone: "",
       address: "",
-      gender: undefined,
+      city: "",
+      postal_code: "",
+      country: "Thailand",
+      customer_type: "individual",
+      status: "active",
+      credit_limit: 0,
       notes: "",
-      isActive: true,
     });
     setIsEditing(false);
     onFormOpen();
   };
 
-  const handleEditCustomer = (customer: CustomerWithStats) => {
+  const handleEditCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     setFormData({
-      name: customer.name,
-      phone: customer.phone || "",
+      first_name: customer.first_name || "",
+      last_name: "", // API ไม่มี last_name
+      company_name: customer.company_name || "",
       email: customer.email || "",
+      phone: customer.phone || "",
       address: customer.address || "",
-      gender: customer.gender,
+      city: customer.city || "",
+      postal_code: customer.postal_code || "",
+      country: customer.country || "Thailand",
+      customer_type: customer.customer_type || "individual",
+      status: customer.status || "active",
+      credit_limit: customer.credit_limit || 0,
       notes: customer.notes || "",
-      isActive: customer.isActive,
     });
     setIsEditing(true);
     onFormOpen();
   };
 
   const handleSaveCustomer = async () => {
-    if (!formData.name.trim()) {
+    if (!formData.first_name?.trim()) {
       toast({
         title: "กรุณากรอกชื่อลูกค้า",
         status: "error",
@@ -192,17 +180,18 @@ function CustomersPage() {
 
     try {
       if (isEditing && selectedCustomer) {
-        await updateCustomer({
+        // Convert FormData to UpdateCustomerData
+        const updateData = {
+          name: formData.first_name || 'ไม่ระบุชื่อ',
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          notes: formData.notes,
+          isActive: formData.status === 'active',
+        };
+        await updateCustomerMutation.mutateAsync({
           id: selectedCustomer.id,
-          data: {
-            name: formData.name,
-            phone: formData.phone || undefined,
-            email: formData.email || undefined,
-            address: formData.address || undefined,
-            gender: formData.gender,
-            notes: formData.notes || undefined,
-            isActive: formData.isActive,
-          },
+          data: updateData,
         });
         toast({
           title: "แก้ไขข้อมูลลูกค้าสำเร็จ",
@@ -211,15 +200,15 @@ function CustomersPage() {
           isClosable: true,
         });
       } else {
-        await createCustomer({
-          name: formData.name,
-          phone: formData.phone || undefined,
-          email: formData.email || undefined,
-          address: formData.address || undefined,
-          gender: formData.gender,
-          notes: formData.notes || undefined,
-          isActive: formData.isActive,
-        });
+        // Convert FormData to CreateCustomerData
+        const createData = {
+          name: formData.first_name || 'ไม่ระบุชื่อ',
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          notes: formData.notes,
+        };
+        await createCustomerMutation.mutateAsync(createData);
         toast({
           title: "เพิ่มลูกค้าใหม่สำเร็จ",
           status: "success",
@@ -242,15 +231,15 @@ function CustomersPage() {
 
   const handleToggleStatus = async (customerId: string) => {
     const customer = customers.find(
-      (c: CustomerWithStats) => c.id === customerId
+      (c: Customer) => c.id === customerId
     );
     if (!customer) return;
 
     try {
-      await updateCustomer({
+      await updateCustomerMutation.mutateAsync({
         id: customerId,
         data: {
-          isActive: !customer.isActive,
+          isActive: customer.status !== "active",
         },
       });
       toast({
@@ -281,7 +270,7 @@ function CustomersPage() {
       {error && (
         <Alert status="error">
           <AlertIcon />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{(error as any).message}</AlertDescription>
         </Alert>
       )}
 
@@ -303,67 +292,12 @@ function CustomersPage() {
             colorScheme="blue"
             leftIcon={<Icon as={FiUserPlus} />}
             onClick={handleAddCustomer}
-            isDisabled={isCreating}
+            isLoading={createCustomerMutation.isPending}
           >
             เพิ่มลูกค้าใหม่
           </Button>
         </HStack>
       </Flex>
-
-      {/* Stats Cards */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-        <Card>
-          <CardBody>
-            <Stat>
-              <StatLabel fontFamily="body">ลูกค้าทั้งหมด</StatLabel>
-              <StatNumber fontFamily="heading">
-                {statsLoading ? <Spinner size="sm" /> : stats.total}
-              </StatNumber>
-              <StatHelpText fontFamily="body">คน</StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <Stat>
-              <StatLabel fontFamily="body">ใช้งานอยู่</StatLabel>
-              <StatNumber fontFamily="heading" color="green.500">
-                {statsLoading ? <Spinner size="sm" /> : stats.active}
-              </StatNumber>
-              <StatHelpText fontFamily="body">คน</StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <Stat>
-              <StatLabel fontFamily="body">ลูกค้าใหม่เดือนนี้</StatLabel>
-              <StatNumber fontFamily="heading" color="blue.500">
-                {statsLoading ? <Spinner size="sm" /> : stats.newThisMonth}
-              </StatNumber>
-              <StatHelpText fontFamily="body">คน</StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <Stat>
-              <StatLabel fontFamily="body">ยอดขายรวม</StatLabel>
-              <StatNumber fontFamily="heading" color="purple.500">
-                {statsLoading ? (
-                  <Spinner size="sm" />
-                ) : (
-                  `฿${stats.totalRevenue.toLocaleString()}`
-                )}
-              </StatNumber>
-              <StatHelpText fontFamily="body">บาท</StatHelpText>
-            </Stat>
-          </CardBody>
-        </Card>
-      </SimpleGrid>
 
       {/* Filters */}
       <Card>
@@ -397,7 +331,7 @@ function CustomersPage() {
               leftIcon={<Icon as={FiFilter} />}
               variant="outline"
               onClick={() => refetch()}
-              isLoading={loading}
+              isLoading={isLoading}
             >
               กรองข้อมูล
             </Button>
@@ -408,7 +342,7 @@ function CustomersPage() {
       {/* Customers Table */}
       <Card>
         <CardBody>
-          {loading ? (
+          {isLoading ? (
             <Flex justify="center" p={8}>
               <Spinner size="lg" />
             </Flex>
@@ -426,26 +360,26 @@ function CustomersPage() {
                 </Tr>
               </Thead>
               <Tbody>
-                {customers.map((customer: CustomerWithStats) => (
+                {customers.map((customer: Customer) => (
                   <Tr key={customer.id}>
                     <Td>
                       <HStack>
                         <Avatar
                           size="sm"
-                          name={customer.name}
+                          name={customer.first_name || 'ไม่ระบุชื่อ'}
                           bg="blue.500"
                           color="white"
                         />
                         <VStack align="start" spacing={0}>
                           <Text fontFamily="body" fontWeight="medium">
-                            {customer.name}
+                            {customer.first_name || 'ไม่ระบุชื่อ'}
                           </Text>
                           <Text
                             fontSize="sm"
                             color="gray.500"
                             fontFamily="body"
                           >
-                            {customer.customerNumber}
+                            {customer.customer_code}
                           </Text>
                         </VStack>
                       </HStack>
@@ -501,9 +435,9 @@ function CustomersPage() {
                     <Td>
                       <VStack align="start" spacing={0}>
                         <Text fontFamily="body" fontWeight="semibold">
-                          {customer.totalOrders} รายการ
+                          {customer.total_orders} รายการ
                         </Text>
-                        {customer.lastOrderDate && (
+                        {customer.last_order_date && (
                           <Text
                             fontSize="sm"
                             color="gray.500"
@@ -511,7 +445,7 @@ function CustomersPage() {
                           >
                             ล่าสุด:{" "}
                             {new Date(
-                              customer.lastOrderDate
+                              customer.last_order_date
                             ).toLocaleDateString("th-TH", {
                               month: "short",
                               day: "numeric",
@@ -521,17 +455,17 @@ function CustomersPage() {
                       </VStack>
                     </Td>
                     <Td fontFamily="body" fontWeight="semibold">
-                      ฿{customer.totalSpent.toLocaleString()}
+                      ฿{customer.total_spent.toLocaleString()}
                     </Td>
                     <Td>
                       <Badge
-                        colorScheme={getStatusColor(customer.isActive)}
+                        colorScheme={getStatusColor(customer.status === 'active')}
                         borderRadius="full"
                         px={3}
                         py={1}
                       >
                         <Text fontSize="xs" fontFamily="body">
-                          {getStatusText(customer.isActive)}
+                          {getStatusText(customer.status === 'active')}
                         </Text>
                       </Badge>
                     </Td>
@@ -550,7 +484,7 @@ function CustomersPage() {
                           variant="ghost"
                           leftIcon={<Icon as={FiEdit} />}
                           onClick={() => handleEditCustomer(customer)}
-                          isDisabled={isUpdating}
+                          isLoading={updateCustomerMutation.isPending}
                         >
                           แก้ไข
                         </Button>
@@ -574,16 +508,44 @@ function CustomersPage() {
           <ModalBody>
             <VStack spacing={4} align="stretch">
               <FormControl isRequired>
-                <FormLabel>ชื่อลูกค้า</FormLabel>
+                <FormLabel>ชื่อ</FormLabel>
                 <Input
-                  value={formData.name}
+                  value={formData.first_name}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      name: e.target.value,
+                      first_name: e.target.value,
                     }))
                   }
-                  placeholder="ชื่อและนามสกุล"
+                  placeholder="ชื่อ"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>นามสกุล</FormLabel>
+                <Input
+                  value={formData.last_name || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      last_name: e.target.value,
+                    }))
+                  }
+                  placeholder="นามสกุล"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>บริษัท</FormLabel>
+                <Input
+                  value={formData.company_name || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      company_name: e.target.value,
+                    }))
+                  }
+                  placeholder="ชื่อบริษัท"
                 />
               </FormControl>
 
@@ -632,21 +594,93 @@ function CustomersPage() {
               </FormControl>
 
               <FormControl>
-                <FormLabel>เพศ</FormLabel>
-                <Select
-                  value={formData.gender || ""}
+                <FormLabel>เมือง</FormLabel>
+                <Input
+                  value={formData.city || ""}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      gender: e.target.value as any,
+                      city: e.target.value,
                     }))
                   }
-                  placeholder="เลือกเพศ"
+                  placeholder="เมือง"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>รหัสไปรษณีย์</FormLabel>
+                <Input
+                  value={formData.postal_code || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      postal_code: e.target.value,
+                    }))
+                  }
+                  placeholder="รหัสไปรษณีย์"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>ประเทศ</FormLabel>
+                <Input
+                  value={formData.country || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      country: e.target.value,
+                    }))
+                  }
+                  placeholder="ประเทศ"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>ประเภทลูกค้า</FormLabel>
+                <Select
+                  value={formData.customer_type || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      customer_type: e.target.value as any,
+                    }))
+                  }
+                  placeholder="เลือกประเภทลูกค้า"
                 >
-                  <option value="male">ชาย</option>
-                  <option value="female">หญิง</option>
-                  <option value="other">อื่นๆ</option>
+                  <option value="individual">บุคคลธรรมดา</option>
+                  <option value="business">นิติบุคคล</option>
                 </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>สถานะ</FormLabel>
+                <Select
+                  value={formData.status || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      status: e.target.value as any,
+                    }))
+                  }
+                  placeholder="เลือกสถานะ"
+                >
+                  <option value="active">ใช้งาน</option>
+                  <option value="inactive">ไม่ใช้งาน</option>
+                  <option value="vip">VIP</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>วงเงินเครดิต</FormLabel>
+                <NumberInput
+                  value={formData.credit_limit}
+                  onChange={(value) =>
+                    setFormData((prev) => ({ ...prev, credit_limit: Number(value) }))
+                  }
+                  min={0}
+                >
+                  <NumberInputField placeholder="0" />
+                </NumberInput>
               </FormControl>
 
               <FormControl>
@@ -663,22 +697,6 @@ function CustomersPage() {
                   rows={2}
                 />
               </FormControl>
-
-              <FormControl>
-                <HStack>
-                  <Switch
-                    isChecked={formData.isActive !== false}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        isActive: e.target.checked,
-                      }))
-                    }
-                    colorScheme="green"
-                  />
-                  <Text>สถานะการใช้งาน</Text>
-                </HStack>
-              </FormControl>
             </VStack>
           </ModalBody>
           <ModalFooter>
@@ -686,7 +704,7 @@ function CustomersPage() {
               variant="ghost"
               mr={3}
               onClick={onFormClose}
-              isDisabled={isCreating || isUpdating}
+              isLoading={createCustomerMutation.isPending || updateCustomerMutation.isPending}
             >
               ยกเลิก
             </Button>
@@ -694,7 +712,7 @@ function CustomersPage() {
               colorScheme="blue"
               onClick={handleSaveCustomer}
               leftIcon={<Icon as={FiSave} />}
-              isLoading={isCreating || isUpdating}
+              isLoading={createCustomerMutation.isPending || updateCustomerMutation.isPending}
               loadingText="กำลังบันทึก..."
             >
               บันทึก

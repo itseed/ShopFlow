@@ -66,6 +66,7 @@ import {
   IoChevronForwardOutline,
   IoCash,
   IoQrCode,
+  IoCall,
 } from "react-icons/io5";
 import {
   SalesProduct,
@@ -73,40 +74,8 @@ import {
   SalesProductSearchFilters,
   PaymentResult,
   Branch,
+  Order,
 } from "@shopflow/types";
-
-// Local Receipt type for POS terminal
-interface SalesReceipt {
-  id: string;
-  transactionId: string;
-  receiptNumber: string;
-  timestamp: string;
-  items: SalesCartItem[];
-  subtotal: number;
-  discountAmount: number;
-  taxAmount: number;
-  total: number;
-  paymentMethod: string;
-  paymentDetails: PaymentResult;
-  customer?: {
-    name: string;
-    email?: string;
-    phone?: string;
-  };
-  cashier: {
-    name: string;
-    username: string;
-  };
-  branch: {
-    name: string;
-    address: string;
-    phone: string;
-    taxId: string;
-  };
-  footer: string;
-  isPrinted: boolean;
-  isEmailSent: boolean;
-}
 import { useSales } from "../../contexts/SalesContext";
 import {
   POSLayout,
@@ -116,17 +85,20 @@ import {
 } from "../../components";
 import PaymentModal from "../../components/payment/PaymentModal";
 import ReceiptModal from "../../components/payment/ReceiptModal";
+import CustomerLookup from "../../components/loyalty/CustomerLookup";
+import PointsPreview from "../../components/loyalty/PointsPreview";
 import { formatCurrency, getProductCategories } from "../../lib/sales";
 import {
   usePOSProducts,
   usePOSProductSearch,
   usePOSBarcodeSearch,
   usePOSCreateOrder,
-  createOrderFromCart,
-} from "../../lib/hooks/usePOSDatabase";
+} from "../../lib/hooks/useSale";
+import { useOrderStats } from "../../../../cms-web/lib/hooks/useDatabase";
 import ProductGrid from "../../components/sales/ProductGrid";
 import ProductList from "../../components/sales/ProductList";
 import CartSummary from "../../components/sales/CartSummary";
+import { POSCustomerLookup } from "@shopflow/types";
 
 const SalesTerminal = () => {
   const {
@@ -151,6 +123,15 @@ const SalesTerminal = () => {
   });
   const [categories, setCategories] = useState<string[]>([]);
   const [currentReceipt, setCurrentReceipt] = useState<any>(null);
+  
+  // Loyalty program states
+  const [customerData, setCustomerData] = useState<POSCustomerLookup | null>(null);
+  const [earnedPoints, setEarnedPoints] = useState<number>(0);
+  const {
+    isOpen: isCustomerLookupOpen,
+    onOpen: onCustomerLookupOpen,
+    onClose: onCustomerLookupClose,
+  } = useDisclosure();
 
   // Use new database hooks for products
   const {
@@ -170,6 +151,7 @@ const SalesTerminal = () => {
   } = usePOSProductSearch(searchTerm);
 
   const createOrderMutation = usePOSCreateOrder();
+  const { data: orderStats, isLoading: statsLoading } = useOrderStats();
 
   // Use search results if searching, otherwise use all products
   const products = searchTerm.length >= 2 ? searchResults : allProducts;
@@ -228,15 +210,6 @@ const SalesTerminal = () => {
   );
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
-
-  // Mock sales stats
-  const salesStats = {
-    todaySales: 15420.5,
-    totalTransactions: 89,
-    averageTicket: 173.26,
-    topProduct: "Coca Cola",
-    salesGrowth: 12.5,
-  };
 
   useEffect(() => {
     setCurrentPage(1); // reset page เมื่อเปลี่ยน filter/view
@@ -377,12 +350,28 @@ const SalesTerminal = () => {
 
   const handleClearCart = () => {
     clearCart();
+    setCustomerData(null);
+    setEarnedPoints(0);
     toast({
       title: "ล้างตะกร้าแล้ว",
       status: "info",
       duration: 2000,
       isClosable: true,
     });
+  };
+
+  const handleCustomerSelected = (data: POSCustomerLookup) => {
+    setCustomerData(data);
+    toast({
+      title: "เลือกลูกค้าสำเร็จ",
+      description: data.customer?.name || data.phone,
+      status: "success",
+      duration: 2000,
+    });
+  };
+
+  const handlePointsCalculated = (points: number) => {
+    setEarnedPoints(points);
   };
 
   const handlePayment = () => {
@@ -402,14 +391,22 @@ const SalesTerminal = () => {
   const handlePaymentComplete = async (result: PaymentResult) => {
     try {
       // Create order data from cart
-      const orderData = createOrderFromCart(
-        cart.items || [],
-        result.method,
-        result.customer
-      );
+      const orderData = {
+        items: cart.items.map((item) => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          total_price: item.total,
+        })),
+        subtotal: cart.subtotal,
+        total: cart.total,
+        payment_method: result.method,
+        payment_status: "paid",
+        status: "completed",
+      };
 
       // Save order to database
-      const savedOrder = await createOrderMutation.mutateAsync(orderData);
+      const savedOrder = await createOrderMutation.mutateAsync(orderData as any);
 
       // Generate receipt from saved order
       const receipt: any = {
@@ -541,7 +538,7 @@ const SalesTerminal = () => {
                   🛒 ระบบขายสินค้า
                 </Heading>
                 <Text fontSize="lg" opacity={0.9}>
-                  ยอดขายวันนี้: ฿{salesStats.todaySales.toLocaleString()}
+                  ยอดขายวันนี้: ฿{orderStats?.todayRevenue.toLocaleString()}
                 </Text>
               </VStack>
               <VStack align="end" spacing={2}>
@@ -549,20 +546,20 @@ const SalesTerminal = () => {
                   <Stat color="white">
                     <StatLabel fontSize="sm">ธุรกรรม</StatLabel>
                     <StatNumber fontSize="2xl">
-                      {salesStats.totalTransactions}
+                      {orderStats?.todayOrders}
                     </StatNumber>
                   </Stat>
                   <Stat color="white">
                     <StatLabel fontSize="sm">เฉลี่ย/รายการ</StatLabel>
                     <StatNumber fontSize="2xl">
-                      ฿{salesStats.averageTicket}
+                      ฿{orderStats?.averageOrderValue.toLocaleString()}
                     </StatNumber>
                   </Stat>
                 </HStack>
                 <HStack spacing={2}>
                   <Icon as={IoTrendingUp} color="yellow.300" />
                   <Text fontSize="sm" opacity={0.9}>
-                    +{salesStats.salesGrowth}% จากเมื่อวาน
+                    {orderStats?.totalOrders} orders total
                   </Text>
                 </HStack>
               </VStack>
@@ -738,36 +735,70 @@ const SalesTerminal = () => {
         <VStack spacing={4} align="stretch">
           {/* Cart Header */}
           <POSCard variant="elevated" bg={cardBg} borderColor={borderColor}>
-            <HStack justify="space-between" align="center">
-              <HStack spacing={3}>
-                <Box
-                  p={2}
-                  borderRadius="lg"
-                  bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                  color="white"
+            <VStack spacing={3} align="stretch">
+              <HStack justify="space-between" align="center">
+                <HStack spacing={3}>
+                  <Box
+                    p={2}
+                    borderRadius="lg"
+                    bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                    color="white"
+                  >
+                    <Icon as={IoCart} boxSize={5} />
+                  </Box>
+                  <VStack align="start" spacing={0}>
+                    <Heading size="md" color="gray.700">
+                      ตะกร้าสินค้า
+                    </Heading>
+                    <Text fontSize="sm" color="gray.500">
+                      {cartItemCount || 0} รายการ
+                    </Text>
+                  </VStack>
+                </HStack>
+                <TouchButton
+                  variant="danger"
+                  size="sm"
+                  leftIcon={<IoTrash />}
+                  onClick={handleClearCart}
+                  isDisabled={!cart.items || cart.items.length === 0}
                 >
-                  <Icon as={IoCart} boxSize={5} />
-                </Box>
-                <VStack align="start" spacing={0}>
-                  <Heading size="md" color="gray.700">
-                    ตะกร้าสินค้า
-                  </Heading>
-                  <Text fontSize="sm" color="gray.500">
-                    {cartItemCount || 0} รายการ
-                  </Text>
-                </VStack>
+                  ล้างตะกร้า
+                </TouchButton>
               </HStack>
-              <TouchButton
-                variant="danger"
-                size="sm"
-                leftIcon={<IoTrash />}
-                onClick={handleClearCart}
-                isDisabled={!cart.items || cart.items.length === 0}
+
+              {/* Customer Lookup Button */}
+              <Button
+                leftIcon={<IoCall />}
+                colorScheme="purple"
+                variant={customerData?.customer ? "solid" : "outline"}
+                size="md"
+                onClick={onCustomerLookupOpen}
+                w="full"
               >
-                ล้างตะกร้า
-              </TouchButton>
-            </HStack>
+                {customerData?.customer ? (
+                  <HStack spacing={2} justify="space-between" w="full">
+                    <Text>👤 {customerData.customer.name}</Text>
+                    {customerData.membership && (
+                      <Badge colorScheme="purple" fontSize="xs">
+                        {customerData.membership.current_points} แต้ม
+                      </Badge>
+                    )}
+                  </HStack>
+                ) : (
+                  <Text>📞 ค้นหาลูกค้า (สะสมแต้ม)</Text>
+                )}
+              </Button>
+            </VStack>
           </POSCard>
+
+          {/* Points Preview */}
+          {customerData?.customer && cartTotal > 0 && (
+            <PointsPreview
+              orderTotal={cartTotal}
+              customerId={customerData.customer.id}
+              onPointsCalculated={handlePointsCalculated}
+            />
+          )}
 
           {/* Cart Items */}
           <Box flex="1" overflow="auto">
@@ -880,6 +911,13 @@ const SalesTerminal = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {/* Customer Lookup Modal */}
+      <CustomerLookup
+        isOpen={isCustomerLookupOpen}
+        onClose={onCustomerLookupClose}
+        onCustomerSelected={handleCustomerSelected}
+      />
 
       {/* Variant Selection Modal */}
       <Modal

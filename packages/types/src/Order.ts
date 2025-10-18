@@ -1,3 +1,6 @@
+// Import OrderCustomerType from Customer
+import type { OrderCustomerType } from "./Customer";
+
 // Enhanced Order types for B2B Wholesale CMS
 export interface Order {
   id: string;
@@ -12,6 +15,15 @@ export interface Order {
   shop_name?: string; // ชื่อร้านค้า
   shop_type?: ShopType;
   branch_name?: string; // สาขาของลูกค้า (ถ้ามี)
+
+  // Branch Information
+  branch_id?: string;
+  branch?: {
+    id: string;
+    name: string;
+    address?: string;
+    phone?: string;
+  };
 
   // Order Details
   subtotal: number;
@@ -81,11 +93,7 @@ export type PaymentStatus =
   | "overdue"
   | "refunded";
 export type DeliveryMethod = "pickup" | "delivery" | "express" | "scheduled";
-export type OrderCustomerType =
-  | "registered"
-  | "walk_in"
-  | "phone_order"
-  | "repeat_customer";
+// OrderCustomerType is imported from Customer.ts
 export type ShopType =
   | "convenience_store"
   | "grocery_store"

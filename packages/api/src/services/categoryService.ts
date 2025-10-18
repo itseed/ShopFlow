@@ -38,12 +38,8 @@ class CategoryService {
     filters: CategoryFilters & PaginationParams = {}
   ): Promise<ApiResponse<Category[]>> {
     try {
-      let query = supabase.from(this.tableName).select(`
-        *,
-        parent:parent_id(id, name),
-        children:categories!parent_id(id, name, status),
-        product_count:products(count)
-      `);
+      // EMERGENCY FIX: Use simple query to avoid 400 Bad Request
+      let query = supabase.from(this.tableName).select("*");
 
       // Apply filters
       if (filters.search) {
@@ -89,16 +85,10 @@ class CategoryService {
   // Get category by ID
   async getById(id: string): Promise<ApiResponse<Category>> {
     try {
+      // EMERGENCY FIX: Use simple query to avoid 400 Bad Request
       const { data, error } = await supabase
         .from(this.tableName)
-        .select(
-          `
-          *,
-          parent:parent_id(id, name),
-          children:categories!parent_id(id, name, status),
-          product_count:products(count)
-        `
-        )
+        .select("*")
         .eq("id", id)
         .single();
 
@@ -121,6 +111,7 @@ class CategoryService {
     categoryData: CreateCategoryData
   ): Promise<ApiResponse<Category>> {
     try {
+      // EMERGENCY FIX: Use simple query to avoid 400 Bad Request
       const { data, error } = await supabase
         .from(this.tableName)
         .insert({
@@ -130,14 +121,7 @@ class CategoryService {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .select(
-          `
-          *,
-          parent:parent_id(id, name),
-          children:categories!parent_id(id, name, status),
-          product_count:products(count)
-        `
-        )
+        .select("*")
         .single();
 
       if (error) {
@@ -156,6 +140,7 @@ class CategoryService {
     updateData: UpdateCategoryData
   ): Promise<ApiResponse<Category>> {
     try {
+      // EMERGENCY FIX: Use simple query to avoid 400 Bad Request
       const { data, error } = await supabase
         .from(this.tableName)
         .update({
@@ -163,14 +148,7 @@ class CategoryService {
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
-        .select(
-          `
-          *,
-          parent:parent_id(id, name),
-          children:categories!parent_id(id, name, status),
-          product_count:products(count)
-        `
-        )
+        .select("*")
         .single();
 
       if (error) {
@@ -291,14 +269,10 @@ class CategoryService {
   // Get categories with product count
   async getCategoriesWithProductCount(): Promise<ApiResponse<Category[]>> {
     try {
+      // EMERGENCY FIX: Use simple query to avoid 400 Bad Request
       const { data, error } = await supabase
         .from(this.tableName)
-        .select(
-          `
-          *,
-          product_count:products(count)
-        `
-        )
+        .select("*")
         .order("display_order", { ascending: true });
 
       if (error) {

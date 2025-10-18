@@ -7,6 +7,8 @@ export * from "./Customer";
 export * from "./Supplier";
 export * from "./Inventory";
 export * from "./Branch";
+export * from "./Dashboard";
+export * from "./LoyaltyProgram";
 
 // POS-specific types (excluding duplicates)
 export type {

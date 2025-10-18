@@ -84,16 +84,22 @@ function SalesReportPage() {
     groupBy: "day",
   });
 
-  // Use real data hooks
+  // Memoize filters to prevent infinite re-renders
+  const memoizedFilters = React.useMemo(
+    () => ({
+      ...filters,
+      branchId: selectedBranch === "all" ? undefined : selectedBranch,
+    }),
+    [filters, selectedBranch]
+  );
+
+  // Use real data hooks with enabled option to prevent immediate loading
   const {
     data: salesData = [],
     isLoading,
     error,
     refetch,
-  } = useSalesReports({
-    ...filters,
-    branchId: selectedBranch === "all" ? undefined : selectedBranch,
-  });
+  } = useSalesReports(memoizedFilters, { enabled: true });
 
   const exportMutation = useExportReport();
 

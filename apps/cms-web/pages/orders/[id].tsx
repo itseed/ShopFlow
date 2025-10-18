@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../_app";
 import Layout from "../../components/Layout";
@@ -65,65 +65,180 @@ import {
 } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
-// import { useOrder } from "../../lib/hooks/useDatabase";
+import { useOrder, useUpdateOrder } from "../../lib/hooks";
+import { Order, OrderStatus, PaymentStatus, CustomerType, OrderCustomerType, ShopType, DeliveryMethod, OrderPriority } from "@shopflow/types";
 
-// Mock order data (replace with real API call using orderService.getById)
-const mockOrder = {
-  id: "ORD-001",
-  order_number: "ORD-001",
-  total: 3500,
-  subtotal: 3200,
-  tax: 224,
-  discount: 0,
-  status: "completed",
-  payment_method: "cash",
-  payment_status: "paid",
-  created_at: "2024-01-18T14:20:00Z",
-  updated_at: "2024-01-18T14:45:00Z",
-  customer_name: "สมชาย ใจดี",
-  customer_phone: "089-123-4567",
-  customer_email: "somchai@example.com",
-  notes: "ขอใส่น้ำแข็งเพิ่ม",
-  branch: {
-    id: "branch-1",
-    name: "สาขาหลัก",
-    address: "123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร",
-    phone: "02-123-4567",
-  },
-  items: [
-    {
-      id: "item-1",
-      product_id: "prod-1",
-      product_name: "กาแฟอเมริกาโน",
-      quantity: 2,
-      unit_price: 65,
-      total_price: 130,
-      product: {
-        id: "prod-1",
-        name: "กาแฟอเมริกาโน",
-        sku: "COFFEE-AMR-001",
-        images: [
-          "https://images.unsplash.com/photo-1551030173-122aabc4489c?w=150&h=150&fit=crop&crop=center",
-        ],
-      },
-    },
-    {
-      id: "item-2",
-      product_id: "prod-2",
-      product_name: "เค้กช็อกโกแลต",
-      quantity: 1,
-      unit_price: 120,
-      total_price: 120,
-      product: {
-        id: "prod-2",
-        name: "เค้กช็อกโกแลต",
-        sku: "CAKE-CHO-001",
-        images: [
-          "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop&crop=center",
-        ],
-      },
-    },
-  ],
+const getStatusColor = (status: OrderStatus): string => {
+  switch (status) {
+    case "pending":
+      return "yellow";
+    case "confirmed":
+      return "blue";
+    case "processing":
+      return "purple";
+    case "ready":
+      return "cyan";
+    case "delivering":
+      return "orange";
+    case "completed":
+      return "green";
+    case "cancelled":
+      return "red";
+    case "refunded":
+      return "gray";
+    default:
+      return "gray";
+  }
+};
+
+const getStatusText = (status: OrderStatus): string => {
+  switch (status) {
+    case "pending":
+      return "รอยืนยัน";
+    case "confirmed":
+      return "ยืนยันแล้ว";
+    case "processing":
+      return "กำลังจัดเตรียม";
+    case "ready":
+      return "พร้อมส่ง";
+    case "delivering":
+      return "กำลังจัดส่ง";
+    case "completed":
+      return "สำเร็จ";
+    case "cancelled":
+      return "ยกเลิก";
+    case "refunded":
+      return "คืนเงิน";
+    default:
+      return status;
+  }
+};
+
+const getPriorityColor = (priority: OrderPriority): string => {
+  switch (priority) {
+    case "low":
+      return "gray";
+    case "normal":
+      return "blue";
+    case "high":
+      return "orange";
+    case "urgent":
+      return "red";
+    default:
+      return "gray";
+  }
+};
+
+const getPriorityText = (priority: OrderPriority): string => {
+  switch (priority) {
+    case "low":
+      return "ต่ำ";
+    case "normal":
+      return "ปกติ";
+    case "high":
+      return "สูง";
+    case "urgent":
+      return "ด่วน";
+    default:
+      return priority;
+  }
+};
+
+const getPaymentStatusColor = (status: PaymentStatus): string => {
+  switch (status) {
+    case "pending":
+      return "yellow";
+    case "paid":
+      return "green";
+    case "partial":
+      return "orange";
+    case "overdue":
+      return "red";
+    case "refunded":
+      return "gray";
+    default:
+      return "gray";
+  }
+};
+
+const getPaymentStatusText = (status: PaymentStatus): string => {
+  switch (status) {
+    case "pending":
+      return "รอชำระ";
+    case "paid":
+      return "ชำระแล้ว";
+    case "partial":
+      return "ชำระบางส่วน";
+    case "overdue":
+      return "เกินกำหนด";
+    case "refunded":
+      return "คืนเงิน";
+    default:
+      return status;
+  }
+};
+
+const getCustomerTypeText = (type: OrderCustomerType | CustomerType): string => {
+  switch (type) {
+    case "registered":
+      return "ลูกค้าประจำ";
+    case "walk_in":
+      return "ลูกค้าหน้าร้าน";
+    case "phone_order":
+      return "สั่งทางโทรศัพท์";
+    case "repeat_customer":
+      return "ลูกค้าเก่า";
+    case "individual":
+      return "บุคคลทั่วไป";
+    case "business":
+      return "ธุรกิจ";
+    case "regular":
+      return "ลูกค้าทั่วไป";
+    case "vip":
+      return "VIP";
+    case "wholesale":
+      return "ขายส่ง";
+    default:
+      return type;
+  }
+};
+
+const getShopTypeText = (type: ShopType): string => {
+  switch (type) {
+    case "convenience_store":
+      return "ร้านสะดวกซื้อ";
+    case "grocery_store":
+      return "ร้านชำ";
+    case "mini_mart":
+      return "มินิมาร์ท";
+    case "supermarket":
+      return "ซูเปอร์มาร์เก็ต";
+    case "restaurant":
+      return "ร้านอาหาร";
+    case "other":
+      return "อื่นๆ";
+    default:
+      return type;
+  }
+};
+
+const getPaymentMethodText = (method: string): string => {
+  switch (method) {
+    case "cash":
+      return "เงินสด";
+    case "card":
+      return "บัตรเครดิต/เดบิต";
+    case "bank_transfer":
+      return "โอนเงิน";
+    case "e_wallet":
+      return "กระเป๋าเงินอิเล็กทรอนิกส์";
+    case "credit":
+      return "เครดิต";
+    case "cheque":
+      return "เช็ค";
+    default:
+      return method;
+  }
 };
 
 const OrderDetailPage: NextPageWithLayout = () => {
@@ -131,11 +246,11 @@ const OrderDetailPage: NextPageWithLayout = () => {
   const { id } = router.query;
   const toast = useToast();
 
-  // Use real API call when ready - replace mock data
-  // const { data: orderFromAPI, isLoading, error } = useOrder(id as string);
-  const [order] = useState(mockOrder); // Replace with: const order = orderFromAPI || mockOrder;
+  const { data: order, isLoading, error } = useOrder(id as string);
+  const updateOrderMutation = useUpdateOrder();
+
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [newStatus, setNewStatus] = useState(order.status);
+  const [newStatus, setNewStatus] = useState<OrderStatus>(order?.status || "pending");
 
   const {
     isOpen: isStatusOpen,
@@ -143,11 +258,20 @@ const OrderDetailPage: NextPageWithLayout = () => {
     onClose: onStatusClose,
   } = useDisclosure();
 
+  useEffect(() => {
+    if (order) {
+      setNewStatus(order.status);
+    }
+  }, [order]);
+
   const handleStatusUpdate = async () => {
+    if (!order) return;
     setIsUpdatingStatus(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsUpdatingStatus(false);
+    try {
+      await updateOrderMutation.mutateAsync({
+        id: order.id,
+        data: { status: newStatus },
+      });
       onStatusClose();
       toast({
         title: "สำเร็จ",
@@ -156,51 +280,16 @@ const OrderDetailPage: NextPageWithLayout = () => {
         duration: 3000,
         isClosable: true,
       });
-    }, 1000);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "green";
-      case "processing":
-        return "blue";
-      case "pending":
-        return "orange";
-      case "cancelled":
-        return "red";
-      default:
-        return "gray";
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "สำเร็จ";
-      case "processing":
-        return "กำลังดำเนินการ";
-      case "pending":
-        return "รอดำเนินการ";
-      case "cancelled":
-        return "ยกเลิก";
-      default:
-        return status;
-    }
-  };
-
-  const getPaymentMethodText = (method: string) => {
-    switch (method) {
-      case "cash":
-        return "เงินสด";
-      case "credit_card":
-        return "บัตรเครดิต";
-      case "debit_card":
-        return "บัตรเดบิต";
-      case "digital_wallet":
-        return "กระเป๋าเงินดิจิทัล";
-      default:
-        return method;
+    } catch (err: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: err.message || "ไม่สามารถอัปเดตสถานะได้",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -208,11 +297,33 @@ const OrderDetailPage: NextPageWithLayout = () => {
     window.print();
   };
 
-  if (!order) {
+  if (isLoading) {
     return (
       <Box p={8} textAlign="center">
         <Spinner size="xl" />
         <Text mt={4}>กำลังโหลดข้อมูลออเดอร์...</Text>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={8} textAlign="center">
+        <Alert status="error">
+          <AlertIcon />
+          <Text>{(error as any).message}</Text>
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!order) {
+    return (
+      <Box p={8} textAlign="center">
+        <Alert status="warning">
+          <AlertIcon />
+          <Text>ไม่พบข้อมูลออเดอร์</Text>
+        </Alert>
       </Box>
     );
   }
@@ -274,11 +385,9 @@ const OrderDetailPage: NextPageWithLayout = () => {
               <HStack justify="space-between">
                 <Text fontWeight="semibold">สถานะการชำระเงิน:</Text>
                 <Badge
-                  colorScheme={
-                    order.payment_status === "paid" ? "green" : "red"
-                  }
+                  colorScheme={getPaymentStatusColor(order.payment_status)}
                 >
-                  {order.payment_status === "paid" ? "ชำระแล้ว" : "ยังไม่ชำระ"}
+                  {getPaymentStatusText(order.payment_status)}
                 </Badge>
               </HStack>
 
@@ -304,6 +413,56 @@ const OrderDetailPage: NextPageWithLayout = () => {
                 </Text>
               </HStack>
 
+              <HStack spacing={1}>
+                <FiPackage />
+                <Text fontWeight="semibold">ประเภทลูกค้า:</Text>
+                <Text>{getCustomerTypeText(order.customer_type)}</Text>
+              </HStack>
+
+              {order.shop_name && (
+                <HStack spacing={1}>
+                  <Text fontWeight="semibold">ชื่อร้านค้า:</Text>
+                  <Text>{order.shop_name}</Text>
+                </HStack>
+              )}
+
+              {order.shop_type && (
+                <HStack spacing={1}>
+                  <Text fontWeight="semibold">ประเภทร้านค้า:</Text>
+                  <Text>{getShopTypeText(order.shop_type)}</Text>
+                </HStack>
+              )}
+
+              {order.delivery_method && (
+                <HStack spacing={1}>
+                  <Text fontWeight="semibold">วิธีการจัดส่ง:</Text>
+                  <Text>{order.delivery_method}</Text>
+                </HStack>
+              )}
+
+              {order.delivery_date && (
+                <HStack spacing={1}>
+                  <Text fontWeight="semibold">วันที่จัดส่ง:</Text>
+                  <Text>{new Date(order.delivery_date).toLocaleDateString("th-TH")}</Text>
+                </HStack>
+              )}
+
+              {order.priority && (
+                <HStack spacing={1}>
+                  <Text fontWeight="semibold">ความสำคัญ:</Text>
+                  <Badge colorScheme={getPriorityColor(order.priority)}>
+                    {getPriorityText(order.priority)}
+                  </Badge>
+                </HStack>
+              )}
+
+              {order.sales_rep && (
+                <HStack spacing={1}>
+                  <Text fontWeight="semibold">พนักงานขาย:</Text>
+                  <Text>{order.sales_rep}</Text>
+                </HStack>
+              )}
+
               {order.notes && (
                 <>
                   <Divider />
@@ -311,6 +470,18 @@ const OrderDetailPage: NextPageWithLayout = () => {
                     <Text fontWeight="semibold">หมายเหตุ:</Text>
                     <Text color="gray.600" fontSize="sm">
                       {order.notes}
+                    </Text>
+                  </VStack>
+                </>
+              )}
+
+              {order.internal_notes && (
+                <>
+                  <Divider />
+                  <VStack align="stretch" spacing={2}>
+                    <Text fontWeight="semibold">หมายเหตุภายใน:</Text>
+                    <Text color="red.600" fontSize="sm">
+                      {order.internal_notes}
                     </Text>
                   </VStack>
                 </>
@@ -352,12 +523,12 @@ const OrderDetailPage: NextPageWithLayout = () => {
                   <FiMapPin />
                   <Text fontWeight="semibold">สาขา:</Text>
                 </HStack>
-                <Text fontWeight="medium">{order.branch.name}</Text>
+                <Text fontWeight="medium">{order.branch?.name}</Text>
                 <Text fontSize="sm" color="gray.600">
-                  {order.branch.address}
+                  {order.branch?.address}
                 </Text>
                 <Text fontSize="sm" color="gray.600">
-                  โทร: {order.branch.phone}
+                  โทร: {order.branch?.phone}
                 </Text>
               </VStack>
             </VStack>
@@ -435,10 +606,10 @@ const OrderDetailPage: NextPageWithLayout = () => {
               <Text>฿{order.tax.toLocaleString()}</Text>
             </HStack>
 
-            {order.discount > 0 && (
+            {order.discount_amount > 0 && (
               <HStack justify="space-between" w={{ base: "100%", md: "300px" }}>
                 <Text>ส่วนลด:</Text>
-                <Text color="red.500">-฿{order.discount.toLocaleString()}</Text>
+                <Text color="red.500">-฿{order.discount_amount.toLocaleString()}</Text>
               </HStack>
             )}
 
@@ -478,12 +649,16 @@ const OrderDetailPage: NextPageWithLayout = () => {
                 <FormLabel>สถานะใหม่</FormLabel>
                 <Select
                   value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
+                  onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
                 >
                   <option value="pending">รอดำเนินการ</option>
-                  <option value="processing">กำลังดำเนินการ</option>
+                  <option value="confirmed">ยืนยันแล้ว</option>
+                  <option value="processing">กำลังจัดเตรียม</option>
+                  <option value="ready">พร้อมส่ง</option>
+                  <option value="delivering">กำลังจัดส่ง</option>
                   <option value="completed">สำเร็จ</option>
                   <option value="cancelled">ยกเลิก</option>
+                  <option value="refunded">คืนเงิน</option>
                 </Select>
               </FormControl>
             </VStack>

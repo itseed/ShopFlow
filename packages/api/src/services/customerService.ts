@@ -4,6 +4,7 @@ import {
   CustomerFormData,
   CustomerFilter,
   CustomerStats,
+  CustomerWithStats,
 } from "@shopflow/types";
 import {
   ApiResponse,
@@ -50,14 +51,6 @@ export interface UpdateCustomerData {
   isActive?: boolean;
 }
 
-// Customer with stats
-export interface CustomerWithStats extends Customer {
-  totalOrders: number;
-  totalSpent: number;
-  lastOrderDate?: string;
-  orderCount: number;
-}
-
 class CustomerService {
   private tableName = "customers";
 
@@ -79,7 +72,7 @@ class CustomerService {
         *,
         orders!inner(
           id,
-          total_amount,
+          total,
           created_at
         )
       `);
@@ -147,7 +140,7 @@ class CustomerService {
           const orders = customer.orders || [];
           const totalOrders = orders.length;
           const totalSpent = orders.reduce(
-            (sum: number, order: any) => sum + (order.total_amount || 0),
+            (sum: number, order: any) => sum + (order.total || 0),
             0
           );
           const lastOrderDate =
@@ -161,23 +154,25 @@ class CustomerService {
 
           return {
             id: customer.id,
-            customerNumber: customer.customer_number,
-            name: customer.name,
+            customer_code: customer.customer_number,
+            first_name: customer.name,
             phone: customer.phone,
             email: customer.email,
             address: customer.address,
-            dateOfBirth: customer.date_of_birth
-              ? new Date(customer.date_of_birth)
-              : undefined,
-            gender: customer.gender,
-            notes: customer.notes,
-            isActive: customer.is_active,
-            createdAt: new Date(customer.created_at),
-            updatedAt: new Date(customer.updated_at),
-            totalOrders,
-            totalSpent,
-            lastOrderDate,
-            orderCount: totalOrders,
+            country: "Thailand", // Default value
+            customer_type: "individual", // Default value
+            status: customer.is_active ? "active" : "inactive",
+            credit_limit: 0, // Default value
+            current_balance: 0, // Default value
+            total_orders: totalOrders,
+            total_spent: totalSpent,
+            last_order_date: lastOrderDate,
+            loyalty_points: 0, // Default value
+            created_at: customer.created_at,
+            updated_at: customer.updated_at,
+            order_count: totalOrders,
+            last_order_amount: 0, // Default value
+            avg_order_value: totalOrders > 0 ? totalSpent / totalOrders : 0,
           };
         }
       );
@@ -198,7 +193,7 @@ class CustomerService {
           *,
           orders(
             id,
-            total_amount,
+            total,
             created_at,
             status
           )
@@ -219,7 +214,7 @@ class CustomerService {
       const orders = data.orders || [];
       const totalOrders = orders.length;
       const totalSpent = orders.reduce(
-        (sum: number, order: any) => sum + (order.total_amount || 0),
+        (sum: number, order: any) => sum + (order.total || 0),
         0
       );
       const lastOrderDate =
@@ -233,23 +228,25 @@ class CustomerService {
 
       const customerWithStats: CustomerWithStats = {
         id: data.id,
-        customerNumber: data.customer_number,
-        name: data.name,
+        customer_code: data.customer_number,
+        first_name: data.name,
         phone: data.phone,
         email: data.email,
         address: data.address,
-        dateOfBirth: data.date_of_birth
-          ? new Date(data.date_of_birth)
-          : undefined,
-        gender: data.gender,
-        notes: data.notes,
-        isActive: data.is_active,
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
-        totalOrders,
-        totalSpent,
-        lastOrderDate,
-        orderCount: totalOrders,
+        country: "Thailand", // Default value
+        customer_type: "individual", // Default value
+        status: data.is_active ? "active" : "inactive",
+        credit_limit: 0, // Default value
+        current_balance: 0, // Default value
+        total_orders: totalOrders,
+        total_spent: totalSpent,
+        last_order_date: lastOrderDate,
+        loyalty_points: 0, // Default value
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        order_count: totalOrders,
+        last_order_amount: 0, // Default value
+        avg_order_value: totalOrders > 0 ? totalSpent / totalOrders : 0,
       };
 
       return createSuccessResponse(customerWithStats);
@@ -289,19 +286,21 @@ class CustomerService {
 
       const customer: Customer = {
         id: data.id,
-        customerNumber: data.customer_number,
-        name: data.name,
+        customer_code: data.customer_number,
+        first_name: data.name,
         phone: data.phone,
         email: data.email,
         address: data.address,
-        dateOfBirth: data.date_of_birth
-          ? new Date(data.date_of_birth)
-          : undefined,
-        gender: data.gender,
-        notes: data.notes,
-        isActive: data.is_active,
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
+        country: "Thailand", // Default value
+        customer_type: "individual", // Default value
+        status: data.is_active ? "active" : "inactive",
+        credit_limit: 0, // Default value
+        current_balance: 0, // Default value
+        total_orders: 0, // Default value
+        total_spent: 0, // Default value
+        loyalty_points: 0, // Default value
+        created_at: data.created_at,
+        updated_at: data.updated_at,
       };
 
       return createSuccessResponse(customer, "Customer created successfully");
@@ -343,19 +342,21 @@ class CustomerService {
 
       const customer: Customer = {
         id: data.id,
-        customerNumber: data.customer_number,
-        name: data.name,
+        customer_code: data.customer_number,
+        first_name: data.name,
         phone: data.phone,
         email: data.email,
         address: data.address,
-        dateOfBirth: data.date_of_birth
-          ? new Date(data.date_of_birth)
-          : undefined,
-        gender: data.gender,
-        notes: data.notes,
-        isActive: data.is_active,
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
+        country: "Thailand", // Default value
+        customer_type: "individual", // Default value
+        status: data.is_active ? "active" : "inactive",
+        credit_limit: 0, // Default value
+        current_balance: 0, // Default value
+        total_orders: 0, // Default value
+        total_spent: 0, // Default value
+        loyalty_points: 0, // Default value
+        created_at: data.created_at,
+        updated_at: data.updated_at,
       };
 
       return createSuccessResponse(customer, "Customer updated successfully");
@@ -480,7 +481,7 @@ class CustomerService {
       // Get revenue statistics from orders
       const { data: orderStats, error: orderError } = await supabase
         .from("orders")
-        .select("total_amount")
+        .select("total")
         .eq("status", "completed");
 
       if (orderError) {
@@ -488,7 +489,7 @@ class CustomerService {
       }
 
       const totalRevenue = (orderStats || []).reduce(
-        (sum, order) => sum + (order.total_amount || 0),
+        (sum, order) => sum + (order.total || 0),
         0
       );
       const averageOrderValue =
@@ -497,10 +498,10 @@ class CustomerService {
           : 0;
 
       const stats = {
-        total: totalResult.data,
-        active: activeResult.data,
-        inactive: inactiveResult.data,
-        newThisMonth: newThisMonthResult.data,
+        total: totalResult.data || 0,
+        active: activeResult.data || 0,
+        inactive: inactiveResult.data || 0,
+        newThisMonth: newThisMonthResult.data || 0,
         totalRevenue,
         averageOrderValue,
       };
@@ -530,19 +531,21 @@ class CustomerService {
 
       const customers: Customer[] = (data || []).map((item) => ({
         id: item.id,
-        customerNumber: item.customer_number,
-        name: item.name,
+        customer_code: item.customer_number,
+        first_name: item.name,
         phone: item.phone,
         email: item.email,
         address: item.address,
-        dateOfBirth: item.date_of_birth
-          ? new Date(item.date_of_birth)
-          : undefined,
-        gender: item.gender,
-        notes: item.notes,
-        isActive: item.is_active,
-        createdAt: new Date(item.created_at),
-        updatedAt: new Date(item.updated_at),
+        country: "Thailand", // Default value
+        customer_type: "individual", // Default value
+        status: item.is_active ? "active" : "inactive",
+        credit_limit: 0, // Default value
+        current_balance: 0, // Default value
+        total_orders: 0, // Default value
+        total_spent: 0, // Default value
+        loyalty_points: 0, // Default value
+        created_at: item.created_at,
+        updated_at: item.updated_at,
       }));
 
       return createSuccessResponse(customers);

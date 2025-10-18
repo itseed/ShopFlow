@@ -74,13 +74,13 @@ export default async function handler(
       timestamp: new Date().toISOString(),
       results: testResults,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Mock database test error:", error);
 
     res.status(500).json({
       success: false,
       message: "Mock test failed",
-      error: error.message,
+      error: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }

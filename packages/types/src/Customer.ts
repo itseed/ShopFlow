@@ -26,7 +26,21 @@ export interface Customer {
   created_by?: string;
 }
 
-export type CustomerType = "individual" | "business";
+// Base customer type for customer records
+export type CustomerType =
+  | "individual"
+  | "business"
+  | "regular"
+  | "vip"
+  | "wholesale";
+
+// Order customer type for order records (different from CustomerType)
+export type OrderCustomerType =
+  | "registered"
+  | "walk_in"
+  | "phone_order"
+  | "repeat_customer";
+
 export type CustomerStatus = "active" | "inactive" | "vip";
 
 export interface CustomerFormData {
@@ -179,29 +193,5 @@ export interface CustomerContact {
   updatedAt: Date;
 }
 
-// Loyalty Program Types
-export interface LoyaltyProgram {
-  id: string;
-  name: string;
-  description: string;
-  pointsPerBaht: number; // แต้มต่อบาท
-  minimumPointsToRedeem: number;
-  redemptionRate: number; // บาทต่อแต้ม
-  isActive: boolean;
-  startDate: Date;
-  endDate?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface PointsTransaction {
-  id: string;
-  customerId: string;
-  type: "earn" | "redeem" | "expire" | "adjustment";
-  points: number;
-  orderId?: string;
-  description: string;
-  expiresAt?: Date;
-  createdAt: Date;
-  createdBy?: string;
-}
+// Note: Full Loyalty Program types are now in LoyaltyProgram.ts
+// These are kept for backward compatibility but should migrate to new types

@@ -86,12 +86,12 @@ export default async function handler(
         expires_at: data.session?.expires_at,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API auth error:", error);
     res.status(500).json({
       success: false,
       message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
-      error: error.message,
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

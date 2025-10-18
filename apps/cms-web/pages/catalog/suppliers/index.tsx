@@ -5,9 +5,9 @@ import Layout from "../../../components/Layout";
 import { withAuth } from "../../../lib/auth";
 import {
   useSuppliers,
-  useSupplierStats,
   useCreateSupplier,
   useUpdateSupplier,
+  useDeleteSupplier,
 } from "../../../lib/hooks/useSuppliers";
 import {
   Box,
@@ -84,6 +84,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { CreateSupplierData, UpdateSupplierData } from "@shopflow/api";
+import type { Supplier } from "@shopflow/types";
 
 const SupplierManagementPage: NextPageWithLayout = () => {
   const toast = useToast();
@@ -91,7 +92,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
   const [statusFilter, setStatusFilter] = useState<
     "active" | "inactive" | "suspended" | ""
   >("");
-  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<
     CreateSupplierData & UpdateSupplierData
@@ -124,17 +125,17 @@ const SupplierManagementPage: NextPageWithLayout = () => {
   } = useDisclosure();
 
   // API hooks
-  const { suppliers, loading, error, refetch } = useSuppliers({
+  const { data: suppliers = [], isLoading: loading, error, refetch } = useSuppliers({
     status: statusFilter || undefined,
     search: searchTerm || undefined,
   });
-  const { stats, loading: statsLoading } = useSupplierStats();
-  const { createSupplier, isCreating } = useCreateSupplier();
-  const { updateSupplier, isUpdating } = useUpdateSupplier();
+  const createSupplierMutation = useCreateSupplier();
+  const updateSupplierMutation = useUpdateSupplier();
+  const deleteSupplierMutation = useDeleteSupplier();
 
   // Filter suppliers
   const filteredSuppliers = useMemo(() => {
-    return (suppliers || []).filter((supplier) => {
+    return (suppliers || []).filter((supplier: Supplier) => {
       const matchesSearch =
         !searchTerm ||
         supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -202,7 +203,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
   const handleSaveSupplier = async () => {
     try {
       if (isEditing && selectedSupplier) {
-        await updateSupplier({
+        await updateSupplierMutation.mutateAsync({
           id: selectedSupplier.id,
           data: formData,
         });
@@ -213,7 +214,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
           isClosable: true,
         });
       } else {
-        await createSupplier(formData);
+        await createSupplierMutation.mutateAsync(formData);
         toast({
           title: "เพิ่มซัพพลายเออร์ใหม่สำเร็จ",
           status: "success",
@@ -267,7 +268,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
       {error && (
         <Alert status="error" mb={4}>
           <AlertIcon />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
         </Alert>
       )}
 
@@ -300,7 +301,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
                     ซัพพลายเออร์ทั้งหมด
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold">
-                    {statsLoading ? <Spinner size="sm" /> : stats.total}
+                    {loading ? <Spinner size="sm" /> : suppliers.length}
                   </Text>
                 </Box>
                 <Icon as={FiUsers} boxSize={8} color="blue.500" />
@@ -316,7 +317,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
                     ใช้งาน
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold" color="green.500">
-                    {statsLoading ? <Spinner size="sm" /> : stats.active}
+                    {loading ? <Spinner size="sm" /> : suppliers.filter(s => s.status === 'active').length}
                   </Text>
                 </Box>
                 <Icon as={FiCheck} boxSize={8} color="green.500" />
@@ -332,10 +333,10 @@ const SupplierManagementPage: NextPageWithLayout = () => {
                     ระงับ/ไม่ใช้งาน
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold" color="red.500">
-                    {statsLoading ? (
+                    {loading ? (
                       <Spinner size="sm" />
                     ) : (
-                      stats.inactive + stats.suspended
+                      suppliers.filter(s => s.status === 'inactive' || s.status === 'suspended').length
                     )}
                   </Text>
                 </Box>
@@ -352,10 +353,10 @@ const SupplierManagementPage: NextPageWithLayout = () => {
                     คะแนนเฉลี่ย
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold">
-                    {statsLoading ? (
+                    {loading ? (
                       <Spinner size="sm" />
                     ) : (
-                      `${stats.avgRating}/5`
+                      `${(suppliers.reduce((sum, s) => sum + (s.rating || 0), 0) / suppliers.length || 0).toFixed(1)}/5`
                     )}
                   </Text>
                 </Box>
@@ -385,7 +386,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
               placeholder="สถานะ"
               maxW="200px"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as "" | "active" | "inactive" | "suspended")}
             >
               <option value="active">ใช้งาน</option>
               <option value="inactive">ไม่ใช้งาน</option>
@@ -423,7 +424,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
                 </Tr>
               </Thead>
               <Tbody>
-                {filteredSuppliers.map((supplier) => (
+                {filteredSuppliers.map((supplier: Supplier) => (
                   <Tr key={supplier.id}>
                     <Td>
                       <VStack align="start" spacing={1}>
@@ -771,7 +772,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
               variant="ghost"
               mr={3}
               onClick={onFormClose}
-              isDisabled={isCreating || isUpdating}
+              isDisabled={createSupplierMutation.isPending || updateSupplierMutation.isPending}
             >
               ยกเลิก
             </Button>
@@ -779,7 +780,7 @@ const SupplierManagementPage: NextPageWithLayout = () => {
               colorScheme="blue"
               onClick={handleSaveSupplier}
               leftIcon={<FiSave />}
-              isLoading={isCreating || isUpdating}
+              isLoading={createSupplierMutation.isPending || updateSupplierMutation.isPending}
               loadingText="กำลังบันทึก..."
             >
               บันทึก

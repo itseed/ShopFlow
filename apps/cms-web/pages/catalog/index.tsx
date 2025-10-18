@@ -10,7 +10,7 @@ import {
   useLowStockProducts,
   useFeaturedProducts,
   useSuppliers,
-} from "../../lib/hooks/useDatabase";
+} from "../../lib/hooks";
 import {
   Box,
   VStack,
@@ -49,28 +49,24 @@ import {
 import Link from "next/link";
 
 const CatalogPage: NextPageWithLayout = () => {
-  // Real data from API
+  // Real data from API - Only fetch summary data, not full lists
   const { data: dashboardData, isLoading: dashboardLoading } =
     useDashboardSummary();
-  const { data: products = [], isLoading: productsLoading } = useProducts();
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories(
+  
+  // Fetch only essential data for stats
+  const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories(
     { status: "active" }
   );
   const { data: lowStockProducts = [], isLoading: lowStockLoading } =
     useLowStockProducts();
-  const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers({
-    status: "active",
-  });
-  const { data: featuredProducts = [], isLoading: featuredLoading } =
-    useFeaturedProducts(5);
-
-  // Calculate real stats from data
-  const totalProducts = products.length;
-  const totalCategories = categories.length;
-  const totalSuppliers = suppliers.length;
-  const outOfStockProducts = products.filter((p) => p.stock === 0).length;
+  
+  // Use dashboard data for stats instead of loading full products list
+  const totalProducts = dashboardData?.totalProducts || 0;
+  const totalCategories = categoriesData.length;
+  const totalSuppliers = (dashboardData as { totalSuppliers?: number })?.totalSuppliers || 0;
+  const outOfStockProducts = (dashboardData as { outOfStockProducts?: number })?.outOfStockProducts || 0;
   const lowStockCount = lowStockProducts.length;
-  const featuredCount = featuredProducts.length;
+  const featuredCount = (dashboardData as { featuredProducts?: number })?.featuredProducts || 0;
 
   const catalogStats = [
     {
@@ -127,11 +123,8 @@ const CatalogPage: NextPageWithLayout = () => {
 
   const loading =
     dashboardLoading ||
-    productsLoading ||
     categoriesLoading ||
-    lowStockLoading ||
-    suppliersLoading ||
-    featuredLoading;
+    lowStockLoading;
 
   const quickActions = [
     {

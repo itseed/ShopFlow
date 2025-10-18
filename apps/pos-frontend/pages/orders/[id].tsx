@@ -60,12 +60,16 @@ import {
   POSCard,
   LoadingSpinner,
 } from "../../components";
-import { SalesTransaction } from "@shopflow/types";
+import { Order, OrderStatus, PaymentStatus, CustomerType, ShopType, DeliveryMethod, OrderPriority } from "@shopflow/types";
 import { formatCurrency } from "../../lib/sales";
+import { useOrder } from "../../lib/hooks/useSale";
+import { orderService } from "@shopflow/api";
 
 interface RefundItem {
-  itemId: string;
+  id: string;
+  product_id: string;
   quantity: number;
+  unit_price: number;
   reason: string;
   amount: number;
 }
@@ -73,141 +77,126 @@ interface RefundItem {
 const OrderDetailsPage = () => {
   const router = useRouter();
   const { id } = router.query;
-  const [order, setOrder] = useState<SalesTransaction | null>(null);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+
+  const { data: order, isLoading, error } = useOrder(id as string);
+
   const [refundItems, setRefundItems] = useState<RefundItem[]>([]);
   const [refundReason, setRefundReason] = useState("");
   const [refundNotes, setRefundNotes] = useState("");
-  const toast = useToast();
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
   useEffect(() => {
-    if (id) {
-      loadOrderDetails();
+    if (order) {
+      // Initialize refund items based on order items
+      setRefundItems(order.items.map(item => ({
+        id: item.id,
+        product_id: item.product_id || "",
+        quantity: 0,
+        unit_price: item.unit_price,
+        reason: "",
+        amount: 0,
+      })));
     }
-  }, [id]);
+  }, [order]);
 
-  const loadOrderDetails = async () => {
-    setLoading(true);
+  const handleRefundToggle = (
+    itemId: string,
+    quantity: number,
+    maxQuantity: number
+  ) => {
+    setRefundItems((prev) => {
+      const existingIndex = prev.findIndex((item) => item.id === itemId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: Math.min(quantity, maxQuantity),
+          amount: updated[existingIndex].unit_price * Math.min(quantity, maxQuantity),
+        };
+        return updated;
+      } else {
+        const item = order?.items.find((i) => i.id === itemId);
+        if (item) {
+          return [
+            ...prev,
+            {
+              id: itemId,
+              product_id: item.product_id || "",
+              quantity: Math.min(quantity, maxQuantity),
+              unit_price: item.unit_price,
+              reason: "",
+              amount: item.unit_price * Math.min(quantity, maxQuantity),
+            },
+          ];
+        }
+        return prev;
+      }
+    });
+  };
+
+  const handleRefundSubmit = async () => {
+    if (!order) return;
+
+    const itemsToRefund = refundItems.filter(item => item.quantity > 0);
+
+    if (itemsToRefund.length === 0) {
+      toast({
+        title: "กรุณาเลือกรายการที่ต้องการคืนเงิน",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (!refundReason) {
+      toast({
+        title: "กรุณาระบุเหตุผลในการคืนเงิน",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Assuming a user ID is available, e.g., from an auth context
+      const userId = "pos-user-id-placeholder"; // Replace with actual user ID
 
-      // Mock order data
-      const mockOrder: SalesTransaction = {
-        id: id as string,
-        transactionNumber: "TXN-2024-001",
-        cart: {
-          id: "cart_001",
-          items: [
-            {
-              id: "item_001",
-              product: {
-                id: "prod_001",
-                name: "กาแฟอเมริกาโน่",
-                description: "กาแฟอเมริกาโน่ เข้มข้น",
-                price: 45,
-                barcode: "1234567890001",
-                category: "เครื่องดื่ม",
-                stock: 50,
-                isActive: true,
-                taxRate: 0.07,
-                discountEligible: true,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-              quantity: 2,
-              unitPrice: 45,
-              discountAmount: 0,
-              discountPercentage: 0,
-              taxAmount: 6.3,
-              subtotal: 90,
-              total: 90,
-            },
-            {
-              id: "item_002",
-              product: {
-                id: "prod_002",
-                name: "ขนมปังโฮลวีท",
-                description: "ขนมปังโฮลวีท 100%",
-                price: 25,
-                barcode: "1234567890002",
-                category: "ขนมปัง",
-                stock: 30,
-                isActive: true,
-                taxRate: 0.07,
-                discountEligible: true,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-              quantity: 1,
-              unitPrice: 25,
-              discountAmount: 2.5,
-              discountPercentage: 10,
-              taxAmount: 1.75,
-              subtotal: 25,
-              total: 22.5,
-            },
-          ],
-          subtotal: 115,
-          discountAmount: 2.5,
-          taxAmount: 8.05,
-          total: 112.5,
-          itemCount: 3,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        payments: [
-          {
-            id: "pay_001",
-            type: "cash",
-            amount: 112.5,
-            received: 120,
-            change: 7.5,
-            status: "completed",
-            createdAt: new Date(),
-          },
-        ],
-        customer: {
-          id: "cust_001",
-          name: "คุณสมชาย ใจดี",
-          phone: "081-234-5678",
-          email: "somchai@example.com",
-        },
-        cashier: {
-          id: "cashier_001",
-          name: "พนักงานเก็บเงิน",
-          username: "cashier01",
-        },
-        branch: {
-          id: "branch_001",
-          name: "สาขาหลัก",
-        },
-        status: "completed",
-        receipt: {
-          printed: true,
-          emailSent: true,
-          receiptNumber: "R20241201001",
-        },
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        completedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        notes: "ลูกค้าขอให้กาแฟร้อนพิเศษ",
-      };
+      const response = await orderService.refundOrder(
+        order.id,
+        itemsToRefund,
+        refundReason,
+        refundNotes,
+        userId
+      );
 
-      setOrder(mockOrder);
-    } catch (error) {
+      if (response.success) {
+        toast({
+          title: "คืนเงินสำเร็จ",
+          description: `คืนเงินจำนวน ${formatCurrency(response.data?.total || 0)} เรียบร้อยแล้ว`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+        onClose();
+        // Optionally refetch order details to show updated status
+        // queryClient.invalidateQueries(['order', order.id]);
+      } else {
+        throw new Error(response.error || "ไม่สามารถดำเนินการคืนเงินได้");
+      }
+    } catch (error: any) {
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถโหลดรายละเอียดคำสั่งซื้อได้",
+        description: error.message || "ไม่สามารถดำเนินการคืนเงินได้",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -231,101 +220,7 @@ const OrderDetailsPage = () => {
     });
   };
 
-  const handleRefundToggle = (
-    itemId: string,
-    quantity: number,
-    maxQuantity: number
-  ) => {
-    setRefundItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.itemId === itemId);
-      if (existingIndex >= 0) {
-        // Update existing refund item
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: Math.min(quantity, maxQuantity),
-        };
-        return updated;
-      } else {
-        // Add new refund item
-        const item = order?.cart.items.find((i) => i.id === itemId);
-        if (item) {
-          return [
-            ...prev,
-            {
-              itemId,
-              quantity: Math.min(quantity, maxQuantity),
-              reason: "",
-              amount: item.unitPrice * Math.min(quantity, maxQuantity),
-            },
-          ];
-        }
-        return prev;
-      }
-    });
-  };
-
-  const handleRefundSubmit = async () => {
-    if (refundItems.length === 0) {
-      toast({
-        title: "กรุณาเลือกรายการที่ต้องการคืนเงิน",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    if (!refundReason) {
-      toast({
-        title: "กรุณาระบุเหตุผลในการคืนเงิน",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    try {
-      // Simulate refund processing
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const totalRefund = refundItems.reduce(
-        (sum, item) => sum + item.amount,
-        0
-      );
-
-      toast({
-        title: "คืนเงินสำเร็จ",
-        description: `คืนเงินจำนวน ${formatCurrency(
-          totalRefund
-        )} เรียบร้อยแล้ว`,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-
-      onClose();
-      setRefundItems([]);
-      setRefundReason("");
-      setRefundNotes("");
-
-      // Update order status
-      if (order) {
-        setOrder((prev) => (prev ? { ...prev, status: "refunded" } : null));
-      }
-    } catch (error) {
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดำเนินการคืนเงินได้",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case "completed":
         return "green";
@@ -340,7 +235,7 @@ const OrderDetailsPage = () => {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: OrderStatus) => {
     switch (status) {
       case "completed":
         return "สำเร็จ";
@@ -355,21 +250,27 @@ const OrderDetailsPage = () => {
     }
   };
 
-  const getPaymentMethodText = (payment: any) => {
-    switch (payment.type) {
+  const getPaymentMethodText = (paymentMethod: string) => {
+    switch (paymentMethod) {
       case "cash":
         return "เงินสด";
       case "card":
         return "บัตรเครดิต/เดบิต";
       case "digital":
         return "ชำระดิจิทัล";
+      case "bank_transfer":
+        return "โอนเงิน";
+      case "e_wallet":
+        return "E-wallet";
+      case "credit":
+        return "เครดิต";
       default:
-        return payment.type;
+        return paymentMethod;
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleString("th-TH", {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("th-TH", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -378,11 +279,24 @@ const OrderDetailsPage = () => {
     });
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <POSLayout title="รายละเอียดคำสั่งซื้อ">
         <Box py={10}>
           <LoadingSpinner />
+        </Box>
+      </POSLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <POSLayout title="รายละเอียดคำสั่งซื้อ">
+        <Box textAlign="center" py={10}>
+          <Alert status="error">
+            <AlertIcon />
+            <Text>{(error as any).message}</Text>
+          </Alert>
         </Box>
       </POSLayout>
     );
@@ -415,7 +329,7 @@ const OrderDetailsPage = () => {
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrentPage>
-            <BreadcrumbLink>{order.transactionNumber}</BreadcrumbLink>
+            <BreadcrumbLink>{order.order_number}</BreadcrumbLink>
           </BreadcrumbItem>
         </Breadcrumb>
 
@@ -430,10 +344,10 @@ const OrderDetailsPage = () => {
             />
             <VStack align="start" spacing={0}>
               <Text fontSize="2xl" fontWeight="bold">
-                {order.transactionNumber}
+                {order.order_number}
               </Text>
               <Text fontSize="sm" color="gray.500">
-                {formatDate(order.createdAt)}
+                {formatDate(order.created_at)}
               </Text>
             </VStack>
             <Badge colorScheme={getStatusColor(order.status)} size="lg">
@@ -449,7 +363,7 @@ const OrderDetailsPage = () => {
             >
               พิมพ์ใบเสร็จ
             </Button>
-            {order.customer?.email && (
+            {order.customer_email && (
               <Button
                 leftIcon={<IoMail />}
                 variant="outline"
@@ -485,42 +399,34 @@ const OrderDetailsPage = () => {
                     เลขที่คำสั่ง:
                   </Text>
                   <Text fontSize="sm" fontWeight="medium">
-                    {order.transactionNumber}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    เลขที่ใบเสร็จ:
-                  </Text>
-                  <Text fontSize="sm" fontWeight="medium">
-                    {order.receipt?.receiptNumber}
+                    {order.order_number}
                   </Text>
                 </HStack>
                 <HStack justify="space-between">
                   <Text fontSize="sm" color="gray.600">
                     วันที่สร้าง:
                   </Text>
-                  <Text fontSize="sm">{formatDate(order.createdAt)}</Text>
+                  <Text fontSize="sm">{formatDate(order.created_at)}</Text>
                 </HStack>
-                {order.completedAt && (
+                {order.delivered_at && (
                   <HStack justify="space-between">
                     <Text fontSize="sm" color="gray.600">
                       วันที่เสร็จสิ้น:
                     </Text>
-                    <Text fontSize="sm">{formatDate(order.completedAt)}</Text>
+                    <Text fontSize="sm">{formatDate(order.delivered_at)}</Text>
                   </HStack>
                 )}
                 <HStack justify="space-between">
                   <Text fontSize="sm" color="gray.600">
                     พนักงาน:
                   </Text>
-                  <Text fontSize="sm">{order.cashier.name}</Text>
+                  <Text fontSize="sm">{order.cashier_id}</Text>
                 </HStack>
                 <HStack justify="space-between">
                   <Text fontSize="sm" color="gray.600">
                     สาขา:
                   </Text>
-                  <Text fontSize="sm">{order.branch.name}</Text>
+                  <Text fontSize="sm">{order.branch?.name}</Text>
                 </HStack>
                 {order.notes && (
                   <Box>
@@ -543,30 +449,30 @@ const OrderDetailsPage = () => {
               </Text>
             </CardHeader>
             <CardBody>
-              {order.customer ? (
+              {order.customer_name ? (
                 <VStack spacing={3} align="stretch">
                   <HStack justify="space-between">
                     <Text fontSize="sm" color="gray.600">
                       ชื่อ:
                     </Text>
                     <Text fontSize="sm" fontWeight="medium">
-                      {order.customer.name}
+                      {order.customer_name}
                     </Text>
                   </HStack>
-                  {order.customer.phone && (
+                  {order.customer_phone && (
                     <HStack justify="space-between">
                       <Text fontSize="sm" color="gray.600">
                         โทรศัพท์:
                       </Text>
-                      <Text fontSize="sm">{order.customer.phone}</Text>
+                      <Text fontSize="sm">{order.customer_phone}</Text>
                     </HStack>
                   )}
-                  {order.customer.email && (
+                  {order.customer_email && (
                     <HStack justify="space-between">
                       <Text fontSize="sm" color="gray.600">
                         อีเมล:
                       </Text>
-                      <Text fontSize="sm">{order.customer.email}</Text>
+                      <Text fontSize="sm">{order.customer_email}</Text>
                     </HStack>
                   )}
                 </VStack>
@@ -599,28 +505,28 @@ const OrderDetailsPage = () => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {order.cart.items.map((item) => (
+                  {order.items.map((item) => (
                     <Tr key={item.id}>
                       <Td>
                         <VStack align="start" spacing={1}>
-                          <Text fontWeight="medium">{item.product.name}</Text>
+                          <Text fontWeight="medium">{item.product_name}</Text>
                           <Text fontSize="xs" color="gray.500">
-                            {item.product.description}
+                            {item.product_description}
                           </Text>
                         </VStack>
                       </Td>
-                      <Td>{formatCurrency(item.unitPrice)}</Td>
+                      <Td>{formatCurrency(item.unit_price)}</Td>
                       <Td>{item.quantity}</Td>
                       <Td>
-                        {item.discountAmount > 0 ? (
+                        {item.discount_amount > 0 ? (
                           <Text color="red.500">
-                            -{formatCurrency(item.discountAmount)}
+                            -{formatCurrency(item.discount_amount)}
                           </Text>
                         ) : (
                           "-"
                         )}
                       </Td>
-                      <Td fontWeight="medium">{formatCurrency(item.total)}</Td>
+                      <Td fontWeight="medium">{formatCurrency(item.total_price)}</Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -644,16 +550,16 @@ const OrderDetailsPage = () => {
                     ยอดรวม:
                   </Text>
                   <Text fontSize="sm">
-                    {formatCurrency(order.cart.subtotal)}
+                    {formatCurrency(order.subtotal)}
                   </Text>
                 </HStack>
-                {order.cart.discountAmount > 0 && (
+                {order.discount_amount > 0 && (
                   <HStack justify="space-between">
                     <Text fontSize="sm" color="gray.600">
                       ส่วนลด:
                     </Text>
                     <Text fontSize="sm" color="red.500">
-                      -{formatCurrency(order.cart.discountAmount)}
+                      -{formatCurrency(order.discount_amount)}
                     </Text>
                   </HStack>
                 )}
@@ -662,7 +568,7 @@ const OrderDetailsPage = () => {
                     ภาษี:
                   </Text>
                   <Text fontSize="sm">
-                    {formatCurrency(order.cart.taxAmount)}
+                    {formatCurrency(order.tax)}
                   </Text>
                 </HStack>
                 <Divider />
@@ -671,7 +577,7 @@ const OrderDetailsPage = () => {
                     ยอดสุทธิ:
                   </Text>
                   <Text fontSize="md" fontWeight="bold">
-                    {formatCurrency(order.cart.total)}
+                    {formatCurrency(order.total)}
                   </Text>
                 </HStack>
               </VStack>
@@ -686,52 +592,22 @@ const OrderDetailsPage = () => {
             </CardHeader>
             <CardBody>
               <VStack spacing={3} align="stretch">
-                {order.payments.map((payment, index) => (
-                  <Box key={index}>
-                    <HStack justify="space-between" mb={2}>
-                      <Text fontSize="sm" color="gray.600">
-                        วิธีการ:
-                      </Text>
-                      <Text fontSize="sm">{getPaymentMethodText(payment)}</Text>
-                    </HStack>
-                    <HStack justify="space-between">
-                      <Text fontSize="sm" color="gray.600">
-                        จำนวน:
-                      </Text>
-                      <Text fontSize="sm" fontWeight="medium">
-                        {formatCurrency(payment.amount)}
-                      </Text>
-                    </HStack>
-                    {payment.type === "cash" && payment.received && (
-                      <>
-                        <HStack justify="space-between">
-                          <Text fontSize="sm" color="gray.600">
-                            เงินที่รับ:
-                          </Text>
-                          <Text fontSize="sm">
-                            {formatCurrency(payment.received)}
-                          </Text>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text fontSize="sm" color="gray.600">
-                            เงินทอน:
-                          </Text>
-                          <Text fontSize="sm">
-                            {formatCurrency(payment.change || 0)}
-                          </Text>
-                        </HStack>
-                      </>
-                    )}
-                    {payment.type === "card" && payment.cardLastFour && (
-                      <HStack justify="space-between">
-                        <Text fontSize="sm" color="gray.600">
-                          บัตรเลขที่:
-                        </Text>
-                        <Text fontSize="sm">****{payment.cardLastFour}</Text>
-                      </HStack>
-                    )}
-                  </Box>
-                ))}
+                {/* Assuming order.payments is an array of payment transactions */}
+                {/* This part needs actual data from payment_transactions table */}
+                <HStack justify="space-between" mb={2}>
+                  <Text fontSize="sm" color="gray.600">
+                    วิธีการ:
+                  </Text>
+                  <Text fontSize="sm">{getPaymentMethodText(order.payment_method)}</Text>
+                </HStack>
+                <HStack justify="space-between">
+                  <Text fontSize="sm" color="gray.600">
+                    สถานะ:
+                  </Text>
+                  <Text fontSize="sm">
+                    {getPaymentStatusText(order.payment_status)}
+                  </Text>
+                </HStack>
               </VStack>
             </CardBody>
           </Card>
@@ -772,7 +648,7 @@ const OrderDetailsPage = () => {
           <ModalHeader>
             <HStack>
               <IoWarning color="orange" />
-              <Text>คืนเงิน - {order.transactionNumber}</Text>
+              <Text>คืนเงิน - {order.order_number}</Text>
             </HStack>
           </ModalHeader>
           <ModalCloseButton />
@@ -818,15 +694,15 @@ const OrderDetailsPage = () => {
                   เลือกรายการที่ต้องการคืนเงิน:
                 </Text>
                 <VStack spacing={3} align="stretch">
-                  {order.cart.items.map((item) => (
+                  {order.items.map((item) => (
                     <Card key={item.id}>
                       <CardBody>
                         <HStack justify="space-between" align="start">
                           <VStack align="start" spacing={1}>
-                            <Text fontWeight="medium">{item.product.name}</Text>
+                            <Text fontWeight="medium">{item.product_name}</Text>
                             <Text fontSize="sm" color="gray.500">
-                              {formatCurrency(item.unitPrice)} x {item.quantity}{" "}
-                              = {formatCurrency(item.total)}
+                              {formatCurrency(item.unit_price)} x {item.quantity}{" "}
+                              = {formatCurrency(item.total_price)}
                             </Text>
                           </VStack>
                           <VStack align="end" spacing={2}>
@@ -865,16 +741,16 @@ const OrderDetailsPage = () => {
                     <CardBody>
                       <VStack spacing={2} align="stretch">
                         {refundItems.map((refundItem) => {
-                          const item = order.cart.items.find(
-                            (i) => i.id === refundItem.itemId
+                          const item = order.items.find(
+                            (i) => i.id === refundItem.id
                           );
                           return item ? (
                             <HStack
-                              key={refundItem.itemId}
+                              key={refundItem.id}
                               justify="space-between"
                             >
                               <Text fontSize="sm">
-                                {item.product.name} x {refundItem.quantity}
+                                {item.product_name} x {refundItem.quantity}
                               </Text>
                               <Text fontSize="sm" fontWeight="medium">
                                 {formatCurrency(refundItem.amount)}

@@ -7,30 +7,7 @@ import {
   createErrorResponse,
   handleSupabaseError,
 } from "../types/api";
-
-// Supplier interface based on enhanced database schema
-export interface Supplier {
-  id: string;
-  supplier_code: string | null;
-  name: string;
-  contact_person: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  postal_code: string | null;
-  country: string;
-  tax_id: string | null;
-  payment_terms: string | null;
-  credit_limit: number;
-  current_balance: number;
-  status: "active" | "inactive" | "suspended";
-  rating: number | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by: string | null;
-}
+import type { Supplier } from "@shopflow/types";
 
 // Supplier-specific filter types
 export interface SupplierFilters extends BaseFilters {
@@ -114,7 +91,7 @@ class SupplierService {
         if (filters.hasContact) {
           query = query.or("email.not.is.null,phone.not.is.null");
         } else {
-          query = query.and("email.is.null,phone.is.null");
+          query = query.or("email.is.null,phone.is.null");
         }
       }
 

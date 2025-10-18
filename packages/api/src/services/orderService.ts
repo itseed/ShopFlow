@@ -8,6 +8,8 @@ import {
   createErrorResponse,
   handleSupabaseError,
 } from "../types/api";
+import { stockMovementService } from "./stockMovementService";
+import { paymentTransactionService } from "./paymentTransactionService";
 
 // Order-specific filter types
 export interface OrderFilters extends BaseFilters {
@@ -128,14 +130,48 @@ export interface OrderStats {
 
 class OrderService {
   private tableName = "orders";
+  private requestCache = new Map<string, { timestamp: number; promise: Promise<any> }>();
+  private readonly CACHE_DURATION = 5000; // 5 seconds cache
+
+  // Request deduplication helper
+  private async deduplicateRequest<T>(
+    cacheKey: string,
+    requestFn: () => Promise<T>
+  ): Promise<T> {
+    const now = Date.now();
+    const cached = this.requestCache.get(cacheKey);
+
+    // Return cached promise if it's still valid
+    if (cached && (now - cached.timestamp) < this.CACHE_DURATION) {
+      return cached.promise;
+    }
+
+    // Create new request and cache it
+    const promise = requestFn();
+    this.requestCache.set(cacheKey, { timestamp: now, promise });
+
+    // Clean up cache after request completes
+    promise.finally(() => {
+      setTimeout(() => {
+        this.requestCache.delete(cacheKey);
+      }, this.CACHE_DURATION);
+    });
+
+    return promise;
+  }
   private itemsTableName = "order_items";
+  private statsViewName = "daily_sales_summary";
 
   // Get all orders with filters and pagination
   async getAll(
     filters: OrderFilters & PaginationParams = {}
   ): Promise<ApiResponse<Order[]>> {
     try {
-      let query = supabase.from(this.tableName).select(`
+      // Add caching key to prevent duplicate requests
+      const cacheKey = `orders-${JSON.stringify(filters)}`;
+      
+      return this.deduplicateRequest(cacheKey, async () => {
+        let query = supabase.from(this.tableName).select(`
         *,
         customer:customers(id, customer_code, first_name, last_name, company_name, phone, email),
         branch:branches(id, name, address, phone),
@@ -231,10 +267,11 @@ class OrderService {
       const sortOrder = filters.sortOrder || "desc";
       query = query.order(sortBy, { ascending: sortOrder === "asc" });
 
-      // Apply pagination
-      if (filters.limit) {
-        const from = (filters.page || 0) * filters.limit;
-        const to = from + filters.limit - 1;
+        // Apply pagination - add strict default limit to prevent large queries
+        const limit = filters.limit || 100; // Reduced default limit
+      if (limit) {
+        const from = (filters.page || 0) * limit;
+        const to = from + limit - 1;
         query = query.range(from, to);
       }
 
@@ -361,6 +398,34 @@ class OrderService {
           await supabase.from(this.tableName).delete().eq("id", order.id);
           return createErrorResponse(handleSupabaseError(itemsError));
         }
+
+        // Create stock movements for each order item
+        for (const item of orderData.items) {
+          if (item.product_id) {
+            // Get current product stock to calculate before/after quantities
+            const { data: productData } = await supabase
+              .from("products")
+              .select("stock_quantity")
+              .eq("id", item.product_id)
+              .single();
+
+            const quantityBefore = productData?.stock_quantity || 0;
+            const quantityAfter = quantityBefore - item.quantity;
+
+            await stockMovementService.createStockMovement({
+              product_id: item.product_id,
+              movement_type: "sale",
+              quantity_change: -item.quantity,
+              quantity_before: quantityBefore,
+              quantity_after: quantityAfter,
+              reference_type: "order",
+              reference_id: order.id,
+              reference_number: order.order_number,
+              branch_id: order.branch_id,
+              created_by: order.cashier_id || order.sales_rep,
+            });
+          }
+        }
       }
 
       // Return the complete order with items
@@ -456,28 +521,36 @@ class OrderService {
   async updatePaymentStatus(
     id: string,
     paymentStatus: "pending" | "paid" | "partial" | "overdue" | "refunded",
+    paymentMethod: "cash" | "card" | "bank_transfer" | "e_wallet" | "credit",
+    amount: number,
+    userId: string,
     notes?: string
   ): Promise<ApiResponse<Order>> {
     try {
-      const updateData: any = {
-        payment_status: paymentStatus,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (notes) {
-        updateData.internal_notes = notes;
-      }
-
-      const { error } = await supabase
-        .from(this.tableName)
-        .update(updateData)
-        .eq("id", id);
+      const { data, error } = await supabase.rpc(
+        "update_order_payment_status",
+        {
+          order_id_param: id,
+          payment_status_param: paymentStatus,
+          payment_method_param: paymentMethod,
+          amount_param: amount,
+          user_id_param: userId,
+          notes_param: notes,
+        }
+      );
 
       if (error) {
         return createErrorResponse(handleSupabaseError(error));
       }
 
-      return await this.getById(id);
+      if (data.error) {
+        return createErrorResponse(data.error);
+      }
+
+      return createSuccessResponse(
+        data.order,
+        "Payment status updated successfully"
+      );
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }
@@ -572,71 +645,33 @@ class OrderService {
   // Get order statistics
   async getStats(branchId?: string): Promise<ApiResponse<OrderStats>> {
     try {
-      const today = new Date().toISOString().split("T")[0];
-
-      // Build base query
-      let baseQuery = supabase.from(this.tableName).select("*");
-      let todayQuery = supabase
-        .from(this.tableName)
-        .select("*")
-        .gte("created_at", today);
+      let query = supabase.from(this.statsViewName).select("*");
 
       if (branchId) {
-        baseQuery = baseQuery.eq("branch_id", branchId);
-        todayQuery = todayQuery.eq("branch_id", branchId);
+        query = query.eq("branch_id", branchId);
       }
 
-      // Get all orders and today's orders
-      const [allOrdersResponse, todayOrdersResponse] = await Promise.all([
-        baseQuery,
-        todayQuery,
-      ]);
+      const { data, error } = await query;
 
-      if (allOrdersResponse.error) {
-        return createErrorResponse(
-          handleSupabaseError(allOrdersResponse.error)
-        );
+      if (error) {
+        return createErrorResponse(handleSupabaseError(error));
       }
 
-      if (todayOrdersResponse.error) {
-        return createErrorResponse(
-          handleSupabaseError(todayOrdersResponse.error)
-        );
-      }
+      const today = new Date().toISOString().split("T")[0];
+      const todayStats = data?.find((d: any) => d.sale_date === today);
 
-      const allOrders = allOrdersResponse.data || [];
-      const todayOrders = todayOrdersResponse.data || [];
-
-      // Calculate statistics
-      const totalRevenue = allOrders.reduce(
-        (sum, order) => sum + order.total,
-        0
-      );
-      const todayRevenue = todayOrders.reduce(
-        (sum, order) => sum + order.total,
-        0
-      );
-      const averageOrderValue =
-        allOrders.length > 0 ? totalRevenue / allOrders.length : 0;
-
-      // Find most popular payment method
-      const paymentMethods = allOrders.reduce((acc, order) => {
-        acc[order.payment_method] = (acc[order.payment_method] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const topPaymentMethod =
-        Object.entries(paymentMethods).sort(
-          ([, a], [, b]) => (b as number) - (a as number)
-        )[0]?.[0] || "cash";
+      const totalOrders =
+        data?.reduce((sum: number, d: any) => sum + d.order_count, 0) || 0;
+      const totalRevenue =
+        data?.reduce((sum: number, d: any) => sum + d.total_sales, 0) || 0;
 
       const stats: OrderStats = {
-        totalOrders: allOrders.length,
-        todayOrders: todayOrders.length,
+        totalOrders,
+        todayOrders: todayStats?.order_count || 0,
         totalRevenue,
-        todayRevenue,
-        averageOrderValue,
-        topPaymentMethod,
+        todayRevenue: todayStats?.total_sales || 0,
+        averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+        topPaymentMethod: "cash", // This is not available in the view, so we hardcode it for now
       };
 
       return createSuccessResponse(stats);

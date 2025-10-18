@@ -1,25 +1,25 @@
 // Enhanced Supplier Types
 export interface Supplier {
   id: string;
-  supplier_code?: string;
+  supplier_code?: string | null; // Support both undefined and null
   name: string;
-  contact_person?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  postal_code?: string;
+  contact_person?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  postal_code?: string | null;
   country: string;
-  tax_id?: string;
-  payment_terms?: string;
+  tax_id?: string | null;
+  payment_terms?: string | null;
   credit_limit: number;
   current_balance: number;
   status: SupplierStatus;
-  rating?: number;
-  notes?: string;
+  rating?: number | null;
+  notes?: string | null;
   created_at: string;
   updated_at: string;
-  created_by?: string;
+  created_by?: string | null;
 }
 
 export type SupplierStatus = "active" | "inactive" | "suspended";

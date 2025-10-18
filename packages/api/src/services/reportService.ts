@@ -135,12 +135,45 @@ export interface ReportFilters {
 }
 
 class ReportService {
+  private requestCache = new Map<string, { timestamp: number; promise: Promise<any> }>();
+  private readonly CACHE_DURATION = 5000; // 5 seconds cache
+
+  // Request deduplication helper
+  private async deduplicateRequest<T>(
+    cacheKey: string,
+    requestFn: () => Promise<T>
+  ): Promise<T> {
+    const now = Date.now();
+    const cached = this.requestCache.get(cacheKey);
+
+    // Return cached promise if it's still valid
+    if (cached && (now - cached.timestamp) < this.CACHE_DURATION) {
+      return cached.promise;
+    }
+
+    // Create new request and cache it
+    const promise = requestFn();
+    this.requestCache.set(cacheKey, { timestamp: now, promise });
+
+    // Clean up cache after request completes
+    promise.finally(() => {
+      setTimeout(() => {
+        this.requestCache.delete(cacheKey);
+      }, this.CACHE_DURATION);
+    });
+
+    return promise;
+  }
   // Enhanced Sales Reports with new schema fields
   async getSalesReport(
     filters: ReportFilters = {}
   ): Promise<ApiResponse<SalesReport[]>> {
     try {
-      let query = supabase.from("orders").select(`
+      // Add caching key to prevent duplicate requests
+      const cacheKey = `sales-report-${JSON.stringify(filters)}`;
+
+      return this.deduplicateRequest(cacheKey, async () => {
+        let query = supabase.from("orders").select(`
           id,
           total,
           subtotal,
@@ -173,6 +206,10 @@ class ReportService {
       if (filters.branchId) {
         query = query.eq("branch_id", filters.branchId);
       }
+
+      // Add strict limit to prevent large queries
+      const limit = filters.limit || 100; // Reduced default limit
+      query = query.limit(limit);
 
       query = query.order("created_at", { ascending: true });
 
@@ -423,8 +460,12 @@ class ReportService {
           productData.set(productKey, {
             productName: item.product_name,
             sku: product?.sku,
-            category: product?.category?.name,
-            supplier: product?.supplier?.name,
+            category: Array.isArray(product?.category)
+              ? product?.category[0]?.name
+              : (product?.category as any)?.name,
+            supplier: Array.isArray(product?.supplier)
+              ? product?.supplier[0]?.name
+              : (product?.supplier as any)?.name,
             quantitySold: 0,
             revenue: 0,
             totalCost: 0,
@@ -816,6 +857,9 @@ class ReportService {
       topSellingProduct: string;
       salesGrowth: number;
       orderGrowth: number;
+      totalSuppliers?: number;
+      outOfStockProducts?: number;
+      featuredProducts?: number;
     }>
   > {
     try {
@@ -847,6 +891,9 @@ class ReportService {
         yesterdayOrders,
         products,
         lowStockProducts,
+        outOfStockProductsQuery,
+        featuredProductsQuery,
+        suppliersQuery,
         topProducts,
       ] = await Promise.all([
         todayOrdersQuery,
@@ -856,6 +903,15 @@ class ReportService {
           .from("products")
           .select("*", { count: "exact", head: true })
           .filter("stock", "lte", "min_stock"),
+        supabase
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("stock", 0),
+        supabase
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("is_featured", true),
+        supabase.from("suppliers").select("*", { count: "exact", head: true }),
         supabase
           .from("order_items")
           .select(
@@ -907,6 +963,9 @@ class ReportService {
         topSellingProduct,
         salesGrowth: Math.round(salesGrowth * 100) / 100,
         orderGrowth: Math.round(orderGrowth * 100) / 100,
+        totalSuppliers: suppliersQuery.count || 0,
+        outOfStockProducts: outOfStockProductsQuery.count || 0,
+        featuredProducts: featuredProductsQuery.count || 0,
       };
 
       return createSuccessResponse(summary);

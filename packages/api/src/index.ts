@@ -52,7 +52,6 @@ export {
   type CustomerFilters,
   type CreateCustomerData,
   type UpdateCustomerData,
-  type CustomerWithStats,
 } from "./services/customerService";
 export {
   supplierService,
@@ -84,6 +83,27 @@ export {
   type OrderItemRealtimeCallback,
   type InventoryRealtimeCallback,
 } from "./services/realtimeService";
+export {
+  loyaltyService,
+  type LoyaltyProgram,
+  type LoyaltyTier,
+  type CustomerLoyaltyMembership,
+  type PointsTransaction,
+  type CreateLoyaltyProgramData,
+  type UpdateLoyaltyProgramData,
+  type CreateLoyaltyTierData,
+  type UpdateLoyaltyTierData,
+  type CreateMembershipData,
+  type AddPointsRequest,
+  type RedeemPointsRequest,
+  type FindCustomerByPhoneRequest,
+  type FindCustomerByPhoneResponse,
+  type LoyaltyFilters,
+  type PointsTransactionFilters,
+  type POSCustomerLookup,
+  type POSPointsEarnPreview,
+  type POSPointsRedemptionOption,
+} from "./services/loyaltyService";
 
 // Re-export types from @shopflow/types for convenience
 export type {

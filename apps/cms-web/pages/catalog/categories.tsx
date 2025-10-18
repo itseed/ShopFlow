@@ -197,8 +197,8 @@ const CategoriesPage: NextPageWithLayout = () => {
       name: category.name,
       description: category.description || "",
       parent_id: category.parent_id || "",
-      display_order: category.display_order,
-      status: category.status,
+      display_order: category.display_order || 0,
+      status: category.status || "active",
       image: null,
     });
     onOpen();

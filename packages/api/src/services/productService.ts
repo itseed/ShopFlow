@@ -1,5 +1,5 @@
 import { supabase } from "../supabase";
-import { Product, ProductStatus } from "@shopflow/types";
+import { Product, ProductStatus, LowStockProduct } from "@shopflow/types";
 import {
   ApiResponse,
   BaseFilters,
@@ -8,6 +8,7 @@ import {
   createErrorResponse,
   handleSupabaseError,
 } from "../types/api";
+import { stockMovementService } from "./stockMovementService";
 
 // Product-specific filter types
 export interface ProductFilters extends BaseFilters {
@@ -57,21 +58,35 @@ export interface StockUpdateData {
   quantity: number;
   type: "set" | "add" | "subtract";
   reason?: string;
+  user_id: string;
+  reference_id?: string;
+  reference_number?: string;
+  branch_id?: string;
 }
 
 class ProductService {
   private tableName = "products";
+  private lowStockViewName = "low_stock_products";
 
   // Get all products with filters and pagination
   async getAll(
     filters: ProductFilters & PaginationParams = {}
-  ): Promise<ApiResponse<Product[]>> {
+  ): Promise<ApiResponse<Product[] | LowStockProduct[]>> {
     try {
-      let query = supabase.from(this.tableName).select(`
+      const from = filters.lowStock ? this.lowStockViewName : this.tableName;
+      let query;
+
+      if (filters.lowStock) {
+        query = supabase.from(from).select("*");
+      } else {
+        query = supabase.from(from).select(
+          `
         *,
         category:categories(id, name, description),
         supplier:suppliers(id, name, contact_person, email, phone)
-      `);
+      `
+        );
+      }
 
       // Apply filters
       if (filters.search) {
@@ -112,12 +127,6 @@ class ProductService {
         query = query.gt("stock", 0);
       }
 
-      if (filters.lowStock) {
-        // Get all products and filter client-side for low stock
-        // We'll post-process the results to filter stock <= min_stock
-        // This is a temporary solution - ideally use a database view
-      }
-
       // Apply sorting
       const sortBy = filters.sortBy || "created_at";
       const sortOrder = filters.sortOrder || "desc";
@@ -136,17 +145,7 @@ class ProductService {
         return createErrorResponse(handleSupabaseError(error));
       }
 
-      let products = data || [];
-
-      // Post-process for low stock filtering since PostgREST doesn't support column-to-column comparison
-      if (filters.lowStock) {
-        products = products.filter((product: any) => {
-          const minStock = product.min_stock || 5;
-          return product.stock <= minStock || product.stock === 0;
-        });
-      }
-
-      return createSuccessResponse(products);
+      return createSuccessResponse(data || []);
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }
@@ -271,64 +270,27 @@ class ProductService {
     stockData: StockUpdateData
   ): Promise<ApiResponse<Product>> {
     try {
-      // First get current stock
-      const { data: currentProduct, error: fetchError } = await supabase
-        .from(this.tableName)
-        .select("stock")
-        .eq("id", id)
-        .single();
-
-      if (fetchError) {
-        return createErrorResponse(handleSupabaseError(fetchError));
-      }
-
-      if (!currentProduct) {
-        return createErrorResponse("Product not found");
-      }
-
-      // Calculate new stock
-      let newStock: number;
-      switch (stockData.type) {
-        case "set":
-          newStock = stockData.quantity;
-          break;
-        case "add":
-          newStock = currentProduct.stock + stockData.quantity;
-          break;
-        case "subtract":
-          newStock = currentProduct.stock - stockData.quantity;
-          break;
-        default:
-          return createErrorResponse("Invalid stock update type");
-      }
-
-      // Ensure stock doesn't go negative
-      if (newStock < 0) {
-        return createErrorResponse("Stock quantity cannot be negative");
-      }
-
-      // Update stock
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .update({
-          stock: newStock,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select(
-          `
-          *,
-          category:categories(id, name, description),
-          supplier:suppliers(id, name, contact_person, email, phone)
-        `
-        )
-        .single();
+      const { data, error } = await supabase.rpc("update_stock", {
+        product_id_param: id,
+        quantity_change_param:
+          stockData.type === "subtract" ? -stockData.quantity : stockData.quantity,
+        movement_type_param: stockData.type,
+        reason_param: stockData.reason,
+        user_id_param: stockData.user_id,
+        reference_id_param: stockData.reference_id,
+        reference_number_param: stockData.reference_number,
+        branch_id_param: stockData.branch_id,
+      });
 
       if (error) {
         return createErrorResponse(handleSupabaseError(error));
       }
 
-      return createSuccessResponse(data, "Stock updated successfully");
+      if (data.error) {
+        return createErrorResponse(data.error);
+      }
+
+      return createSuccessResponse(data.product, "Stock updated successfully");
     } catch (error) {
       return createErrorResponse(handleSupabaseError(error));
     }
@@ -336,12 +298,14 @@ class ProductService {
 
   // Get products by category
   async getByCategory(categoryId: string): Promise<ApiResponse<Product[]>> {
-    return this.getAll({ categoryId });
+    return this.getAll({ categoryId }) as Promise<ApiResponse<Product[]>>;
   }
 
   // Get low stock products
-  async getLowStock(): Promise<ApiResponse<Product[]>> {
-    return this.getAll({ lowStock: true });
+  async getLowStock(): Promise<ApiResponse<LowStockProduct[]>> {
+    return this.getAll({ lowStock: true }) as Promise<
+      ApiResponse<LowStockProduct[]>
+    >;
   }
 
   // Search products by barcode
@@ -376,15 +340,13 @@ class ProductService {
   // Get count with filters
   async count(filters: ProductFilters = {}): Promise<ApiResponse<number>> {
     try {
-      // For low stock filter, we need to fetch data and count client-side
+      // For low stock filter, use the dedicated function
       if (filters.lowStock) {
-        const result = await this.getAll(filters);
-        if (!result.success) {
-          return createErrorResponse(
-            result.error || "Failed to fetch low stock products"
-          );
+        const { data, error } = await supabase.rpc("get_low_stock_count");
+        if (error) {
+          return createErrorResponse(handleSupabaseError(error));
         }
-        return createSuccessResponse(result.data?.length || 0);
+        return createSuccessResponse(data || 0);
       }
 
       // For other filters, use efficient count query
@@ -437,12 +399,12 @@ class ProductService {
 
   // Get products by supplier
   async getBySupplier(supplierId: string): Promise<ApiResponse<Product[]>> {
-    return this.getAll({ supplierId });
+    return this.getAll({ supplierId }) as Promise<ApiResponse<Product[]>>;
   }
 
   // Get featured products
   async getFeatured(limit?: number): Promise<ApiResponse<Product[]>> {
-    return this.getAll({ isFeatured: true, limit });
+    return this.getAll({ isFeatured: true }) as Promise<ApiResponse<Product[]>>;
   }
 
   // Get products by brand
@@ -450,7 +412,7 @@ class ProductService {
     brand: string,
     limit?: number
   ): Promise<ApiResponse<Product[]>> {
-    return this.getAll({ brand, limit });
+    return this.getAll({ brand, limit }) as Promise<ApiResponse<Product[]>>;
   }
 
   // Bulk update products

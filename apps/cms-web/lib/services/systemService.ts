@@ -116,11 +116,12 @@ class SystemService {
       // Create a test subscription to check realtime
       const subscription = supabase
         .channel("test-connection")
-        .on("system", () => {})
+        .on("broadcast", { event: "test" }, () => {})
         .subscribe();
 
       // Check if subscription is successful
-      if (subscription.state === "subscribed") {
+      // Use type assertion for subscription state
+      if ((subscription.state as string) === "SUBSCRIBED") {
         subscription.unsubscribe();
         return { connected: true };
       } else {

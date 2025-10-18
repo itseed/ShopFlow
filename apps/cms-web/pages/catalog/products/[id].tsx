@@ -43,7 +43,6 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
-  StatArrow,
   Divider,
   Image,
   useToast,
@@ -78,97 +77,34 @@ import {
 } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
-// import { useProduct } from "../../../lib/hooks/useDatabase";
-
-// Mock product data (replace with real API call using productService.getById)
-const mockProduct = {
-  id: "prod-1",
-  name: "กาแฟอเมริกาโน",
-  description:
-    "กาแฟอเมริกาโนคุณภาพพรีเมียม คั่วสดทุกวัน รสชาติเข้มข้น หอมกรุ่น เหมาะสำหรับผู้ที่ชื่นชอบรสกาแฟแท้",
-  sku: "COFFEE-AMR-001",
-  price: 65,
-  cost: 25,
-  stock: 150,
-  min_stock: 20,
-  status: "active",
-  images: [
-    "https://images.unsplash.com/photo-1551030173-122aabc4489c?w=400&h=400&fit=crop&crop=center",
-    "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop&crop=center",
-    "https://images.unsplash.com/photo-1510707577719-ae7c14805e76?w=400&h=400&fit=crop&crop=center",
-  ],
-  barcode: "1234567890123",
-  tags: ["กาแฟ", "เครื่องดื่มร้อน", "คาเฟอีน"],
-  category_id: "cat-1",
-  category: {
-    id: "cat-1",
-    name: "เครื่องดื่มร้อน",
-  },
-  created_at: "2024-01-01T00:00:00Z",
-  updated_at: "2024-01-15T10:30:00Z",
-};
-
-// Mock sales data
-const mockSalesData = [
-  { period: "วันนี้", quantity: 15, revenue: 975 },
-  { period: "เมื่อวาน", quantity: 18, revenue: 1170 },
-  { period: "สัปดาห์นี้", quantity: 89, revenue: 5785 },
-  { period: "สัปดาห์ที่แล้ว", quantity: 102, revenue: 6630 },
-  { period: "เดือนนี้", quantity: 342, revenue: 22230 },
-  { period: "เดือนที่แล้ว", quantity: 398, revenue: 25870 },
-];
-
-// Mock stock history
-const mockStockHistory = [
-  {
-    id: "1",
-    date: "2024-01-15",
-    type: "sale",
-    quantity: -5,
-    remaining: 150,
-    note: "ขายผ่านระบบ POS",
-  },
-  {
-    id: "2",
-    date: "2024-01-14",
-    type: "restock",
-    quantity: +50,
-    remaining: 155,
-    note: "เติมสต็อกจากคลัง",
-  },
-  {
-    id: "3",
-    date: "2024-01-13",
-    type: "adjustment",
-    quantity: -3,
-    remaining: 105,
-    note: "ปรับปรุงสต็อก - สินค้าเสียหาย",
-  },
-];
+import { useProduct, useUpdateProduct, useStockMovements } from "../../../lib/hooks";
+import { productService } from "@shopflow/api";
+import type { ProductStatus } from "@shopflow/types";
 
 const ProductDetailPage: NextPageWithLayout = () => {
   const router = useRouter();
   const { id } = router.query;
   const toast = useToast();
 
-  // Use real API call when ready - replace mock data
-  // const { data: productFromAPI, isLoading, error } = useProduct(id as string);
-  const [product, setProduct] = useState(mockProduct); // Replace with: const product = productFromAPI || mockProduct;
+  const { data: product, isLoading, error } = useProduct(id as string);
+  const { data: stockMovements = [], isLoading: stockMovementsLoading } = useStockMovements(id as string);
+  const updateProductMutation = useUpdateProduct();
+
   const [isEditing, setIsEditing] = useState(false);
   const [stockAdjustment, setStockAdjustment] = useState({
     quantity: 0,
     note: "",
   });
   const [editFormData, setEditFormData] = useState({
-    name: product.name,
-    description: product.description,
-    price: product.price,
-    cost: product.cost,
-    stock: product.stock,
-    min_stock: product.min_stock,
-    status: product.status,
-    barcode: product.barcode,
-    tags: product.tags.join(", "),
+    name: product?.name || "",
+    description: product?.description || "",
+    price: product?.price || 0,
+    cost_price: product?.cost_price || 0,
+    stock: product?.stock || 0,
+    min_stock: product?.min_stock || 0,
+    status: product?.status || "active",
+    barcode: product?.barcode || "",
+    tags: product?.tags?.join(", ") || "",
   });
 
   const {
@@ -183,39 +119,29 @@ const ProductDetailPage: NextPageWithLayout = () => {
   } = useDisclosure();
 
   const handleEditSave = async () => {
-    // Simulate API call
-    setTimeout(() => {
-      setProduct({
-        ...product,
+    if (!product) return;
+
+    await updateProductMutation.mutateAsync({
+      id: product.id,
+      data: {
         ...editFormData,
         tags: editFormData.tags.split(",").map((tag) => tag.trim()),
-      });
-      onEditClose();
-      toast({
-        title: "สำเร็จ",
-        description: "บันทึกข้อมูลสินค้าเรียบร้อยแล้ว",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    }, 1000);
+      },
+    });
+    onEditClose();
   };
 
   const handleStockAdjustment = async () => {
-    // Simulate API call
-    setTimeout(() => {
-      const newStock = product.stock + stockAdjustment.quantity;
-      setProduct({ ...product, stock: newStock });
-      setStockAdjustment({ quantity: 0, note: "" });
-      onStockClose();
-      toast({
-        title: "สำเร็จ",
-        description: "ปรับปรุงสต็อกเรียบร้อยแล้ว",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    }, 1000);
+    if (!product) return;
+
+    await productService.updateStock(product.id, {
+      quantity: stockAdjustment.quantity,
+      type: stockAdjustment.quantity > 0 ? "add" : "subtract",
+      reason: stockAdjustment.note,
+      user_id: "user-id-placeholder", // Replace with actual user ID
+    });
+    setStockAdjustment({ quantity: 0, note: "" });
+    onStockClose();
   };
 
   const getStatusColor = (status: string) => {
@@ -245,23 +171,46 @@ const ProductDetailPage: NextPageWithLayout = () => {
   };
 
   const getStockStatus = () => {
+    if (!product) return { color: "gray", text: "", icon: FiAlertTriangle };
     if (product.stock <= 0) return { color: "red", text: "หมด", icon: FiX };
-    if (product.stock <= product.min_stock)
+    if (product.stock <= (product.min_stock ?? 0))
       return { color: "yellow", text: "ใกล้หมด", icon: FiAlertTriangle };
     return { color: "green", text: "พอเพียง", icon: FiCheck };
   };
 
   const stockStatus = getStockStatus();
   const profitMargin =
-    product.price > 0
-      ? ((product.price - product.cost) / product.price) * 100
+    product && product.price > 0
+      ? ((product.price - (product.cost_price || 0)) / product.price) * 100
       : 0;
 
-  if (!product) {
+  if (isLoading) {
     return (
       <Box p={8} textAlign="center">
         <Spinner size="xl" />
         <Text mt={4}>กำลังโหลดข้อมูลสินค้า...</Text>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={8} textAlign="center">
+        <Alert status="error">
+          <AlertIcon />
+          <Text>{error instanceof Error ? error.message : "เกิดข้อผิดพลาด"}</Text>
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!product) {
+    return (
+      <Box p={8} textAlign="center">
+        <Alert status="warning">
+          <AlertIcon />
+          <Text>ไม่พบข้อมูลสินค้า</Text>
+        </Alert>
       </Box>
     );
   }
@@ -312,7 +261,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                 {/* Product Images */}
                 <VStack spacing={4}>
                   <Image
-                    src={product.images[0]}
+                    src={product.images?.[0]}
                     alt={product.name}
                     boxSize="200px"
                     objectFit="cover"
@@ -320,7 +269,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                     border="1px solid"
                     borderColor="gray.200"
                   />
-                  {product.images.length > 1 && (
+                  {product.images && product.images.length > 1 && (
                     <HStack spacing={2}>
                       {product.images.slice(1).map((image, index) => (
                         <Image
@@ -368,7 +317,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                       <Text fontWeight="semibold" color="gray.600">
                         หมวดหมู่:
                       </Text>
-                      <Text>{product.category.name}</Text>
+                      <Text>{product.category?.name}</Text>
                     </VStack>
                     <VStack align="start" spacing={1}>
                       <Text fontWeight="semibold" color="gray.600">
@@ -382,7 +331,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                       <Text fontWeight="semibold" color="gray.600">
                         ต้นทุน:
                       </Text>
-                      <Text>฿{product.cost.toLocaleString()}</Text>
+                      <Text>฿{product.cost_price?.toLocaleString()}</Text>
                     </VStack>
                   </SimpleGrid>
 
@@ -442,7 +391,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                   <StatNumber>{profitMargin.toFixed(1)}%</StatNumber>
                   <StatHelpText>
                     กำไรต่อหน่วย: ฿
-                    {(product.price - product.cost).toLocaleString()}
+                    {(product.price - (product.cost_price || 0)).toLocaleString()}
                   </StatHelpText>
                 </Stat>
 
@@ -453,14 +402,14 @@ const ProductDetailPage: NextPageWithLayout = () => {
                     วันที่สร้าง:
                   </Text>
                   <Text fontSize="sm">
-                    {new Date(product.created_at).toLocaleDateString("th-TH")}
+                    {new Date(product.created_at || "").toLocaleDateString("th-TH")}
                   </Text>
 
                   <Text fontWeight="semibold" color="gray.600">
                     อัปเดตล่าสุด:
                   </Text>
                   <Text fontSize="sm">
-                    {formatDistanceToNow(new Date(product.updated_at), {
+                    {formatDistanceToNow(new Date(product.updated_at || ""), {
                       addSuffix: true,
                       locale: th,
                     })}
@@ -476,92 +425,62 @@ const ProductDetailPage: NextPageWithLayout = () => {
       <Card>
         <Tabs>
           <TabList>
-            <Tab>สถิติการขาย</Tab>
             <Tab>ประวัติสต็อก</Tab>
           </TabList>
 
           <TabPanels>
             <TabPanel>
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-                {mockSalesData.map((data, index) => {
-                  const prevData = index > 0 ? mockSalesData[index - 1] : null;
-                  const quantityChange = prevData
-                    ? data.quantity - prevData.quantity
-                    : 0;
-                  const revenueChange = prevData
-                    ? data.revenue - prevData.revenue
-                    : 0;
-
-                  return (
-                    <Card key={index}>
-                      <CardBody>
-                        <Stat>
-                          <StatLabel>{data.period}</StatLabel>
-                          <StatNumber>{data.quantity} หน่วย</StatNumber>
-                          <StatHelpText>
-                            <StatArrow
-                              type={
-                                quantityChange >= 0 ? "increase" : "decrease"
-                              }
-                            />
-                            ฿{data.revenue.toLocaleString()}
-                          </StatHelpText>
-                        </Stat>
-                      </CardBody>
-                    </Card>
-                  );
-                })}
-              </SimpleGrid>
-            </TabPanel>
-
-            <TabPanel>
-              <Table variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th>วันที่</Th>
-                    <Th>ประเภท</Th>
-                    <Th isNumeric>เปลี่ยนแปลง</Th>
-                    <Th isNumeric>คงเหลือ</Th>
-                    <Th>หมายเหตุ</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {mockStockHistory.map((history) => (
-                    <Tr key={history.id}>
-                      <Td>
-                        {new Date(history.date).toLocaleDateString("th-TH")}
-                      </Td>
-                      <Td>
-                        <Badge
-                          colorScheme={
-                            history.type === "sale"
-                              ? "red"
-                              : history.type === "restock"
-                              ? "green"
-                              : "yellow"
-                          }
-                        >
-                          {history.type === "sale"
-                            ? "ขาย"
-                            : history.type === "restock"
-                            ? "เติมสต็อก"
-                            : "ปรับปรุง"}
-                        </Badge>
-                      </Td>
-                      <Td isNumeric>
-                        <Text
-                          color={history.quantity > 0 ? "green.500" : "red.500"}
-                        >
-                          {history.quantity > 0 ? "+" : ""}
-                          {history.quantity}
-                        </Text>
-                      </Td>
-                      <Td isNumeric>{history.remaining}</Td>
-                      <Td>{history.note}</Td>
+              {stockMovementsLoading ? (
+                <Flex justify="center" p={8}>
+                  <Spinner size="lg" />
+                </Flex>
+              ) : (
+                <Table variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th>วันที่</Th>
+                      <Th>ประเภท</Th>
+                      <Th isNumeric>เปลี่ยนแปลง</Th>
+                      <Th isNumeric>คงเหลือ</Th>
+                      <Th>หมายเหตุ</Th>
                     </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+                  </Thead>
+                  <Tbody>
+                    {stockMovements.map((history) => (
+                      <Tr key={history.id}>
+                        <Td>
+                          {new Date(history.created_at).toLocaleDateString(
+                            "th-TH"
+                          )}
+                        </Td>
+                        <Td>
+                          <Badge
+                            colorScheme={
+                              history.movement_type === "sale"
+                                ? "red"
+                                : history.movement_type === "purchase"
+                                ? "green"
+                                : "yellow"
+                            }
+                          >
+                            {history.movement_type}
+                          </Badge>
+                        </Td>
+                        <Td isNumeric>
+                          <Text
+                            color={history.quantity_change > 0 ? "green.500" : "red.500"}
+                          >
+                            {history.quantity_change > 0 ? "+" : ""}
+                            {history.quantity_change}
+                          </Text>
+                        </Td>
+                        <Td isNumeric>{history.quantity_after}</Td>
+                        <Td>{history.reason}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              )}
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -597,7 +516,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                     onChange={(e) =>
                       setEditFormData({
                         ...editFormData,
-                        status: e.target.value,
+                        status: e.target.value as ProductStatus,
                       })
                     }
                   >
@@ -646,11 +565,11 @@ const ProductDetailPage: NextPageWithLayout = () => {
                 <FormControl>
                   <FormLabel>ต้นทุน (฿)</FormLabel>
                   <NumberInput
-                    value={editFormData.cost}
+                    value={editFormData.cost_price}
                     onChange={(_, value) =>
                       setEditFormData({
                         ...editFormData,
-                        cost: value,
+                        cost_price: value,
                       })
                     }
                     min={0}

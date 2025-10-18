@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   VStack,
   HStack,
@@ -83,27 +83,45 @@ import {
   IoCheckmarkCircle,
 } from "react-icons/io5";
 import { POSLayout, TouchButton, POSCard } from "../../components";
-import { mockProducts } from "../../lib/sales";
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "../../lib/hooks/useSale";
+import { Product, ProductStatus } from "@shopflow/types";
 
 interface ProductFormData {
   name: string;
   description: string;
   price: number;
-  category: string;
+  category_id: string;
   stock: number;
   barcode: string;
-  isActive: boolean;
-  taxRate: number;
-  discountEligible: boolean;
+  status: ProductStatus;
+  cost_price: number;
+  short_description: string;
+  max_stock: number;
+  unit: string;
+  weight: number;
+  dimensions: { length: number; width: number; height: number };
+  supplier_id: string;
+  brand: string;
+  tags: string[];
+  is_featured: boolean;
+  is_trackable: boolean;
 }
 
 const ProductsPage = () => {
-  const [products, setProducts] = useState(mockProducts);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
+  const { data: products = [], isLoading, error, refetch } = useProducts({
+    search: search,
+    categoryId: filter === "all" ? undefined : filter,
+  });
+
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+
   const { isOpen: isAddProductOpen, onOpen: onAddProductOpen, onClose: onAddProductClose } = useDisclosure();
   const { isOpen: isEditProductOpen, onOpen: onEditProductOpen, onClose: onEditProductClose } = useDisclosure();
   const { isOpen: isViewProductOpen, onOpen: onViewProductOpen, onClose: onViewProductClose } = useDisclosure();
@@ -112,12 +130,21 @@ const ProductsPage = () => {
     name: "",
     description: "",
     price: 0,
-    category: "",
+    category_id: "",
     stock: 0,
     barcode: "",
-    isActive: true,
-    taxRate: 7,
-    discountEligible: true,
+    status: "active",
+    cost_price: 0,
+    short_description: "",
+    max_stock: 0,
+    unit: "",
+    weight: 0,
+    dimensions: { length: 0, width: 0, height: 0 },
+    supplier_id: "",
+    brand: "",
+    tags: [],
+    is_featured: false,
+    is_trackable: true,
   });
   
   const toast = useToast();
@@ -130,19 +157,15 @@ const ProductsPage = () => {
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
-  const categories = ["Beverages", "Bakery", "Dairy", "Snacks", "Drinks"];
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(search.toLowerCase()) &&
-    (filter === "all" || product.category === filter)
-  );
-
+  const categories = ["Beverages", "Bakery", "Dairy", "Snacks", "Drinks"]; // This should come from API
+  
   const totalProducts = products.length;
-  const activeProducts = products.filter(p => p.isActive).length;
-  const lowStockProducts = products.filter(p => p.stock <= 10).length;
+  const activeProducts = products.filter(p => p.status === "active").length;
+  const lowStockProducts = products.filter(p => p.stock <= (p.min_stock || 10)).length;
   const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
   const outOfStockProducts = products.filter(p => p.stock === 0).length;
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!productForm.name || productForm.price <= 0) {
       toast({
         title: "กรุณากรอกข้อมูลให้ครบ",
@@ -152,22 +175,7 @@ const ProductsPage = () => {
       return;
     }
     
-    const newProduct = {
-      id: `P${Date.now()}`,
-      name: productForm.name,
-      description: productForm.description,
-      price: productForm.price,
-      barcode: productForm.barcode,
-      category: productForm.category,
-      stock: productForm.stock,
-      isActive: productForm.isActive,
-      taxRate: productForm.taxRate / 100,
-      discountEligible: productForm.discountEligible,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    setProducts([newProduct, ...products]);
+    await createProductMutation.mutateAsync(productForm);
     
     toast({
       title: "เพิ่มสินค้าเรียบร้อย",
@@ -180,16 +188,25 @@ const ProductsPage = () => {
       name: "",
       description: "",
       price: 0,
-      category: "",
+      category_id: "",
       stock: 0,
       barcode: "",
-      isActive: true,
-      taxRate: 7,
-      discountEligible: true,
+      status: "active",
+      cost_price: 0,
+      short_description: "",
+      max_stock: 0,
+      unit: "",
+      weight: 0,
+      dimensions: { length: 0, width: 0, height: 0 },
+      supplier_id: "",
+      brand: "",
+      tags: [],
+      is_featured: false,
+      is_trackable: true,
     });
   };
 
-  const handleEditProduct = () => {
+  const handleEditProduct = async () => {
     if (!selectedProduct || !productForm.name || productForm.price <= 0) {
       toast({
         title: "กรุณากรอกข้อมูลให้ครบ",
@@ -199,13 +216,10 @@ const ProductsPage = () => {
       return;
     }
     
-    const updatedProducts = products.map(p => 
-      p.id === selectedProduct.id 
-        ? { ...p, ...productForm, taxRate: productForm.taxRate / 100, updatedAt: new Date() }
-        : p
-    );
-    
-    setProducts(updatedProducts);
+    await updateProductMutation.mutateAsync({
+      id: selectedProduct.id,
+      data: productForm,
+    });
     
     toast({
       title: "แก้ไขสินค้าเรียบร้อย",
@@ -217,9 +231,8 @@ const ProductsPage = () => {
     setSelectedProduct(null);
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    const updatedProducts = products.filter(p => p.id !== productId);
-    setProducts(updatedProducts);
+  const handleDeleteProduct = async (productId: string) => {
+    await deleteProductMutation.mutateAsync(productId);
     
     toast({
       title: "ลบสินค้าเรียบร้อย",
@@ -228,21 +241,47 @@ const ProductsPage = () => {
     });
   };
 
-  const getStatusColor = (stock: number) => {
-    if (stock === 0) return "red";
-    if (stock <= 10) return "orange";
+  const getStatusColor = (status: ProductStatus) => {
+    if (status === "out_of_stock") return "red";
+    if (status === "inactive") return "gray";
+    if (status === "active" && products.find(p => p.id === selectedProduct?.id)?.stock <= (products.find(p => p.id === selectedProduct?.id)?.min_stock || 10)) return "orange";
     return "green";
   };
 
-  const getStatusText = (stock: number) => {
-    if (stock === 0) return "หมด";
-    if (stock <= 10) return "ใกล้หมด";
+  const getStatusText = (status: ProductStatus) => {
+    if (status === "out_of_stock") return "หมด";
+    if (status === "inactive") return "ไม่ใช้งาน";
     return "มีสินค้า";
   };
 
   const formatCurrency = (amount: number) => {
     return `฿${amount.toFixed(2)}`;
   };
+
+  useEffect(() => {
+    if (selectedProduct) {
+      setProductForm({
+        name: selectedProduct.name,
+        description: selectedProduct.description || "",
+        price: selectedProduct.price,
+        category_id: selectedProduct.category_id || "",
+        stock: selectedProduct.stock,
+        barcode: selectedProduct.barcode || "",
+        status: selectedProduct.status,
+        cost_price: selectedProduct.cost_price || 0,
+        short_description: selectedProduct.short_description || "",
+        max_stock: selectedProduct.max_stock || 0,
+        unit: selectedProduct.unit || "",
+        weight: selectedProduct.weight || 0,
+        dimensions: selectedProduct.dimensions || { length: 0, width: 0, height: 0 },
+        supplier_id: selectedProduct.supplier_id || "",
+        brand: selectedProduct.brand || "",
+        tags: selectedProduct.tags || [],
+        is_featured: selectedProduct.is_featured || false,
+        is_trackable: selectedProduct.is_trackable || true,
+      });
+    }
+  }, [selectedProduct]);
 
   return (
     <POSLayout>
@@ -420,8 +459,8 @@ const ProductsPage = () => {
                 >
                   <option value="all">ทุกหมวดหมู่</option>
                   {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
                 </Select>
                 <HStack spacing={2}>
                   <IconButton
@@ -445,7 +484,7 @@ const ProductsPage = () => {
               
               <HStack justify="space-between" w="full">
                 <Text fontSize="sm" color="gray.600">
-                  แสดง {filteredProducts.length} จาก {totalProducts} รายการ
+                  แสดง {products.length} จาก {totalProducts} รายการ
                 </Text>
                 <TouchButton
                   variant="primary"
@@ -482,7 +521,7 @@ const ProductsPage = () => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {filteredProducts.map((product) => (
+                  {products.map((product) => (
                     <Tr key={product.id} _hover={{ bg: "gray.50" }} cursor="pointer" onClick={() => { setSelectedProduct(product); onViewProductOpen(); }}>
                       <Td>
                         <HStack>
@@ -496,7 +535,7 @@ const ProductsPage = () => {
                         </HStack>
                       </Td>
                       <Td>
-                        <Badge colorScheme="blue">{product.category}</Badge>
+                        <Badge colorScheme="blue">{product.category_id}</Badge>
                       </Td>
                       <Td isNumeric>
                         <Text fontWeight="bold">{formatCurrency(product.price)}</Text>
@@ -505,17 +544,17 @@ const ProductsPage = () => {
                         <VStack align="end" spacing={1}>
                           <Text>{product.stock}</Text>
                           <Progress 
-                            value={(product.stock / 100) * 100} 
+                            value={(product.stock / (product.max_stock || 100)) * 100} 
                             size="sm" 
-                            colorScheme={getStatusColor(product.stock)}
+                            colorScheme={getStatusColor(product.status)}
                             borderRadius="full"
                             w="60px"
                           />
                         </VStack>
                       </Td>
                       <Td>
-                        <Badge colorScheme={getStatusColor(product.stock)}>
-                          {getStatusText(product.stock)}
+                        <Badge colorScheme={getStatusColor(product.status)}>
+                          {getStatusText(product.status)}
                         </Badge>
                       </Td>
                       <Td>
@@ -531,12 +570,21 @@ const ProductsPage = () => {
                                 name: product.name,
                                 description: product.description || "",
                                 price: product.price,
-                                category: product.category,
+                                category_id: product.category_id || "",
                                 stock: product.stock,
                                 barcode: product.barcode || "",
-                                isActive: product.isActive,
-                                taxRate: product.taxRate * 100,
-                                discountEligible: product.discountEligible,
+                                status: product.status,
+                                cost_price: product.cost_price || 0,
+                                short_description: product.short_description || "",
+                                max_stock: product.max_stock || 0,
+                                unit: product.unit || "",
+                                weight: product.weight || 0,
+                                dimensions: product.dimensions || { length: 0, width: 0, height: 0 },
+                                supplier_id: product.supplier_id || "",
+                                brand: product.brand || "",
+                                tags: product.tags || [],
+                                is_featured: product.is_featured || false,
+                                is_trackable: product.is_trackable || true,
                               });
                               onEditProductOpen(); 
                             }}>
@@ -556,7 +604,7 @@ const ProductsPage = () => {
           </Card>
         ) : (
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <Card
                 key={product.id}
                 cursor="pointer"
@@ -570,8 +618,8 @@ const ProductsPage = () => {
                   <VStack spacing={3} align="stretch">
                     <HStack justify="space-between">
                       <Avatar size="md" name={product.name} />
-                      <Badge colorScheme={getStatusColor(product.stock)}>
-                        {getStatusText(product.stock)}
+                      <Badge colorScheme={getStatusColor(product.status)}>
+                        {getStatusText(product.status)}
                       </Badge>
                     </HStack>
                     <VStack align="start" spacing={1}>
@@ -579,7 +627,7 @@ const ProductsPage = () => {
                       <Text fontSize="sm" color="gray.500" noOfLines={2}>
                         {product.description}
                       </Text>
-                      <Badge colorScheme="blue">{product.category}</Badge>
+                      <Badge colorScheme="blue">{product.category_id}</Badge>
                     </VStack>
                     <Divider />
                     <VStack spacing={2} align="stretch">
@@ -588,9 +636,9 @@ const ProductsPage = () => {
                         <Text fontSize="sm">สต็อก: {product.stock}</Text>
                       </HStack>
                       <Progress 
-                        value={(product.stock / 100) * 100} 
+                        value={(product.stock / (product.max_stock || 100)) * 100} 
                         size="sm" 
-                        colorScheme={getStatusColor(product.stock)}
+                        colorScheme={getStatusColor(product.status)}
                         borderRadius="full"
                       />
                     </VStack>
@@ -607,12 +655,21 @@ const ProductsPage = () => {
                             name: product.name,
                             description: product.description || "",
                             price: product.price,
-                            category: product.category,
+                            category_id: product.category_id || "",
                             stock: product.stock,
                             barcode: product.barcode || "",
-                            isActive: product.isActive,
-                            taxRate: product.taxRate * 100,
-                            discountEligible: product.discountEligible,
+                            status: product.status,
+                            cost_price: product.cost_price || 0,
+                            short_description: product.short_description || "",
+                            max_stock: product.max_stock || 0,
+                            unit: product.unit || "",
+                            weight: product.weight || 0,
+                            dimensions: product.dimensions || { length: 0, width: 0, height: 0 },
+                            supplier_id: product.supplier_id || "",
+                            brand: product.brand || "",
+                            tags: product.tags || [],
+                            is_featured: product.is_featured || false,
+                            is_trackable: product.is_trackable || true,
                           });
                           onEditProductOpen();
                         }}
@@ -657,8 +714,8 @@ const ProductsPage = () => {
                     <FormLabel>หมวดหมู่</FormLabel>
                     <Select 
                       placeholder="เลือกหมวดหมู่"
-                      value={productForm.category}
-                      onChange={e => setProductForm({...productForm, category: e.target.value})}
+                      value={productForm.category_id}
+                      onChange={e => setProductForm({...productForm, category_id: e.target.value})}
                     >
                       {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -714,14 +771,13 @@ const ProductsPage = () => {
                     />
                   </FormControl>
                   <FormControl>
-                    <FormLabel>อัตราภาษี (%)</FormLabel>
+                    <FormLabel>ต้นทุน</FormLabel>
                     <NumberInput 
-                      value={productForm.taxRate}
-                      onChange={(_, value) => setProductForm({...productForm, taxRate: value})}
+                      value={productForm.cost_price}
+                      onChange={(_, value) => setProductForm({...productForm, cost_price: value})}
                       min={0}
-                      max={100}
                     >
-                      <NumberInputField />
+                      <NumberInputField placeholder="0.00" />
                       <NumberInputStepper>
                         <NumberIncrementStepper />
                         <NumberDecrementStepper />
@@ -730,19 +786,151 @@ const ProductsPage = () => {
                   </FormControl>
                 </HStack>
                 <HStack w="full">
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">สินค้าที่ใช้งาน</FormLabel>
-                    <Switch 
-                      isChecked={productForm.isActive}
-                      onChange={e => setProductForm({...productForm, isActive: e.target.checked})}
+                  <FormControl>
+                    <FormLabel>คำอธิบายสั้นๆ</FormLabel>
+                    <Input 
+                      placeholder="คำอธิบายสั้นๆ" 
+                      value={productForm.short_description}
+                      onChange={e => setProductForm({...productForm, short_description: e.target.value})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>สต็อกสูงสุด</FormLabel>
+                    <NumberInput 
+                      value={productForm.max_stock}
+                      onChange={(_, value) => setProductForm({...productForm, max_stock: value})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>หน่วย</FormLabel>
+                    <Input 
+                      placeholder="หน่วย" 
+                      value={productForm.unit}
+                      onChange={e => setProductForm({...productForm, unit: e.target.value})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>น้ำหนัก</FormLabel>
+                    <NumberInput 
+                      value={productForm.weight}
+                      onChange={(_, value) => setProductForm({...productForm, weight: value})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>ความยาว</FormLabel>
+                    <NumberInput 
+                      value={productForm.dimensions.length}
+                      onChange={(_, value) => setProductForm({...productForm, dimensions: {...productForm.dimensions, length: value}})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>ความกว้าง</FormLabel>
+                    <NumberInput 
+                      value={productForm.dimensions.width}
+                      onChange={(_, value) => setProductForm({...productForm, dimensions: {...productForm.dimensions, width: value}})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>ความสูง</FormLabel>
+                    <NumberInput 
+                      value={productForm.dimensions.height}
+                      onChange={(_, value) => setProductForm({...productForm, dimensions: {...productForm.dimensions, height: value}})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>ซัพพลายเออร์ ID</FormLabel>
+                    <Input 
+                      placeholder="ซัพพลายเออร์ ID" 
+                      value={productForm.supplier_id}
+                      onChange={e => setProductForm({...productForm, supplier_id: e.target.value})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>แบรนด์</FormLabel>
+                    <Input 
+                      placeholder="แบรนด์" 
+                      value={productForm.brand}
+                      onChange={e => setProductForm({...productForm, brand: e.target.value})}
+                    />
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>แท็ก (คั่นด้วยจุลภาค)</FormLabel>
+                    <Input 
+                      placeholder="แท็ก" 
+                      value={productForm.tags.join(", ")}
+                      onChange={e => setProductForm({...productForm, tags: e.target.value.split(",").map(tag => tag.trim())})}
                     />
                   </FormControl>
                   <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">สามารถลดราคาได้</FormLabel>
+                    <FormLabel mb="0">สินค้าแนะนำ</FormLabel>
                     <Switch 
-                      isChecked={productForm.discountEligible}
-                      onChange={e => setProductForm({...productForm, discountEligible: e.target.checked})}
+                      isChecked={productForm.is_featured}
+                      onChange={e => setProductForm({...productForm, is_featured: e.target.checked})}
                     />
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl display="flex" alignItems="center">
+                    <FormLabel mb="0">ติดตามสต็อก</FormLabel>
+                    <Switch 
+                      isChecked={productForm.is_trackable}
+                      onChange={e => setProductForm({...productForm, is_trackable: e.target.checked})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>สถานะ</FormLabel>
+                    <Select 
+                      value={productForm.status}
+                      onChange={e => setProductForm({...productForm, status: e.target.value as ProductStatus})}
+                    >
+                      <option value="active">ใช้งาน</option>
+                      <option value="inactive">ไม่ใช้งาน</option>
+                      <option value="out_of_stock">หมด</option>
+                      <option value="discontinued">เลิกผลิต</option>
+                    </Select>
                   </FormControl>
                 </HStack>
               </VStack>
@@ -779,8 +967,8 @@ const ProductsPage = () => {
                     <FormLabel>หมวดหมู่</FormLabel>
                     <Select 
                       placeholder="เลือกหมวดหมู่"
-                      value={productForm.category}
-                      onChange={e => setProductForm({...productForm, category: e.target.value})}
+                      value={productForm.category_id}
+                      onChange={e => setProductForm({...productForm, category_id: e.target.value})}
                     >
                       {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -836,14 +1024,13 @@ const ProductsPage = () => {
                     />
                   </FormControl>
                   <FormControl>
-                    <FormLabel>อัตราภาษี (%)</FormLabel>
+                    <FormLabel>ต้นทุน</FormLabel>
                     <NumberInput 
-                      value={productForm.taxRate}
-                      onChange={(_, value) => setProductForm({...productForm, taxRate: value})}
+                      value={productForm.cost_price}
+                      onChange={(_, value) => setProductForm({...productForm, cost_price: value})}
                       min={0}
-                      max={100}
                     >
-                      <NumberInputField />
+                      <NumberInputField placeholder="0.00" />
                       <NumberInputStepper>
                         <NumberIncrementStepper />
                         <NumberDecrementStepper />
@@ -852,19 +1039,151 @@ const ProductsPage = () => {
                   </FormControl>
                 </HStack>
                 <HStack w="full">
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">สินค้าที่ใช้งาน</FormLabel>
-                    <Switch 
-                      isChecked={productForm.isActive}
-                      onChange={e => setProductForm({...productForm, isActive: e.target.checked})}
+                  <FormControl>
+                    <FormLabel>คำอธิบายสั้นๆ</FormLabel>
+                    <Input 
+                      placeholder="คำอธิบายสั้นๆ" 
+                      value={productForm.short_description}
+                      onChange={e => setProductForm({...productForm, short_description: e.target.value})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>สต็อกสูงสุด</FormLabel>
+                    <NumberInput 
+                      value={productForm.max_stock}
+                      onChange={(_, value) => setProductForm({...productForm, max_stock: value})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>หน่วย</FormLabel>
+                    <Input 
+                      placeholder="หน่วย" 
+                      value={productForm.unit}
+                      onChange={e => setProductForm({...productForm, unit: e.target.value})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>น้ำหนัก</FormLabel>
+                    <NumberInput 
+                      value={productForm.weight}
+                      onChange={(_, value) => setProductForm({...productForm, weight: value})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>ความยาว</FormLabel>
+                    <NumberInput 
+                      value={productForm.dimensions.length}
+                      onChange={(_, value) => setProductForm({...productForm, dimensions: {...productForm.dimensions, length: value}})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>ความกว้าง</FormLabel>
+                    <NumberInput 
+                      value={productForm.dimensions.width}
+                      onChange={(_, value) => setProductForm({...productForm, dimensions: {...productForm.dimensions, width: value}})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>ความสูง</FormLabel>
+                    <NumberInput 
+                      value={productForm.dimensions.height}
+                      onChange={(_, value) => setProductForm({...productForm, dimensions: {...productForm.dimensions, height: value}})}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="0.00" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>ซัพพลายเออร์ ID</FormLabel>
+                    <Input 
+                      placeholder="ซัพพลายเออร์ ID" 
+                      value={productForm.supplier_id}
+                      onChange={e => setProductForm({...productForm, supplier_id: e.target.value})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>แบรนด์</FormLabel>
+                    <Input 
+                      placeholder="แบรนด์" 
+                      value={productForm.brand}
+                      onChange={e => setProductForm({...productForm, brand: e.target.value})}
+                    />
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl>
+                    <FormLabel>แท็ก (คั่นด้วยจุลภาค)</FormLabel>
+                    <Input 
+                      placeholder="แท็ก" 
+                      value={productForm.tags.join(", ")}
+                      onChange={e => setProductForm({...productForm, tags: e.target.value.split(",").map(tag => tag.trim())})}
                     />
                   </FormControl>
                   <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0">สามารถลดราคาได้</FormLabel>
+                    <FormLabel mb="0">สินค้าแนะนำ</FormLabel>
                     <Switch 
-                      isChecked={productForm.discountEligible}
-                      onChange={e => setProductForm({...productForm, discountEligible: e.target.checked})}
+                      isChecked={productForm.is_featured}
+                      onChange={e => setProductForm({...productForm, is_featured: e.target.checked})}
                     />
+                  </FormControl>
+                </HStack>
+                <HStack w="full">
+                  <FormControl display="flex" alignItems="center">
+                    <FormLabel mb="0">ติดตามสต็อก</FormLabel>
+                    <Switch 
+                      isChecked={productForm.is_trackable}
+                      onChange={e => setProductForm({...productForm, is_trackable: e.target.checked})}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>สถานะ</FormLabel>
+                    <Select 
+                      value={productForm.status}
+                      onChange={e => setProductForm({...productForm, status: e.target.value as ProductStatus})}
+                    >
+                      <option value="active">ใช้งาน</option>
+                      <option value="inactive">ไม่ใช้งาน</option>
+                      <option value="out_of_stock">หมด</option>
+                      <option value="discontinued">เลิกผลิต</option>
+                    </Select>
                   </FormControl>
                 </HStack>
               </VStack>
@@ -893,7 +1212,7 @@ const ProductsPage = () => {
                     <Avatar size="lg" name={selectedProduct.name} />
                     <VStack align="start" spacing={1}>
                       <Text fontWeight="bold" fontSize="lg">{selectedProduct.name}</Text>
-                      <Badge colorScheme="blue">{selectedProduct.category}</Badge>
+                      <Badge colorScheme="blue">{selectedProduct.category_id}</Badge>
                     </VStack>
                   </HStack>
                   <Divider />
@@ -908,8 +1227,8 @@ const ProductsPage = () => {
                     </Box>
                     <Box>
                       <Text fontWeight="bold" color="gray.500">สถานะ</Text>
-                      <Badge colorScheme={getStatusColor(selectedProduct.stock)}>
-                        {getStatusText(selectedProduct.stock)}
+                      <Badge colorScheme={getStatusColor(selectedProduct.status)}>
+                        {getStatusText(selectedProduct.status)}
                       </Badge>
                     </Box>
                     <Box>
@@ -948,12 +1267,21 @@ const ProductsPage = () => {
                   name: selectedProduct.name,
                   description: selectedProduct.description || "",
                   price: selectedProduct.price,
-                  category: selectedProduct.category,
+                  category_id: selectedProduct.category_id || "",
                   stock: selectedProduct.stock,
                   barcode: selectedProduct.barcode || "",
-                  isActive: selectedProduct.isActive,
-                  taxRate: selectedProduct.taxRate * 100,
-                  discountEligible: selectedProduct.discountEligible,
+                  status: selectedProduct.status,
+                  cost_price: selectedProduct.cost_price || 0,
+                  short_description: selectedProduct.short_description || "",
+                  max_stock: selectedProduct.max_stock || 0,
+                  unit: selectedProduct.unit || "",
+                  weight: selectedProduct.weight || 0,
+                  dimensions: selectedProduct.dimensions || { length: 0, width: 0, height: 0 },
+                  supplier_id: selectedProduct.supplier_id || "",
+                  brand: selectedProduct.brand || "",
+                  tags: selectedProduct.tags || [],
+                  is_featured: selectedProduct.is_featured || false,
+                  is_trackable: selectedProduct.is_trackable || true,
                 });
                 onEditProductOpen();
               }}>

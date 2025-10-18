@@ -7,6 +7,7 @@ import {
   OrderStatus,
   PaymentStatus,
   CustomerType,
+  OrderCustomerType,
   ShopType,
   DeliveryMethod,
   OrderPriority,
@@ -315,7 +316,7 @@ const getPaymentStatusText = (status: PaymentStatus): string => {
   }
 };
 
-const getCustomerTypeText = (type: CustomerType): string => {
+const getCustomerTypeText = (type: OrderCustomerType | CustomerType): string => {
   switch (type) {
     case "registered":
       return "ลูกค้าประจำ";
@@ -325,6 +326,16 @@ const getCustomerTypeText = (type: CustomerType): string => {
       return "สั่งทางโทรศัพท์";
     case "repeat_customer":
       return "ลูกค้าเก่า";
+    case "individual":
+      return "บุคคลทั่วไป";
+    case "business":
+      return "ธุรกิจ";
+    case "regular":
+      return "ลูกค้าทั่วไป";
+    case "vip":
+      return "VIP";
+    case "wholesale":
+      return "ขายส่ง";
     default:
       return type;
   }
@@ -355,7 +366,7 @@ function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "">("");
   const [customerTypeFilter, setCustomerTypeFilter] = useState<
-    CustomerType | ""
+    OrderCustomerType | ""
   >("");
   const [priorityFilter, setPriorityFilter] = useState<OrderPriority | "">("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -530,7 +541,7 @@ function OrdersPage() {
               maxW="180px"
               value={customerTypeFilter}
               onChange={(e) =>
-                setCustomerTypeFilter(e.target.value as CustomerType)
+                setCustomerTypeFilter(e.target.value as OrderCustomerType)
               }
             >
               <option value="registered">ลูกค้าประจำ</option>

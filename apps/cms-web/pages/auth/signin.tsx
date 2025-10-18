@@ -49,7 +49,7 @@ export default function SignInPage() {
       // Redirect to dashboard on success
       const redirectTo = (router.query.redirect as string) || "/";
       router.push(redirectTo);
-    } catch (err: any) {
+    } catch (error) {
       setError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
       // Error is already displayed to the user via setError
     } finally {

@@ -46,8 +46,8 @@ export class InventoryService {
       // Get today's stock movements
       const today = new Date().toISOString().split("T")[0];
       const todaysMovements = await stockMovementService.getStockMovements({
-        date_from: today,
-        date_to: today + "T23:59:59",
+        start_date: today,
+        end_date: today + "T23:59:59",
         ...(branchId && { branch_id: branchId }),
       });
 
@@ -65,14 +65,14 @@ export class InventoryService {
 
       const salesMovements = await stockMovementService.getStockMovements({
         movement_type: "sale",
-        date_from: thirtyDaysAgo.toISOString(),
+        start_date: thirtyDaysAgo.toISOString(),
         ...(branchId && { branch_id: branchId }),
       });
 
-      const totalSalesValue = salesMovements.reduce(
-        (sum, m) => sum + (m.total_value || 0),
+      const totalSalesValue = salesMovements.data?.reduce(
+        (sum: number, m: any) => sum + (m.total_value || 0),
         0
-      );
+      ) || 0;
 
       const inventoryTurnoverRate =
         totalInventoryValue > 0
@@ -84,7 +84,7 @@ export class InventoryService {
         total_inventory_value: totalInventoryValue,
         low_stock_count: lowStockCount,
         out_of_stock_count: outOfStockCount,
-        total_stock_movements_today: todaysMovements.length,
+        total_stock_movements_today: todaysMovements.data?.length || 0,
         pending_purchase_orders: pendingPOs.length,
         inventory_turnover_rate: inventoryTurnoverRate,
       };
@@ -182,12 +182,11 @@ export class InventoryService {
 
       for (const product of lowStockProducts) {
         const movements = await stockMovementService.getProductStockMovements(
-          product.product_id,
-          10
+          product.product_id
         );
 
-        const lastRestock = movements.find(
-          (m) =>
+        const lastRestock = movements.data?.find(
+          (m: any) =>
             m.movement_type === "purchase" || m.movement_type === "adjustment"
         );
 
@@ -317,19 +316,31 @@ export class InventoryService {
           if (updateError) throw updateError;
 
           // Create stock movement
+          // Get current product stock to calculate before/after quantities
+          const { data: productData } = await supabase
+            .from("products")
+            .select("stock_quantity")
+            .eq("id", item.product_id)
+            .single();
+
+          const quantityBefore = productData?.stock_quantity || 0;
+          const quantityAfter = quantityBefore + item.quantity_change;
+
           await stockMovementService.createStockMovement(
             {
               product_id: item.product_id,
               movement_type: "adjustment",
               quantity_change: item.quantity_change,
+              quantity_before: quantityBefore,
+              quantity_after: quantityAfter,
               unit_cost: item.unit_cost,
               reference_type: "adjustment",
               reference_id: adjustmentId,
               reference_number: adjustment.adjustment_number,
               reason: item.reason || adjustment.reason,
               notes: item.notes,
-            },
-            userId
+              created_by: userId,
+            }
           );
         }
       }
@@ -434,8 +445,8 @@ export class InventoryService {
   ): Promise<StockMovementReport> {
     try {
       const movements = await stockMovementService.getStockMovements({
-        date_from: dateFrom,
-        date_to: dateTo,
+        start_date: dateFrom,
+        end_date: dateTo,
         ...(branchId && { branch_id: branchId }),
       });
 
@@ -446,7 +457,7 @@ export class InventoryService {
         valueIn = 0,
         valueOut = 0;
 
-      movements.forEach((movement) => {
+      movements.data?.forEach((movement: any) => {
         const date = movement.created_at.split("T")[0];
         const key = `${date}_${movement.movement_type}`;
 

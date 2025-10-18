@@ -94,13 +94,13 @@ export default async function handler(
       timestamp: new Date().toISOString(),
       results: testResults,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Database test error:", error);
 
     res.status(500).json({
       success: false,
       message: "Database connection failed",
-      error: error.message,
+      error: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
       troubleshooting: {
         check_env_vars:

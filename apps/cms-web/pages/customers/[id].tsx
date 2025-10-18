@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReactElement } from "react";
 import { NextPageWithLayout } from "../_app";
 import Layout from "../../components/Layout";
@@ -50,6 +50,10 @@ import {
   SimpleGrid,
   Avatar,
   Divider,
+  NumberInput,
+  NumberInputField,
+  Select,
+  Textarea,
 } from "@chakra-ui/react";
 import {
   FiArrowLeft,
@@ -63,66 +67,19 @@ import {
 } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
-
-// Mock customer data (replace with real API call)
-const mockCustomer = {
-  id: "1",
-  name: "สมชาย ใจดี",
-  email: "somchai@example.com",
-  phone: "089-123-4567",
-  address: "123 หมู่บ้านสุขสันต์ แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110",
-  created_at: "2024-01-15T10:00:00Z",
-  updated_at: "2024-01-20T15:30:00Z",
-  total_orders: 15,
-  total_spent: 45750,
-  average_order: 3050,
-  last_order_date: "2024-01-18T14:20:00Z",
-  status: "active",
-  notes: "ลูกค้าประจำ ชอบสินค้าคุณภาพดี",
-};
-
-// Mock orders data
-const mockOrders = [
-  {
-    id: "ORD-001",
-    order_number: "ORD-001",
-    total: 3500,
-    status: "completed",
-    created_at: "2024-01-18T14:20:00Z",
-    items_count: 3,
-  },
-  {
-    id: "ORD-002",
-    order_number: "ORD-002",
-    total: 2800,
-    status: "completed",
-    created_at: "2024-01-15T09:15:00Z",
-    items_count: 2,
-  },
-  {
-    id: "ORD-003",
-    order_number: "ORD-003",
-    total: 5200,
-    status: "processing",
-    created_at: "2024-01-20T11:45:00Z",
-    items_count: 4,
-  },
-];
+import { useCustomer, useOrders, useUpdateCustomer } from "../../lib/hooks";
+import { Customer, Order } from "@shopflow/types";
 
 const CustomerDetailPage: NextPageWithLayout = () => {
   const router = useRouter();
   const { id } = router.query;
 
-  const [customer] = useState(mockCustomer); // Replace with real API call
-  const [orders] = useState(mockOrders); // Replace with real API call
+  const { data: customer, isLoading, error } = useCustomer(id as string);
+  const { data: orders = [], isLoading: ordersLoading } = useOrders({ customerId: id as string });
+  const updateCustomerMutation = useUpdateCustomer();
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    name: customer.name,
-    email: customer.email,
-    phone: customer.phone,
-    address: customer.address,
-    notes: customer.notes,
-  });
+  const [editFormData, setEditFormData] = useState<Partial<Customer>>({});
 
   const {
     isOpen: isEditOpen,
@@ -130,9 +87,33 @@ const CustomerDetailPage: NextPageWithLayout = () => {
     onClose: onEditClose,
   } = useDisclosure();
 
-  const handleEditSave = () => {
-    // Implement save logic here
-    console.log("Saving customer:", editFormData);
+  useEffect(() => {
+    if (customer) {
+      setEditFormData({
+        first_name: customer.first_name || "",
+        last_name: customer.last_name || "",
+        company_name: customer.company_name || "",
+        email: customer.email || "",
+        phone: customer.phone || "",
+        address: customer.address || "",
+        city: customer.city || "",
+        postal_code: customer.postal_code || "",
+        country: customer.country || "",
+        customer_type: customer.customer_type || "individual",
+        status: customer.status || "active",
+        credit_limit: customer.credit_limit || 0,
+        notes: customer.notes || "",
+      });
+    }
+  }, [customer]);
+
+  const handleEditSave = async () => {
+    if (!customer) return;
+
+    await updateCustomerMutation.mutateAsync({
+      id: customer.id,
+      data: editFormData,
+    });
     onEditClose();
   };
 
@@ -162,11 +143,33 @@ const CustomerDetailPage: NextPageWithLayout = () => {
     }
   };
 
-  if (!customer) {
+  if (isLoading) {
     return (
       <Box p={8} textAlign="center">
         <Spinner size="xl" />
         <Text mt={4}>กำลังโหลดข้อมูลลูกค้า...</Text>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={8} textAlign="center">
+        <Alert status="error">
+          <AlertIcon />
+          <Text>{error instanceof Error ? error.message : "เกิดข้อผิดพลาด"}</Text>
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <Box p={8} textAlign="center">
+        <Alert status="warning">
+          <AlertIcon />
+          <Text>ไม่พบข้อมูลลูกค้า</Text>
+        </Alert>
       </Box>
     );
   }
@@ -196,9 +199,9 @@ const CustomerDetailPage: NextPageWithLayout = () => {
       <Card>
         <CardHeader>
           <HStack spacing={4}>
-            <Avatar size="lg" name={customer.name} bg="blue.500" />
+            <Avatar size="lg" name={`${customer.first_name} ${customer.last_name}`} bg="blue.500" />
             <VStack align="start" spacing={1}>
-              <Heading size="md">{customer.name}</Heading>
+              <Heading size="md">{`${customer.first_name} ${customer.last_name}`}</Heading>
               <HStack spacing={4}>
                 <HStack spacing={1}>
                   <FiMail />
@@ -213,7 +216,7 @@ const CustomerDetailPage: NextPageWithLayout = () => {
                   </Text>
                 </HStack>
               </HStack>
-              <Badge colorScheme="green">ลูกค้าปกติ</Badge>
+              <Badge colorScheme="green">{customer.status}</Badge>
             </VStack>
           </HStack>
         </CardHeader>
@@ -235,20 +238,20 @@ const CustomerDetailPage: NextPageWithLayout = () => {
             <Stat>
               <StatLabel>ยอดซื้อเฉลี่ย</StatLabel>
               <StatNumber>
-                ฿{customer.average_order.toLocaleString()}
+                ฿{(customer.total_spent / (customer.total_orders || 1)).toLocaleString()}
               </StatNumber>
               <StatHelpText>ต่อออเดอร์</StatHelpText>
             </Stat>
             <Stat>
               <StatLabel>ซื้อล่าสุด</StatLabel>
               <StatNumber fontSize="md">
-                {formatDistanceToNow(new Date(customer.last_order_date), {
+                {customer.last_order_date && formatDistanceToNow(new Date(customer.last_order_date), {
                   addSuffix: true,
                   locale: th,
                 })}
               </StatNumber>
               <StatHelpText>
-                {new Date(customer.last_order_date).toLocaleDateString("th-TH")}
+                {customer.last_order_date && new Date(customer.last_order_date).toLocaleDateString("th-TH")}
               </StatHelpText>
             </Stat>
           </SimpleGrid>
@@ -261,7 +264,7 @@ const CustomerDetailPage: NextPageWithLayout = () => {
               <Text fontWeight="semibold">ที่อยู่:</Text>
             </HStack>
             <Text color="gray.600" pl={6}>
-              {customer.address}
+              {customer.address}, {customer.city}, {customer.postal_code}, {customer.country}
             </Text>
 
             {customer.notes && (
@@ -287,55 +290,61 @@ const CustomerDetailPage: NextPageWithLayout = () => {
           </HStack>
         </CardHeader>
         <CardBody>
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>เลขที่ออเดอร์</Th>
-                <Th>วันที่สั่ง</Th>
-                <Th>จำนวนสินค้า</Th>
-                <Th>ยอดรวม</Th>
-                <Th>สถานะ</Th>
-                <Th>การดำเนินการ</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {orders.map((order) => (
-                <Tr key={order.id}>
-                  <Td>
-                    <Text fontWeight="semibold">{order.order_number}</Text>
-                  </Td>
-                  <Td>
-                    <Text>
-                      {new Date(order.created_at).toLocaleDateString("th-TH")}
-                    </Text>
-                  </Td>
-                  <Td>
-                    <Text>{order.items_count} รายการ</Text>
-                  </Td>
-                  <Td>
-                    <Text fontWeight="semibold">
-                      ฿{order.total.toLocaleString()}
-                    </Text>
-                  </Td>
-                  <Td>
-                    <Badge colorScheme={getStatusColor(order.status)}>
-                      {getStatusText(order.status)}
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      leftIcon={<FiShoppingCart />}
-                      onClick={() => router.push(`/orders/${order.id}`)}
-                    >
-                      ดูรายละเอียด
-                    </Button>
-                  </Td>
+          {ordersLoading ? (
+            <Flex justify="center" p={8}>
+              <Spinner size="lg" />
+            </Flex>
+          ) : (
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>เลขที่ออเดอร์</Th>
+                  <Th>วันที่สั่ง</Th>
+                  <Th>จำนวนสินค้า</Th>
+                  <Th>ยอดรวม</Th>
+                  <Th>สถานะ</Th>
+                  <Th>การดำเนินการ</Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {orders.map((order: Order) => (
+                  <Tr key={order.id}>
+                    <Td>
+                      <Text fontWeight="semibold">{order.order_number}</Text>
+                    </Td>
+                    <Td>
+                      <Text>
+                        {new Date(order.created_at || "").toLocaleDateString("th-TH")}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Text>{order.items?.length} รายการ</Text>
+                    </Td>
+                    <Td>
+                      <Text fontWeight="semibold">
+                        ฿{order.total.toLocaleString()}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={getStatusColor(order.status)}>
+                        {getStatusText(order.status)}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        leftIcon={<FiShoppingCart />}
+                        onClick={() => router.push(`/orders/${order.id}`)}
+                      >
+                        ดูรายละเอียด
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
         </CardBody>
       </Card>
 
@@ -350,11 +359,37 @@ const CustomerDetailPage: NextPageWithLayout = () => {
               <FormControl>
                 <FormLabel>ชื่อ</FormLabel>
                 <Input
-                  value={editFormData.name}
+                  value={editFormData.first_name}
                   onChange={(e) =>
                     setEditFormData({
                       ...editFormData,
-                      name: e.target.value,
+                      first_name: e.target.value,
+                    })
+                  }
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>นามสกุล</FormLabel>
+                <Input
+                  value={editFormData.last_name}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      last_name: e.target.value,
+                    })
+                  }
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>บริษัท</FormLabel>
+                <Input
+                  value={editFormData.company_name}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      company_name: e.target.value,
                     })
                   }
                 />
@@ -401,8 +436,95 @@ const CustomerDetailPage: NextPageWithLayout = () => {
               </FormControl>
 
               <FormControl>
-                <FormLabel>หมายเหตุ</FormLabel>
+                <FormLabel>เมือง</FormLabel>
                 <Input
+                  value={editFormData.city}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      city: e.target.value,
+                    })
+                  }
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>รหัสไปรษณีย์</FormLabel>
+                <Input
+                  value={editFormData.postal_code}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      postal_code: e.target.value,
+                    })
+                  }
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>ประเทศ</FormLabel>
+                <Input
+                  value={editFormData.country}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      country: e.target.value,
+                    })
+                  }
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>ประเภทลูกค้า</FormLabel>
+                <Select
+                  value={editFormData.customer_type}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      customer_type: e.target.value as "individual" | "business" | "regular" | "vip" | "wholesale",
+                    })
+                  }
+                >
+                  <option value="individual">บุคคลธรรมดา</option>
+                  <option value="business">นิติบุคคล</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>สถานะ</FormLabel>
+                <Select
+                  value={editFormData.status}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      status: e.target.value as "active" | "inactive" | "vip",
+                    })
+                  }
+                >
+                  <option value="active">ใช้งาน</option>
+                  <option value="inactive">ไม่ใช้งาน</option>
+                  <option value="vip">VIP</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>วงเงินเครดิต</FormLabel>
+                <NumberInput
+                  value={editFormData.credit_limit}
+                  onChange={(_, value) =>
+                    setEditFormData({
+                      ...editFormData,
+                      credit_limit: Number(value),
+                    })
+                  }
+                >
+                  <NumberInputField />
+                </NumberInput>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>หมายเหตุ</FormLabel>
+                <Textarea
                   value={editFormData.notes}
                   onChange={(e) =>
                     setEditFormData({

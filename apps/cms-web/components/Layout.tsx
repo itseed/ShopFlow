@@ -75,7 +75,7 @@ interface LayoutProps {
 interface NavigationItem {
   name: string;
   href?: string;
-  icon: any;
+  icon: React.ComponentType;
   hasSubmenu?: boolean;
   submenu?: NavigationItem[];
 }
@@ -215,7 +215,7 @@ export default function Layout({
         duration: 3000,
         isClosable: true,
       });
-      router.push("/login");
+      router.push("/");
     } catch (error) {
       toast({
         title: "เกิดข้อผิดพลาด",
