@@ -1,39 +1,26 @@
-// Original Tailwind Components
-export * from "./Button";
-export * from "./ProductTable";
+/**
+ * ShopFlow UI Package
+ * Enhanced Shared UI Components - Phase 1 Refactor
+ */
 
-// Chakra UI Components
-export * from "./ChakraButton";
-export * from "./ChakraProductTable";
+// Common Components
+export * from "./common/Card";
+export * from "./common/DataTable";
+export * from "./common/SearchBar";
+export * from "./common/StatusBadge";
+export * from "./common/EmptyState";
 
-// Re-export common Chakra UI components for convenience
-export {
-  ChakraProvider,
-  Box,
-  Flex,
-  Grid,
-  Text,
-  Heading,
-  Button as ChakraButton,
-  Input,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  Alert,
-  AlertIcon,
-  Badge,
-  Spinner,
-  useToast,
-  useDisclosure,
-} from "@chakra-ui/react";
+// Business Components
+export * from "./business/ProductCard";
+export * from "./business/OrderCard";
+export * from "./business/CustomerCard";
+export * from "./business/StockIndicator";
+
+// Layout Components
+export * from "./layout/PageHeader";
+
+// Legacy exports (keep for backward compatibility)
+export { default as Button } from "./Button";
+export { default as ChakraButton } from "./ChakraButton";
+export { default as ProductTable } from "./ProductTable";
+export { default as ChakraProductTable } from "./ChakraProductTable";

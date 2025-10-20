@@ -1,134 +1,41 @@
-// Main exports for @shopflow/api package
-export {
-  supabase,
-  db,
-  getCurrentUser,
-  getCurrentSession,
-  onAuthStateChange,
-} from "./supabase";
+/**
+ * ShopFlow API Package
+ * Consolidated API Services - Phase 1 Refactor
+ */
 
-// API Types
-export * from "./types/api";
-
-// Services
+// Core Services (Phase 1)
 export {
-  productService,
-  type ProductFilters,
-  type CreateProductData,
-  type UpdateProductData,
-  type StockUpdateData,
-} from "./services/productService";
-export {
-  categoryService,
-  type CategoryFilters,
-  type CreateCategoryData,
-  type UpdateCategoryData,
-} from "./services/categoryService";
+  coreService,
+  products,
+  categories,
+  inventory,
+} from "./services/coreService";
 export {
   orderService,
-  type OrderFilters,
-  type CreateOrderData,
-  type CreateOrderItemData,
-  type UpdateOrderData,
-  type OrderStats,
+  orders,
+  customers,
+  payments,
 } from "./services/orderService";
 export {
-  userService,
-  type UserFilters,
-  type CreateUserData,
-  type UpdateUserData,
-  type UserProfile,
-} from "./services/userService";
-export {
-  branchService,
-  type BranchFilters,
-  type CreateBranchData,
-  type UpdateBranchData,
-  type BranchStats,
-  type BranchPerformance,
-} from "./services/branchService";
-export {
-  customerService,
-  type CustomerFilters,
-  type CreateCustomerData,
-  type UpdateCustomerData,
-} from "./services/customerService";
-export {
-  supplierService,
-  type SupplierFilters,
-  type CreateSupplierData,
-  type UpdateSupplierData,
-  type SupplierWithStats,
-} from "./services/supplierService";
-export {
   reportService,
-  type SalesReport,
-  type ProductReport,
-  type CustomerReport,
-  type InventoryReport,
-  type ProfitLossReport,
-  type BranchComparisonReport,
-  type ReportFilters,
+  sales as salesReports,
+  inventory as inventoryReports,
+  dashboard,
 } from "./services/reportService";
-export { stockMovementService } from "./services/stockMovementService";
-export { purchaseOrderService } from "./services/purchaseOrderService";
-export { inventoryService } from "./services/inventoryService";
 export {
-  realtimeService,
-  RealtimeService,
-  type RealtimeEvent,
-  type RealtimeEventType,
-  type ProductRealtimeCallback,
-  type OrderRealtimeCallback,
-  type OrderItemRealtimeCallback,
-  type InventoryRealtimeCallback,
-} from "./services/realtimeService";
-export {
-  loyaltyService,
-  type LoyaltyProgram,
-  type LoyaltyTier,
-  type CustomerLoyaltyMembership,
-  type PointsTransaction,
-  type CreateLoyaltyProgramData,
-  type UpdateLoyaltyProgramData,
-  type CreateLoyaltyTierData,
-  type UpdateLoyaltyTierData,
-  type CreateMembershipData,
-  type AddPointsRequest,
-  type RedeemPointsRequest,
-  type FindCustomerByPhoneRequest,
-  type FindCustomerByPhoneResponse,
-  type LoyaltyFilters,
-  type PointsTransactionFilters,
-  type POSCustomerLookup,
-  type POSPointsEarnPreview,
-  type POSPointsRedemptionOption,
-} from "./services/loyaltyService";
+  systemService,
+  users,
+  branches,
+  branchSettings,
+  systemSettings,
+  auditLogs,
+} from "./services/systemService";
 
-// Re-export types from @shopflow/types for convenience
-export type {
-  Product,
-  Category,
-  Order,
-  OrderItem,
-  Customer,
-  Supplier,
-  ProductStatus,
-  CategoryStatus,
-  StockMovementType,
-  PurchaseOrderStatus,
-  AdjustmentReason,
-  StockMovement,
-  CreateStockMovement,
-  StockMovementFilters,
-  PurchaseOrder,
-  PurchaseOrderFormData,
-  PurchaseOrderFilters,
-  UpdatePurchaseOrderStatus,
-  ReceivePurchaseOrderItem,
-  InventorySummary,
-  ProductInventoryStatus,
-  InventoryAdjustment,
-  CreateInventoryAdjustment,
-  LowStockAlert,
-} from "@shopflow/types";
+// Supabase client
+export { supabase } from "./supabase";
+
+// Types
+export * from "./types";
+
+// Default export
+export { coreService as default } from "./services/coreService";
