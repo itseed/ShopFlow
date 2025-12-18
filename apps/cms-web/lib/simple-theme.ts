@@ -1,7 +1,14 @@
-import { extendTheme } from "@chakra-ui/react";
+import { extendTheme, type ThemeConfig } from "@chakra-ui/react";
+import { mode } from "@chakra-ui/theme-tools";
 
 // Enhanced theme with Google Fonts and better components
+const config: ThemeConfig = {
+  initialColorMode: "light",
+  useSystemColorMode: false,
+};
+
 const theme = extendTheme({
+  config,
   fonts: {
     heading: `'Kanit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif`,
     body: `'Inter', 'Kanit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif`,
@@ -22,16 +29,16 @@ const theme = extendTheme({
     },
   },
   styles: {
-    global: {
+    global: (props: any) => ({
       body: {
-        bg: "gray.50",
-        color: "gray.900",
+        bg: mode("gray.50", "gray.900")(props),
+        color: mode("gray.900", "gray.50")(props),
         fontFamily: "body",
       },
       "*": {
-        borderColor: "gray.200",
+        borderColor: mode("gray.200", "gray.700")(props),
       },
-    },
+    }),
   },
   components: {
     Button: {

@@ -341,7 +341,7 @@ npm run build
 ```
 
 ### Static Export
-Both applications are configured for static export:
+Static export (`output: "export"`) is currently **disabled** because the repo uses API routes and (POS) `getServerSideProps`:
 ```bash
 npm run build
 # Static files will be in ./out/ directory
@@ -349,9 +349,7 @@ npm run build
 
 ### Deploy Options
 - **Vercel**: Direct deployment from Git
-- **Netlify**: Drag & drop the `out/` folder
-- **AWS S3**: Upload static files
-- **Any CDN**: Serve the static files
+- **Docker**: Recommended (see Docker Deployment section above)
 
 ## 🎯 Key Features Implemented
 
@@ -377,12 +375,12 @@ npm run build
 - [x] **Real-time Updates** - Live inventory and pricing updates
 - [x] **Enhanced Components** - Modern UI components with animations
 - [x] **Responsive Layout** - Works on all screen sizes
-- [x] **Accessibility** - WCAG compliant design
+- [x] **Accessibility-friendly UI** - Chakra UI components + ARIA labels/keyboard support
 
 ### ✅ Technical Features
 - [x] TypeScript for type safety
 - [x] Monorepo structure with shared packages
-- [x] Static export for fast deployment
+- [x] Next.js production builds (API routes + `getServerSideProps` supported)
 - [x] Modern React patterns (hooks, context)
 - [x] Optimized build process
 - [x] Clean code architecture

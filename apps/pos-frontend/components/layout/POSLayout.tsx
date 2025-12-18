@@ -5,6 +5,7 @@ import {
   HStack,
   Text,
   useColorModeValue,
+  useColorMode,
   IconButton,
   Button,
   Spacer,
@@ -20,6 +21,8 @@ import {
   FiBarChart2,
   FiUsers,
   FiSettings,
+  FiMoon,
+  FiSun,
 } from "react-icons/fi";
 import { POSRealtimeStatus } from "../realtime/POSRealtimeStatus";
 
@@ -47,6 +50,7 @@ export const POSLayout = ({
   showHeader = true,
   showFooter = true,
 }: POSLayoutProps) => {
+  const { toggleColorMode } = useColorMode();
   const headerBg = useColorModeValue("white", "gray.900");
   const headerTextColor = useColorModeValue("pos.primary.700", "white");
   const navActiveBg = useColorModeValue("pos.primary.50", "pos.primary.700");
@@ -54,6 +58,8 @@ export const POSLayout = ({
   const navHoverBg = useColorModeValue("pos.primary.100", "pos.primary.600");
   const footerBg = useColorModeValue("gray.50", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
+  const colorModeIcon = useColorModeValue(<FiMoon />, <FiSun />);
+  const colorModeLabel = useColorModeValue("สลับเป็นโหมดมืด", "สลับเป็นโหมดสว่าง");
   const router = useRouter();
 
   return (
@@ -122,6 +128,16 @@ export const POSLayout = ({
 
             {/* Real-time Status */}
             <POSRealtimeStatus compact={true} />
+
+            {/* Color Mode Toggle */}
+            <IconButton
+              aria-label={colorModeLabel}
+              icon={colorModeIcon}
+              variant="ghost"
+              size="sm"
+              onClick={toggleColorMode}
+              title={colorModeLabel}
+            />
 
             {/* Future: User menu, notifications, etc. */}
           </HStack>
