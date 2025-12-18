@@ -182,9 +182,9 @@ const CustomerHistory: React.FC<CustomerHistoryProps> = ({
   };
 
   const calculateMembershipProgress = () => {
-    if (!customer.membership) return 0;
+    if (customer.loyalty_points <= 0) return 0;
     
-    const currentSpent = customer.membership.totalSpent;
+    const currentSpent = stats.total_spent;
     const nextLevelSpent = 100000; // Mock next level requirement
     return Math.min((currentSpent / nextLevelSpent) * 100, 100);
   };
@@ -198,12 +198,12 @@ const CustomerHistory: React.FC<CustomerHistoryProps> = ({
             <Stat>
               <StatLabel fontSize="sm">ยอดซื้อทั้งหมด</StatLabel>
               <StatNumber fontSize="2xl" color="green.500">
-                {formatCurrency(stats.totalSpent)}
+                {formatCurrency(stats.total_spent)}
               </StatNumber>
               <StatHelpText>
                 <HStack spacing={1}>
                   <IoTrendingUpOutline />
-                  <Text>เฉลี่ย {formatCurrency(stats.averageOrderValue)}</Text>
+                  <Text>เฉลี่ย {formatCurrency(stats.avg_order_value)}</Text>
                 </HStack>
               </StatHelpText>
             </Stat>
@@ -215,10 +215,10 @@ const CustomerHistory: React.FC<CustomerHistoryProps> = ({
             <Stat>
               <StatLabel fontSize="sm">คำสั่งซื้อทั้งหมด</StatLabel>
               <StatNumber fontSize="2xl" color="blue.500">
-                {stats.totalOrders}
+                {stats.total_orders}
               </StatNumber>
               <StatHelpText>
-                การซื้อล่าสุด: {stats.lastPurchaseDate ? formatDate(stats.lastPurchaseDate) : "ไม่มีข้อมูล"}
+                การซื้อล่าสุด: {stats.last_order_date ? formatDate(new Date(stats.last_order_date)) : "ไม่มีข้อมูล"}
               </StatHelpText>
             </Stat>
           </CardBody>
@@ -229,7 +229,7 @@ const CustomerHistory: React.FC<CustomerHistoryProps> = ({
             <Stat>
               <StatLabel fontSize="sm">แต้มสะสม</StatLabel>
               <StatNumber fontSize="2xl" color="purple.500">
-                {stats.pointsBalance?.toLocaleString() || 0}
+                {customer.loyalty_points?.toLocaleString() || 0}
               </StatNumber>
               <StatHelpText>แต้มพร้อมใช้</StatHelpText>
             </Stat>
@@ -241,9 +241,9 @@ const CustomerHistory: React.FC<CustomerHistoryProps> = ({
             <Stat>
               <StatLabel fontSize="sm">สถานะสมาชิก</StatLabel>
               <StatNumber fontSize="lg">
-                {customer.membership?.membershipType.name || "ไม่เป็นสมาชิก"}
+                {customer.status === "vip" ? "VIP" : customer.status === "active" ? "ใช้งาน" : "ไม่เป็นสมาชิก"}
               </StatNumber>
-              {customer.membership && (
+              {customer.loyalty_points > 0 && (
                 <StatHelpText>
                   <Progress
                     value={calculateMembershipProgress()}
@@ -261,57 +261,49 @@ const CustomerHistory: React.FC<CustomerHistoryProps> = ({
         </Card>
       </SimpleGrid>
 
-      {/* Favorite Products */}
-      {stats.favoriteProducts && stats.favoriteProducts.length > 0 && (
+      {/* Recent Orders Summary */}
+      {stats.total_orders > 0 && (
         <Card variant="elevated" bg={cardBg}>
           <CardHeader>
             <HStack spacing={2}>
               <Icon as={IoStarOutline} color="orange.500" />
               <Text fontSize="lg" fontWeight="bold">
-                สินค้าที่ซื้อบ่อย
+                สรุปคำสั่งซื้อ
               </Text>
             </HStack>
           </CardHeader>
           <CardBody>
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-              {stats.favoriteProducts.map((product, index) => (
-                <Box
-                  key={product.productId}
-                  p={4}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  borderRadius="lg"
-                >
-                  <VStack align="start" spacing={2}>
-                    <HStack justify="space-between" w="full">
-                      <Text fontSize="sm" fontWeight="medium">
-                        {product.productName}
-                      </Text>
-                      <Badge colorScheme="blue" size="sm">
-                        #{index + 1}
-                      </Badge>
-                    </HStack>
-                    <HStack spacing={4}>
-                      <VStack align="start" spacing={0}>
-                        <Text fontSize="xs" color="gray.500">
-                          จำนวนครั้ง
-                        </Text>
-                        <Text fontSize="sm" fontWeight="medium">
-                          {product.purchaseCount}
-                        </Text>
-                      </VStack>
-                      <VStack align="start" spacing={0}>
-                        <Text fontSize="xs" color="gray.500">
-                          ยอดรวม
-                        </Text>
-                        <Text fontSize="sm" fontWeight="medium">
-                          {formatCurrency(product.totalAmount)}
-                        </Text>
-                      </VStack>
-                    </HStack>
-                  </VStack>
-                </Box>
-              ))}
+              <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="lg">
+                <VStack align="start" spacing={2}>
+                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                    จำนวนคำสั่งซื้อ
+                  </Text>
+                  <Text fontSize="2xl" fontWeight="bold">
+                    {stats.total_orders}
+                  </Text>
+                </VStack>
+              </Box>
+              <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="lg">
+                <VStack align="start" spacing={2}>
+                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                    ยอดซื้อสะสม
+                  </Text>
+                  <Text fontSize="2xl" fontWeight="bold">
+                    {formatCurrency(stats.total_spent)}
+                  </Text>
+                </VStack>
+              </Box>
+              <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="lg">
+                <VStack align="start" spacing={2}>
+                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                    ค่าเฉลี่ยต่อคำสั่ง
+                  </Text>
+                  <Text fontSize="2xl" fontWeight="bold">
+                    {formatCurrency(stats.avg_order_value)}
+                  </Text>
+                </VStack>
+              </Box>
             </SimpleGrid>
           </CardBody>
         </Card>

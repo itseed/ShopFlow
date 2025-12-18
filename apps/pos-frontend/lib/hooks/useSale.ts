@@ -1,11 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import {
-  productService,
-  orderService,
-  type ProductFilters,
-  type CreateOrderData,
-} from "@shopflow/api";
+import { productService } from "@shopflow/api/services/productService";
+import { orderService } from "@shopflow/api/services/orderService";
+import type { ProductFilters } from "@shopflow/api/services/productService";
+import type { CreateOrderData, Product } from "@shopflow/types";
 
 // Query Keys
 export const QUERY_KEYS = {
@@ -19,11 +17,11 @@ export function usePOSProducts(filters?: ProductFilters) {
   return useQuery({
     queryKey: [QUERY_KEYS.POS_PRODUCTS, filters],
     queryFn: async () => {
-      const response = await productService.getAll(filters);
+      const response = await productService.getAll(filters || {});
       if (!response.success) {
         throw new Error(response.error || "Failed to fetch products");
       }
-      return response.data || [];
+      return (response.data || []) as Product[];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -38,7 +36,7 @@ export function usePOSProductSearch(searchTerm: string) {
       if (!response.success) {
         throw new Error(response.error || "Failed to search products");
       }
-      return response.data || [];
+      return (response.data || []) as Product[];
     },
     enabled: !!searchTerm,
   });
@@ -50,7 +48,7 @@ export function usePOSBarcodeSearch(barcode: string) {
     queryFn: async () => {
       if (!barcode) return null;
       const response = await productService.getByBarcode(barcode);
-      if (!response.success) {
+      if (!response.success || !response.data) {
         return null;
       }
       return response.data;
@@ -66,11 +64,24 @@ export function usePOSCreateOrder() {
 
   return useMutation({
     mutationFn: async (data: CreateOrderData) => {
-      const response = await orderService.create(data);
-      if (!response.success) {
-        throw new Error(response.error || "Failed to create order");
-      }
-      return response.data;
+      // Convert CreateOrderData to orderService.create format
+      const orderData = {
+        order: {
+          customer_name: data.customer_name,
+          customer_phone: data.customer_phone,
+          payment_method: data.payment_method,
+          branch_id: data.branch_id,
+        },
+        items: data.items.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price || 0,
+          subtotal: (item.unit_price || 0) * item.quantity,
+        })),
+      };
+      const response = await orderService.create(orderData);
+      // orderService.create returns { order, items, payment }
+      return response.order;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.POS_PRODUCTS] });

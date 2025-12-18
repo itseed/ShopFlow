@@ -307,7 +307,7 @@ const CustomerDetailPage: NextPageWithLayout = () => {
                 </Tr>
               </Thead>
               <Tbody>
-                {orders.map((order: Order) => (
+                 {orders.map((order: any) => (
                   <Tr key={order.id}>
                     <Td>
                       <Text fontWeight="semibold">{order.order_number}</Text>

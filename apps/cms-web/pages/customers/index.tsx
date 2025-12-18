@@ -1,4 +1,4 @@
-import { ReactElement, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import {
   Box,
@@ -12,10 +12,6 @@ import {
   Button,
   Icon,
   Flex,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
   SimpleGrid,
   Table,
   Thead,
@@ -725,7 +721,7 @@ function CustomersPage() {
 }
 
 // Use layout
-CustomersPage.getLayout = function getLayout(page: ReactElement) {
+CustomersPage.getLayout = function getLayout(page: React.ReactElement) {
   return <Layout title="ลูกค้า">{page}</Layout>;
 };
 

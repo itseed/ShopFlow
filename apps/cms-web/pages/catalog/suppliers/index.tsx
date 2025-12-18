@@ -83,7 +83,10 @@ import {
   FiCheck,
   FiX,
 } from "react-icons/fi";
-import { CreateSupplierData, UpdateSupplierData } from "@shopflow/api";
+import type {
+  CreateSupplierData,
+  UpdateSupplierData,
+} from "@shopflow/api/services/supplierService";
 import type { Supplier } from "@shopflow/types";
 
 const SupplierManagementPage: NextPageWithLayout = () => {

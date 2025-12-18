@@ -184,7 +184,7 @@ We successfully redesigned and enhanced the ShopFlow database from a basic POS s
 
 ### **Previous Files:**
 5. `migrate/create_low_stock_view.sql` - Low stock view (superseded by migration)
-6. `test-low-stock.js` - API testing script
+6. `test-low-stock.js` - API testing script (removed - functionality tested in unit tests)
 
 ## 🎯 Next Steps
 

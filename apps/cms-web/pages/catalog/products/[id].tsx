@@ -78,7 +78,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
 import { useProduct, useUpdateProduct, useStockMovements } from "../../../lib/hooks";
-import { productService } from "@shopflow/api";
+import { products as productService } from "@shopflow/api/services/coreService";
 import type { ProductStatus } from "@shopflow/types";
 
 const ProductDetailPage: NextPageWithLayout = () => {
@@ -134,12 +134,11 @@ const ProductDetailPage: NextPageWithLayout = () => {
   const handleStockAdjustment = async () => {
     if (!product) return;
 
-    await productService.updateStock(product.id, {
-      quantity: stockAdjustment.quantity,
-      type: stockAdjustment.quantity > 0 ? "add" : "subtract",
-      reason: stockAdjustment.note,
-      user_id: "user-id-placeholder", // Replace with actual user ID
-    });
+    const newStock = (product.stock || 0) + stockAdjustment.quantity;
+    await productService.update(product.id, {
+      stock: newStock,
+      updated_at: new Date().toISOString(),
+    } as any);
     setStockAdjustment({ quantity: 0, note: "" });
     onStockClose();
   };
@@ -317,7 +316,7 @@ const ProductDetailPage: NextPageWithLayout = () => {
                       <Text fontWeight="semibold" color="gray.600">
                         หมวดหมู่:
                       </Text>
-                      <Text>{product.category?.name}</Text>
+                      <Text>{(product as any).category?.name || "-"}</Text>
                     </VStack>
                     <VStack align="start" spacing={1}>
                       <Text fontWeight="semibold" color="gray.600">

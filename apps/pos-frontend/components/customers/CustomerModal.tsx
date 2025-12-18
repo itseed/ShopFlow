@@ -79,100 +79,98 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   const isMobile = useBreakpointValue({ base: true, md: false });
 
+  // Helper function to get customer name
+  const getCustomerName = (customer: Customer) => {
+    if (customer.company_name) return customer.company_name;
+    if (customer.first_name || customer.last_name) {
+      return `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+    }
+    return customer.customer_code || "Unknown Customer";
+  };
+
   // Mock customers data
   const mockCustomers: Customer[] = [
     {
       id: "1",
-      customerNumber: "C001",
-      name: "สมชาย ใจดี",
+      customer_code: "C001",
+      first_name: "สมชาย",
+      last_name: "ใจดี",
       email: "somchai@email.com",
       phone: "0812345678",
       address: "123 ถนนสุขุมวิท กรุงเทพฯ 10110",
-      dateOfBirth: new Date("1985-05-15"),
-      gender: "male",
-      isActive: true,
-      membership: {
-        id: "1",
-        customerId: "1",
-        membershipType: {
-          id: "1",
-          name: "Gold",
-          color: "yellow",
-          benefits: ["ส่วนลด 10%", "แต้มสะสม x2"],
-          minSpent: 50000,
-          discountPercentage: 10,
-          pointsMultiplier: 2,
-          description: "สมาชิกระดับทอง",
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        membershipNumber: "M0001",
-        points: 1250,
-        totalSpent: 75000,
-        discountPercentage: 10,
-        joinedAt: new Date("2023-01-15"),
-        status: "active",
-        expiresAt: new Date("2024-12-31"),
-      },
+      city: "กรุงเทพฯ",
+      postal_code: "10110",
+      country: "TH",
+      customer_type: "vip",
+      status: "active",
+      credit_limit: 0,
+      current_balance: 0,
+      total_orders: 15,
+      total_spent: 75000,
+      loyalty_points: 1250,
       notes: "ลูกค้า VIP",
-      createdAt: new Date("2023-01-15"),
-      updatedAt: new Date("2024-01-10"),
+      created_at: "2023-01-15T00:00:00Z",
+      updated_at: "2024-01-10T00:00:00Z",
     },
     {
       id: "2",
-      customerNumber: "C002",
-      name: "สมหญิง รักสวย",
+      customer_code: "C002",
+      first_name: "สมหญิง",
+      last_name: "รักสวย",
       email: "somying@email.com",
       phone: "0812345679",
-      isActive: true,
-      membership: {
-        id: "2",
-        customerId: "2",
-        membershipType: {
-          id: "2",
-          name: "Silver",
-          color: "gray",
-          benefits: ["ส่วนลด 5%", "แต้มสะสม x1.5"],
-          minSpent: 25000,
-          discountPercentage: 5,
-          pointsMultiplier: 1.5,
-          description: "สมาชิกระดับเงิน",
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        membershipNumber: "M0002",
-        points: 800,
-        totalSpent: 35000,
-        discountPercentage: 5,
-        joinedAt: new Date("2023-03-20"),
-        status: "active",
-        expiresAt: new Date("2024-12-31"),
-      },
-      createdAt: new Date("2023-03-20"),
-      updatedAt: new Date("2024-01-08"),
+      city: "กรุงเทพฯ",
+      postal_code: "10110",
+      country: "TH",
+      customer_type: "regular",
+      status: "active",
+      credit_limit: 0,
+      current_balance: 0,
+      total_orders: 8,
+      total_spent: 35000,
+      loyalty_points: 800,
+      created_at: "2023-03-20T00:00:00Z",
+      updated_at: "2024-01-08T00:00:00Z",
     },
     {
       id: "3",
-      customerNumber: "C003",
-      name: "อนุชา ทำงานหนัก",
+      customer_code: "C003",
+      first_name: "อนุชา",
+      last_name: "ทำงานหนัก",
       email: "anucha@email.com",
       phone: "0812345680",
-      isActive: true,
-      createdAt: new Date("2023-06-10"),
-      updatedAt: new Date("2024-01-05"),
+      city: "กรุงเทพฯ",
+      postal_code: "10110",
+      country: "TH",
+      customer_type: "individual",
+      status: "active",
+      credit_limit: 0,
+      current_balance: 0,
+      total_orders: 5,
+      total_spent: 12000,
+      loyalty_points: 240,
+      created_at: "2023-06-10T00:00:00Z",
+      updated_at: "2024-01-05T00:00:00Z",
     },
     {
       id: "4",
-      customerNumber: "C004",
-      name: "วิภา ขยันเรียน",
+      customer_code: "C004",
+      first_name: "วิภา",
+      last_name: "ขยันเรียน",
       email: "wipha@email.com",
       phone: "0812345681",
-      gender: "female",
-      isActive: true,
-      createdAt: new Date("2023-08-15"),
-      updatedAt: new Date("2024-01-03"),
+      city: "กรุงเทพฯ",
+      postal_code: "10110",
+      country: "TH",
+      customer_type: "individual",
+      status: "active",
+      credit_limit: 0,
+      current_balance: 0,
+      total_orders: 3,
+      total_spent: 8000,
+      loyalty_points: 160,
+      created_at: "2023-08-15T00:00:00Z",
+      updated_at: "2024-01-03T00:00:00Z",
     },
   ];
 
@@ -207,8 +205,10 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
 
     const filtered = customers.filter(
       (customer) =>
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.customerNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.first_name && customer.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.last_name && customer.last_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.company_name && customer.company_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.customer_code && customer.customer_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
         customer.phone?.includes(searchTerm) ||
         customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -348,15 +348,15 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                             <HStack spacing={3}>
                               <Avatar
                                 size="sm"
-                                name={customer.name}
+                                name={customer.company_name || `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.customer_code || "Unknown"}
                                 bg="blue.500"
                               />
                               <VStack align="start" spacing={0}>
                                 <Text fontWeight="medium" fontSize="sm">
-                                  {customer.name}
+                                  {customer.company_name || `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.customer_code || "Unknown Customer"}
                                 </Text>
                                 <Text fontSize="xs" color="gray.500">
-                                  {customer.customerNumber}
+                                  {customer.customer_code}
                                 </Text>
                               </VStack>
                             </HStack>
@@ -378,13 +378,13 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                             </VStack>
                           </Td>
                           <Td>
-                            {customer.membership ? (
+                            {customer.loyalty_points > 0 ? (
                               <Badge
-                                colorScheme={customer.membership.membershipType.color}
+                                colorScheme="yellow"
                                 variant="solid"
                                 size="sm"
                               >
-                                {customer.membership.membershipType.name}
+                                {customer.loyalty_points} แต้ม
                               </Badge>
                             ) : (
                               <Text fontSize="xs" color="gray.500">
@@ -394,11 +394,11 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                           </Td>
                           <Td>
                             <Badge
-                              colorScheme={customer.isActive ? "green" : "red"}
+                              colorScheme={customer.status === "active" ? "green" : "red"}
                               variant="outline"
                               size="sm"
                             >
-                              {customer.isActive ? "ใช้งาน" : "ไม่ใช้งาน"}
+                              {customer.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน"}
                             </Badge>
                           </Td>
                           <Td>

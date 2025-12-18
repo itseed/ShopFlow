@@ -95,103 +95,86 @@ const mockMembershipTypes: MembershipType[] = [
 const mockCustomers: Customer[] = [
   {
     id: "1",
-    customerNumber: "C001",
-    name: "สมชาย ใจดี",
+    customer_code: "C001",
+    first_name: "สมชาย",
+    last_name: "ใจดี",
     email: "somchai@email.com",
     phone: "0812345678",
     address: "123 ถนนสุขุมวิท กรุงเทพฯ 10110",
-    dateOfBirth: new Date("1985-05-15"),
-    isActive: true,
-    membership: {
-      id: "1",
-      customerId: "1",
-      membershipType: mockMembershipTypes[0],
-      membershipNumber: "M0001",
-      points: 1250,
-      totalSpent: 75000,
-      discountPercentage: 10,
-      joinedAt: new Date("2023-01-15"),
-      status: "active",
-      expiresAt: new Date("2024-12-31"),
-    },
+    country: "Thailand",
+    customer_type: "individual",
+    status: "active",
+    credit_limit: 0,
+    current_balance: 0,
+    total_orders: 0,
+    total_spent: 75000,
+    loyalty_points: 1250,
     notes: "ลูกค้า VIP ชอบสินค้าคุณภาพดี",
-    createdAt: new Date("2023-01-15"),
-    updatedAt: new Date("2024-01-10"),
+    created_at: "2023-01-15T00:00:00Z",
+    updated_at: "2024-01-10T00:00:00Z",
   },
   {
     id: "2",
-    customerNumber: "C002",
-    name: "สมหญิง รักสวย",
+    customer_code: "C002",
+    first_name: "สมหญิง",
+    last_name: "รักสวย",
     email: "somying@email.com",
     phone: "0812345679",
-    isActive: true,
-    membership: {
-      id: "2",
-      customerId: "2",
-      membershipType: mockMembershipTypes[1],
-      membershipNumber: "M0002",
-      points: 800,
-      totalSpent: 35000,
-      discountPercentage: 5,
-      joinedAt: new Date("2023-03-20"),
-      status: "active",
-      expiresAt: new Date("2024-12-31"),
-    },
-    createdAt: new Date("2023-03-20"),
-    updatedAt: new Date("2024-01-08"),
+    country: "Thailand",
+    customer_type: "individual",
+    status: "active",
+    credit_limit: 0,
+    current_balance: 0,
+    total_orders: 0,
+    total_spent: 35000,
+    loyalty_points: 800,
+    created_at: "2023-03-20T00:00:00Z",
+    updated_at: "2024-01-08T00:00:00Z",
   },
   {
     id: "3",
-    customerNumber: "C003",
-    name: "อนุชา ทำงานหนัก",
+    customer_code: "C003",
+    first_name: "อนุชา",
+    last_name: "ทำงานหนัก",
     email: "anucha@email.com",
     phone: "0812345680",
-    isActive: true,
-    createdAt: new Date("2023-06-10"),
-    updatedAt: new Date("2024-01-05"),
+    country: "Thailand",
+    customer_type: "individual",
+    status: "active",
+    credit_limit: 0,
+    current_balance: 0,
+    total_orders: 0,
+    total_spent: 0,
+    loyalty_points: 0,
+    created_at: "2023-06-10T00:00:00Z",
+    updated_at: "2024-01-05T00:00:00Z",
   },
 ];
 
 const mockStats: CustomerStats = {
-  customerId: "1",
-  totalOrders: 25,
-  totalSpent: 75000,
-  averageOrderValue: 3000,
-  lastPurchaseDate: new Date("2024-01-10"),
-  firstPurchaseDate: new Date("2023-01-20"),
-  favoriteProducts: [
-    {
-      productId: "P001",
-      productName: "เสื้อยืดคุณภาพดี",
-      purchaseCount: 5,
-      totalAmount: 2500,
-    },
-    {
-      productId: "P002",
-      productName: "กางเกงยีนส์",
-      purchaseCount: 3,
-      totalAmount: 4500,
-    },
-  ],
-  monthlySpending: [
-    {
-      month: "2024-01",
-      amount: 3500,
-      orders: 1,
-    },
-    {
-      month: "2023-12",
-      amount: 5000,
-      orders: 2,
-    },
-  ],
-  pointsBalance: 1250,
-  membershipStatus: {
-    currentType: "Gold",
-    nextType: "Platinum",
-    progressToNext: 75,
-  },
+  total_orders: 25,
+  total_spent: 75000,
+  avg_order_value: 3000,
+  last_order_date: "2024-01-10T00:00:00Z",
+  loyalty_points: 1250,
+  status: "active",
 };
+
+// Mock favorite products (not part of CustomerStats)
+const mockFavoriteProducts = [
+  {
+    productId: "P001",
+    productName: "เสื้อยืดคุณภาพดี",
+    purchaseCount: 5,
+    totalAmount: 2500,
+  },
+  {
+    productId: "P002",
+    productName: "กางเกงยีนส์",
+    purchaseCount: 3,
+    totalAmount: 4500,
+  },
+];
 
 const mockTransactions: CustomerTransaction[] = [
   {
@@ -307,13 +290,28 @@ const CustomersPage: React.FC = () => {
     }
   };
 
+  // Helper function to get customer name
+  const getCustomerName = (data: CustomerFormData | Customer): string => {
+    if ('company_name' in data && data.company_name) {
+      return data.company_name;
+    }
+    if ('first_name' in data || 'last_name' in data) {
+      return `${data.first_name || ""} ${data.last_name || ""}`.trim();
+    }
+    if ('customer_code' in data && data.customer_code) {
+      return data.customer_code;
+    }
+    return "ลูกค้า";
+  };
+
   const handleCustomerSave = async (customerData: CustomerFormData) => {
     try {
+      const customerName = getCustomerName(customerData);
       if (editingCustomer) {
         await updateCustomer(editingCustomer.id, customerData);
         toast({
           title: "อัปเดตข้อมูลลูกค้าสำเร็จ",
-          description: `ข้อมูลลูกค้า ${customerData.name} ได้รับการอัปเดตแล้ว`,
+          description: `ข้อมูลลูกค้า ${customerName} ได้รับการอัปเดตแล้ว`,
           status: "success",
           duration: 3000,
           isClosable: true,
@@ -322,7 +320,7 @@ const CustomersPage: React.FC = () => {
         await createCustomer(customerData);
         toast({
           title: "เพิ่มลูกค้าสำเร็จ",
-          description: `เพิ่มลูกค้า ${customerData.name} แล้ว`,
+          description: `เพิ่มลูกค้า ${customerName} แล้ว`,
           status: "success",
           duration: 3000,
           isClosable: true,
@@ -437,7 +435,7 @@ const CustomersPage: React.FC = () => {
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold">
                     {viewMode === "detail" && selectedCustomer
-                      ? selectedCustomer.name
+                      ? getCustomerName(selectedCustomer)
                       : `${overviewStats.totalCustomers} รายการ`}
                   </Text>
                 </VStack>
@@ -455,7 +453,7 @@ const CustomersPage: React.FC = () => {
                 </BreadcrumbItem>
                 {viewMode === "detail" && selectedCustomer && (
                   <BreadcrumbItem isCurrentPage>
-                    <BreadcrumbLink>{selectedCustomer.name}</BreadcrumbLink>
+                    <BreadcrumbLink>{getCustomerName(selectedCustomer)}</BreadcrumbLink>
                   </BreadcrumbItem>
                 )}
               </Breadcrumb>
@@ -647,13 +645,13 @@ const CustomersPage: React.FC = () => {
                           growthRate: 8.5,
                         },
                         topSpenders: customers
-                          .filter(c => c.membership?.totalSpent)
-                          .sort((a, b) => (b.membership?.totalSpent || 0) - (a.membership?.totalSpent || 0))
+                          .filter(c => (c.total_spent || 0) > 0)
+                          .sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
                           .slice(0, 5)
                           .map(c => ({
                             customerId: c.id,
-                            customerName: c.name,
-                            totalSpent: c.membership?.totalSpent || 0,
+                            customerName: getCustomerName(c),
+                            totalSpent: c.total_spent || 0,
                             ordersCount: Math.floor(Math.random() * 20) + 5, // Mock data
                           })),
                         genderStats: overviewStats.genderStats,
@@ -674,7 +672,6 @@ const CustomersPage: React.FC = () => {
           isOpen={isFormOpen}
           onClose={onFormClose}
           customer={editingCustomer}
-          membershipTypes={mockMembershipTypes}
           onSave={handleCustomerSave}
           mode={editingCustomer ? "edit" : "create"}
         />
@@ -684,3 +681,10 @@ const CustomersPage: React.FC = () => {
 };
 
 export default CustomersPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};

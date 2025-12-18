@@ -4,14 +4,9 @@ import {
   reportService,
   orderService,
   productService,
-  customerService,
-  realtimeService,
-  type SalesReport,
-  type ProductReport,
-  type CustomerReport,
-  type InventoryReport,
-  type BranchComparisonReport,
 } from "@shopflow/api";
+import { customerService } from "@shopflow/api/services/customerService";
+import { realtimeService } from "@shopflow/api/services/realtimeService";
 import { useCurrentBranch } from "./useAuthEnhanced";
 
 // Dashboard data aggregation types
@@ -369,44 +364,44 @@ export function useDashboard(
     }
 
     const currentSales = salesData.reduce(
-      (sum, day) => sum + (day.totalSales || 0),
+      (sum: number, day: any) => sum + (day.totalSales || 0),
       0
     );
     const currentOrders = salesData.reduce(
-      (sum, day) => sum + (day.totalOrders || 0),
+      (sum: number, day: any) => sum + (day.totalOrders || 0),
       0
     );
     const currentProfit = salesData.reduce(
-      (sum, day) => sum + (day.totalProfit || 0),
+      (sum: number, day: any) => sum + (day.totalProfit || 0),
       0
     );
     const currentB2B = salesData.reduce(
-      (sum, day) => sum + (day.b2bSales || 0),
+      (sum: number, day: any) => sum + (day.b2bSales || 0),
       0
     );
     const currentRetail = salesData.reduce(
-      (sum, day) => sum + (day.walkInSales || 0),
+      (sum: number, day: any) => sum + (day.walkInSales || 0),
       0
     );
     const currentDelivery = salesData.reduce(
-      (sum, day) => sum + (day.deliveryOrders || 0),
+      (sum: number, day: any) => sum + (day.deliveryOrders || 0),
       0
     );
     const pendingPayments = salesData.reduce(
-      (sum, day) => sum + (day.pendingPayments || 0),
+      (sum: number, day: any) => sum + (day.pendingPayments || 0),
       0
     );
 
     const compareSales = compareSalesData.reduce(
-      (sum, day) => sum + (day.totalSales || 0),
+      (sum: number, day: any) => sum + (day.totalSales || 0),
       0
     );
     const compareOrders = compareSalesData.reduce(
-      (sum, day) => sum + (day.totalOrders || 0),
+      (sum: number, day: any) => sum + (day.totalOrders || 0),
       0
     );
     const compareProfit = compareSalesData.reduce(
-      (sum, day) => sum + (day.totalProfit || 0),
+      (sum: number, day: any) => sum + (day.totalProfit || 0),
       0
     );
 
@@ -424,18 +419,18 @@ export function useDashboard(
         : 0;
 
     const lowStockCount = inventoryData.filter(
-      (item) => item.stockStatus === "low_stock"
+      (item: any) => item.stockStatus === "low_stock"
     ).length;
     const outOfStockCount = inventoryData.filter(
-      (item) => item.stockStatus === "out_of_stock"
+      (item: any) => item.stockStatus === "out_of_stock"
     ).length;
 
     const totalCustomers = customerData.reduce(
-      (sum, day) => sum + (day.totalCustomers || 0),
+      (sum: number, day: any) => sum + (day.totalCustomers || 0),
       0
     );
     const newCustomers = customerData.reduce(
-      (sum, day) => sum + (day.newCustomers || 0),
+      (sum: number, day: any) => sum + (day.newCustomers || 0),
       0
     );
 
@@ -487,7 +482,7 @@ export function useDashboard(
     }
 
     // Sales chart
-    const salesChart = salesData.map((day) => ({
+    const salesChart = salesData.map((day: any) => ({
       date: day.date,
       sales: day.totalSales || 0,
       profit: day.totalProfit || 0,
@@ -551,7 +546,7 @@ export function useDashboard(
     ];
 
     // Branch performance
-    const branchPerformance = branchData.map((branch) => ({
+    const branchPerformance = branchData.map((branch: any) => ({
       branchId: branch.branchId,
       branchName: branch.branchName,
       sales: branch.totalSales || 0,
@@ -583,9 +578,9 @@ export function useDashboard(
     }
 
     const products = productData
-      .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+      .sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0))
       .slice(0, 5)
-      .map((product) => ({
+      .map((product: any) => ({
         id: product.productId || "unknown",
         name: product.productName || "ไม่ระบุชื่อ",
         sales: product.quantitySold || 0,

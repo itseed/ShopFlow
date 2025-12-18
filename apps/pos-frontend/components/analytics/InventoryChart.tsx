@@ -25,28 +25,16 @@ import {
   IoPieChart,
   IoBarChart,
 } from "react-icons/io5";
-import { Doughnut, Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import { formatCurrency } from "../../lib/sales";
+import dynamic from "next/dynamic";
+// Use dynamic imports for ESM modules
+const Doughnut = dynamic(() => import("react-chartjs-2").then((mod) => mod.Doughnut), { ssr: false });
+const Bar = dynamic(() => import("react-chartjs-2").then((mod) => mod.Bar), { ssr: false });
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import { formatCurrency } from "../../lib/sales";
+import { registerChartJS } from "../../lib/chartConfig";
+
+// Register Chart.js
+registerChartJS();
 
 interface StockLevel {
   level: string;

@@ -556,7 +556,7 @@ const ProductsPage: NextPageWithLayout = () => {
                     </Td>
                     <Td>
                       <Badge variant="outline" colorScheme="purple">
-                        {getCategoryName(product.category_id)}
+                        {getCategoryName(product.category_id || undefined)}
                       </Badge>
                     </Td>
                     <Td>
@@ -600,14 +600,14 @@ const ProductsPage: NextPageWithLayout = () => {
                         <MenuList>
                           <MenuItem
                             icon={<FiEdit2 />}
-                            onClick={() => handleEditProduct(product)}
+                            onClick={() => handleEditProduct(product as any)}
                           >
                             แก้ไข
                           </MenuItem>
                           <MenuItem
                             icon={<FiTrash2 />}
                             color="red.500"
-                            onClick={() => handleDeleteClick(product)}
+                            onClick={() => handleDeleteClick(product as any)}
                           >
                             ลบ
                           </MenuItem>

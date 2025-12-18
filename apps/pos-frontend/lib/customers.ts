@@ -26,13 +26,18 @@ export interface PaginatedCustomers {
 export const validateCustomerData = (data: CustomerFormData): CustomerValidationResult => {
   const errors: Record<string, string> = {};
 
-  // Required fields
-  if (!data.name?.trim()) {
-    errors.name = "กรุณาระบุชื่อลูกค้า";
-  } else if (data.name.length < 2) {
-    errors.name = "ชื่อลูกค้าต้องมีอย่างน้อย 2 ตัวอักษร";
-  } else if (data.name.length > 100) {
-    errors.name = "ชื่อลูกค้าต้องไม่เกิน 100 ตัวอักษร";
+  // Required fields - must have either first_name or company_name
+  const hasName = (data.first_name?.trim() || data.company_name?.trim());
+  if (!hasName) {
+    errors.first_name = "กรุณาระบุชื่อลูกค้าหรือชื่อบริษัท";
+  } else if (data.first_name && data.first_name.length < 2) {
+    errors.first_name = "ชื่อต้องมีอย่างน้อย 2 ตัวอักษร";
+  } else if (data.first_name && data.first_name.length > 100) {
+    errors.first_name = "ชื่อต้องไม่เกิน 100 ตัวอักษร";
+  } else if (data.company_name && data.company_name.length < 2) {
+    errors.company_name = "ชื่อบริษัทต้องมีอย่างน้อย 2 ตัวอักษร";
+  } else if (data.company_name && data.company_name.length > 100) {
+    errors.company_name = "ชื่อบริษัทต้องไม่เกิน 100 ตัวอักษร";
   }
 
   // Phone validation
@@ -55,17 +60,9 @@ export const validateCustomerData = (data: CustomerFormData): CustomerValidation
     }
   }
 
-  // Age validation (if date of birth provided)
-  if (data.dateOfBirth) {
-    const today = new Date();
-    const birthDate = new Date(data.dateOfBirth);
-    const age = today.getFullYear() - birthDate.getFullYear();
-    
-    if (birthDate > today) {
-      errors.dateOfBirth = "วันเกิดไม่สามารถเป็นวันในอนาคตได้";
-    } else if (age > 150) {
-      errors.dateOfBirth = "วันเกิดไม่ถูกต้อง";
-    }
+  // Customer type validation
+  if (!data.customer_type) {
+    errors.customer_type = "กรุณาเลือกประเภทลูกค้า";
   }
 
   // Address validation
@@ -96,51 +93,57 @@ export const filterCustomers = (
   // Search term filter
   if (filters.searchTerm) {
     const searchLower = filters.searchTerm.toLowerCase();
-    filtered = filtered.filter((customer) =>
-      customer.name.toLowerCase().includes(searchLower) ||
-      customer.customerNumber.toLowerCase().includes(searchLower) ||
-      customer.phone?.includes(filters.searchTerm) ||
-      customer.email?.toLowerCase().includes(searchLower)
-    );
+    filtered = filtered.filter((customer) => {
+      const name = customer.company_name || `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+      return name.toLowerCase().includes(searchLower) ||
+        (customer.customer_code && customer.customer_code.toLowerCase().includes(searchLower)) ||
+        customer.phone?.includes(filters.searchTerm) ||
+        customer.email?.toLowerCase().includes(searchLower);
+    });
   }
 
-  // Membership type filter
+  // Membership type filter - using loyalty_points as proxy
   if (filters.membershipType !== "all") {
     if (filters.membershipType === "none") {
-      filtered = filtered.filter((customer) => !customer.membership);
+      filtered = filtered.filter((customer) => !customer.loyalty_points || customer.loyalty_points === 0);
     } else {
-      filtered = filtered.filter(
-        (customer) => customer.membership?.membershipType.id === filters.membershipType
-      );
+      // Filter by loyalty points thresholds (simplified)
+      filtered = filtered.filter((customer) => {
+        const points = customer.loyalty_points || 0;
+        // Basic membership tiers based on points
+        if (filters.membershipType === "bronze") return points > 0 && points < 500;
+        if (filters.membershipType === "silver") return points >= 500 && points < 2000;
+        if (filters.membershipType === "gold") return points >= 2000;
+        return true;
+      });
     }
   }
 
   // Active status filter
   if (filters.isActive !== "all") {
     const isActiveValue = filters.isActive === "true";
-    filtered = filtered.filter((customer) => customer.isActive === isActiveValue);
+    filtered = filtered.filter((customer) => customer.status === (isActiveValue ? "active" : "inactive"));
   }
 
-  // Gender filter
-  if (filters.gender !== "all") {
-    filtered = filtered.filter((customer) => customer.gender === filters.gender);
-  }
+  // Gender filter - removed as not in Customer type
+  // if (filters.gender !== "all") {
+  //   filtered = filtered.filter((customer) => customer.gender === filters.gender);
+  // }
 
-  // Age range filter
-  if (filters.ageRange) {
-    const today = new Date();
-    filtered = filtered.filter((customer) => {
-      if (!customer.dateOfBirth) return true;
-      
-      const age = today.getFullYear() - customer.dateOfBirth.getFullYear();
-      return age >= filters.ageRange[0] && age <= filters.ageRange[1];
-    });
-  }
+  // Age range filter - removed as dateOfBirth not in Customer type
+  // if (filters.ageRange) {
+  //   const today = new Date();
+  //   filtered = filtered.filter((customer) => {
+  //     if (!customer.dateOfBirth) return true;
+  //     const age = today.getFullYear() - customer.dateOfBirth.getFullYear();
+  //     return age >= filters.ageRange[0] && age <= filters.ageRange[1];
+  //   });
+  // }
 
   // Total spent range filter
   if (filters.totalSpentRange) {
     filtered = filtered.filter((customer) => {
-      const totalSpent = customer.membership?.totalSpent || 0;
+      const totalSpent = customer.total_spent || 0;
       return totalSpent >= filters.totalSpentRange[0] && totalSpent <= filters.totalSpentRange[1];
     });
   }
@@ -149,7 +152,7 @@ export const filterCustomers = (
   if (filters.registrationDateRange !== "all") {
     const dateRange = getDateRange(filters.registrationDateRange);
     filtered = filtered.filter((customer) => {
-      const createdAt = new Date(customer.createdAt);
+      const createdAt = new Date(customer.created_at);
       return createdAt >= dateRange.start && createdAt <= dateRange.end;
     });
   }
@@ -172,31 +175,37 @@ export const sortCustomers = (
     let bValue: any;
 
     switch (sortBy) {
-      case "name":
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
+      case "name": {
+        const aName = a.company_name || `${a.first_name || ""} ${a.last_name || ""}`.trim();
+        const bName = b.company_name || `${b.first_name || ""} ${b.last_name || ""}`.trim();
+        aValue = aName.toLowerCase();
+        bValue = bName.toLowerCase();
         break;
+      }
       case "customerNumber":
-        aValue = a.customerNumber;
-        bValue = b.customerNumber;
+        aValue = a.customer_code || "";
+        bValue = b.customer_code || "";
         break;
       case "createdAt":
-        aValue = new Date(a.createdAt).getTime();
-        bValue = new Date(b.createdAt).getTime();
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
         break;
       case "totalSpent":
-        aValue = a.membership?.totalSpent || 0;
-        bValue = b.membership?.totalSpent || 0;
+        aValue = a.total_spent || 0;
+        bValue = b.total_spent || 0;
         break;
       case "lastPurchase":
         // Would need to implement based on actual data structure
-        aValue = a.updatedAt.getTime();
-        bValue = b.updatedAt.getTime();
+        aValue = new Date(a.updated_at).getTime();
+        bValue = new Date(b.updated_at).getTime();
         break;
-      default:
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
+      default: {
+        const aName = a.company_name || `${a.first_name || ""} ${a.last_name || ""}`.trim();
+        const bName = b.company_name || `${b.first_name || ""} ${b.last_name || ""}`.trim();
+        aValue = aName.toLowerCase();
+        bValue = bName.toLowerCase();
         break;
+      }
     }
 
     if (sortOrder === "asc") {
@@ -249,7 +258,8 @@ export const paginateCustomers = (
  */
 export const generateCustomerNumber = (existingCustomers: Customer[]): string => {
   const maxNumber = existingCustomers.reduce((max, customer) => {
-    const numberPart = parseInt(customer.customerNumber.replace(/^C/, "")) || 0;
+    if (!customer.customer_code) return max;
+    const numberPart = parseInt(customer.customer_code.replace(/^C/, "")) || 0;
     return Math.max(max, numberPart);
   }, 0);
 
@@ -277,43 +287,33 @@ export const calculateAge = (dateOfBirth: Date): number => {
  */
 export const getCustomerSummaryStats = (customers: Customer[]) => {
   const totalCustomers = customers.length;
-  const activeCustomers = customers.filter((c) => c.isActive).length;
-  const membersCount = customers.filter((c) => c.membership).length;
+  const activeCustomers = customers.filter((c) => c.status === "active").length;
+  const membersCount = customers.filter((c) => (c.loyalty_points || 0) > 0).length;
   
   const totalRevenue = customers.reduce(
-    (sum, c) => sum + (c.membership?.totalSpent || 0),
+    (sum, c) => sum + (c.total_spent || 0),
     0
   );
   
   const averageSpending = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
 
-  // Gender distribution
-  const genderStats = customers.reduce((acc, customer) => {
-    const gender = customer.gender || "unknown";
-    acc[gender] = (acc[gender] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Gender distribution - removed as gender not in Customer type
+  const genderStats: Record<string, number> = {
+    unknown: customers.length, // All unknown as gender not available
+  };
 
-  // Age distribution
-  const ageStats = customers.reduce((acc, customer) => {
-    if (!customer.dateOfBirth) {
-      acc.unknown = (acc.unknown || 0) + 1;
-      return acc;
-    }
+  // Age distribution - removed as dateOfBirth not in Customer type
+  const ageStats: Record<string, number> = {
+    unknown: customers.length, // All unknown as dateOfBirth not available
+  };
 
-    const age = calculateAge(customer.dateOfBirth);
-    if (age < 18) acc.under18 = (acc.under18 || 0) + 1;
-    else if (age < 30) acc.age18to29 = (acc.age18to29 || 0) + 1;
-    else if (age < 50) acc.age30to49 = (acc.age30to49 || 0) + 1;
-    else if (age < 65) acc.age50to64 = (acc.age50to64 || 0) + 1;
-    else acc.age65plus = (acc.age65plus || 0) + 1;
-
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Membership distribution
+  // Membership distribution - using loyalty_points as proxy
   const membershipStats = customers.reduce((acc, customer) => {
-    const membershipType = customer.membership?.membershipType.name || "none";
+    const points = customer.loyalty_points || 0;
+    let membershipType = "none";
+    if (points >= 2000) membershipType = "gold";
+    else if (points >= 500) membershipType = "silver";
+    else if (points > 0) membershipType = "bronze";
     acc[membershipType] = (acc[membershipType] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -354,22 +354,30 @@ export const exportCustomersToCSV = (customers: Customer[]): string => {
     "หมายเหตุ",
   ];
 
-  const rows = customers.map((customer) => [
-    customer.customerNumber,
-    customer.name,
-    customer.phone || "",
-    customer.email || "",
-    customer.address || "",
-    customer.dateOfBirth ? customer.dateOfBirth.toLocaleDateString("th-TH") : "",
-    customer.gender === "male" ? "ชาย" : customer.gender === "female" ? "หญิง" : customer.gender || "",
-    customer.membership?.membershipType.name || "",
-    customer.membership?.membershipNumber || "",
-    customer.membership?.points?.toString() || "0",
-    customer.membership?.totalSpent?.toString() || "0",
-    customer.isActive ? "ใช้งาน" : "ไม่ใช้งาน",
-    customer.createdAt.toLocaleDateString("th-TH"),
-    customer.notes || "",
-  ]);
+  const rows = customers.map((customer) => {
+    const name = customer.company_name || `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+    const points = customer.loyalty_points || 0;
+    let membershipType = "none";
+    if (points >= 2000) membershipType = "gold";
+    else if (points >= 500) membershipType = "silver";
+    else if (points > 0) membershipType = "bronze";
+    return [
+      customer.customer_code || "",
+      name,
+      customer.phone || "",
+      customer.email || "",
+      customer.address || "",
+      "", // dateOfBirth not in Customer type
+      "", // gender not in Customer type
+      membershipType,
+      "", // membershipNumber not in Customer type
+      points.toString(),
+      (customer.total_spent || 0).toString(),
+      customer.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน",
+      new Date(customer.created_at).toLocaleDateString("th-TH"),
+      customer.notes || "",
+    ];
+  });
 
   const csvContent = [headers, ...rows]
     .map((row) => row.map((cell) => `"${cell}"`).join(","))

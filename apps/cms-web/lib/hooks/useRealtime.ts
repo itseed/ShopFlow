@@ -4,9 +4,8 @@ import { useToast } from "@chakra-ui/react";
 import {
   realtimeService,
   type RealtimeEvent,
-  type Product,
-  type Order,
-} from "@shopflow/api";
+} from "@shopflow/api/services/realtimeService";
+import type { Product, Order } from "@shopflow/types";
 import { useAuth } from "../auth";
 import { useCurrentBranch } from "./useAuthEnhanced";
 

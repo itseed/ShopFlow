@@ -1,12 +1,9 @@
 import React, { useEffect, useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import {
-  realtimeService,
-  type RealtimeEvent,
-  type RealtimeEventType,
-} from "@shopflow/api";
-import type { Product } from "@shopflow/api";
+import { realtimeService } from "@shopflow/api/services/realtimeService";
+import type { RealtimeEvent, RealtimeEventType } from "@shopflow/api/services/realtimeService";
+import type { Product } from "@shopflow/types";
 
 // Define Order and OrderItem types locally
 interface Order {
@@ -208,7 +205,7 @@ export function usePOSOrderProcessing(branchId?: string) {
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const handleOrderProcessing = useCallback(
-    (event: RealtimeEvent<Order>) => {
+    (event: RealtimeEvent<Order> | any) => {
       console.log("🛒 POS order processing:", event);
 
       const { eventType, new: newOrder, old: oldOrder } = event;

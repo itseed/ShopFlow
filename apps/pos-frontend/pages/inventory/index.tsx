@@ -82,11 +82,8 @@ import {
   IoDocumentText,
 } from "react-icons/io5";
 import { POSLayout } from "../../components";
-import {
-  usePOSInventory,
-  usePOSLowStock,
-  usePOSUpdateStock,
-} from "../../lib/hooks/usePOSDatabase";
+import { useProducts, useUpdateProductStock } from "../../lib/hooks/useProducts";
+import { productService } from "@shopflow/api";
 
 interface InventoryItem {
   id: string;
@@ -176,40 +173,53 @@ const mockTransactions: StockTransaction[] = [
 ];
 
 const InventoryPage = () => {
-  // Use real data hooks
-  const {
-    data: inventoryData = [],
-    isLoading: inventoryLoading,
-    error: inventoryError,
-    refetch: refetchInventory,
-  } = usePOSInventory({
-    search,
-    status: filter === "all" ? undefined : filter,
-  });
-
-  const { data: lowStockData = [], isLoading: lowStockLoading } =
-    usePOSLowStock();
-
-  const updateStockMutation = usePOSUpdateStock();
-
-  // Convert inventory data to local format
-  const inventory: InventoryItem[] = inventoryData.map((item) => ({
-    id: item.productId,
-    name: item.productName,
-    category: item.category || "ไม่ระบุ",
-    currentStock: item.currentStock,
-    minStock: item.minStock,
-    maxStock: item.minStock * 10, // Estimate max stock
-    unit: "ชิ้น",
-    cost: item.stockValue / Math.max(item.currentStock, 1), // Estimate cost
-    price: (item.stockValue / Math.max(item.currentStock, 1)) * 1.5, // Estimate price
-    lastUpdated: new Date(item.lastRestocked || Date.now()),
-    status: item.stockStatus,
-  }));
-
   const [search, setSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [filter, setFilter] = useState("all");
+
+  // Use real data hooks
+  const {
+    data: productsData = [],
+    isLoading: inventoryLoading,
+    error: inventoryError,
+    refetch: refetchInventory,
+  } = useProducts({
+    search: search || undefined,
+    status: filter === "all" ? undefined : filter === "in-stock" ? "active" : undefined,
+  });
+
+  // Get low stock products
+  const { data: lowStockProducts = [] } = useProducts({
+    lowStock: true,
+  });
+
+  const updateStockMutation = useUpdateProductStock();
+
+  // Convert products data to inventory format
+  const inventory: InventoryItem[] = productsData.map((product) => ({
+    id: product.id,
+    name: product.name,
+    category: product.category?.name || "ไม่ระบุ",
+    currentStock: product.stock || 0,
+    minStock: product.min_stock || 0,
+    maxStock: product.max_stock || (product.min_stock || 0) * 10,
+    unit: product.unit || "ชิ้น",
+    cost: product.cost_price || 0,
+    price: product.price,
+    lastUpdated: product.updated_at ? new Date(product.updated_at) : new Date(),
+    status: (product.stock || 0) <= (product.min_stock || 0) ? "low-stock" : (product.stock || 0) > 0 ? "in-stock" : "out-of-stock",
+  }));
+
+  const lowStockData = lowStockProducts.map((product) => ({
+    productId: product.id,
+    productName: product.name,
+    category: product.category?.name || "ไม่ระบุ",
+    currentStock: product.stock || 0,
+    minStock: product.min_stock || 0,
+    stockValue: (product.stock || 0) * (product.cost_price || 0),
+    stockStatus: "low-stock" as const,
+    lastRestocked: product.updated_at || new Date().toISOString(),
+  }));
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
 
   const {
@@ -285,9 +295,13 @@ const InventoryPage = () => {
 
     try {
       await updateStockMutation.mutateAsync({
-        productId: selectedItem.id,
-        adjustment: stockInQuantity,
-        reason: stockInReason || "เพิ่มสต็อก",
+        id: selectedItem.id,
+        stockData: {
+          quantity: stockInQuantity,
+          type: "add",
+          reason: stockInReason || "เพิ่มสต็อก",
+          user_id: "current-user-id", // TODO: Get from auth context
+        },
       });
 
       // Refresh inventory data
@@ -312,9 +326,13 @@ const InventoryPage = () => {
 
     try {
       await updateStockMutation.mutateAsync({
-        productId: selectedItem.id,
-        adjustment: -stockOutQuantity,
-        reason: stockOutReason || "ลดสต็อก",
+        id: selectedItem.id,
+        stockData: {
+          quantity: stockOutQuantity,
+          type: "subtract",
+          reason: stockOutReason || "ลดสต็อก",
+          user_id: "current-user-id", // TODO: Get from auth context
+        },
       });
 
       // Refresh inventory data
@@ -336,9 +354,13 @@ const InventoryPage = () => {
       const adjustment = adjustmentQuantity - selectedItem.currentStock;
 
       await updateStockMutation.mutateAsync({
-        productId: selectedItem.id,
-        adjustment,
-        reason: adjustmentReason || "ปรับสต็อก",
+        id: selectedItem.id,
+        stockData: {
+          quantity: Math.abs(adjustment),
+          type: adjustment > 0 ? "add" : "subtract",
+          reason: adjustmentReason || "ปรับสต็อก",
+          user_id: "current-user-id", // TODO: Get from auth context
+        },
       });
 
       // Refresh inventory data
@@ -951,3 +973,10 @@ const InventoryPage = () => {
 };
 
 export default InventoryPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};

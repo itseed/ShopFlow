@@ -523,12 +523,12 @@ const OrderDetailPage: NextPageWithLayout = () => {
                   <FiMapPin />
                   <Text fontWeight="semibold">สาขา:</Text>
                 </HStack>
-                <Text fontWeight="medium">{order.branch?.name}</Text>
+                 <Text fontWeight="medium">{(order as any).branch?.name || "N/A"}</Text>
+                 <Text fontSize="sm" color="gray.600">
+                   {(order as any).branch?.address || ""}
+                 </Text>
                 <Text fontSize="sm" color="gray.600">
-                  {order.branch?.address}
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  โทร: {order.branch?.phone}
+                   โทร: {(order as any).branch?.phone || ""}
                 </Text>
               </VStack>
             </VStack>
@@ -553,7 +553,7 @@ const OrderDetailPage: NextPageWithLayout = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {order.items.map((item) => (
+               {((order as any).items || []).map((item: any) => (
                 <Tr key={item.id}>
                   <Td>
                     <HStack spacing={3}>

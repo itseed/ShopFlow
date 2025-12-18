@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import { userService, branchService } from "@shopflow/api";
+// Import from services directly to avoid module resolution issues
+import { userService } from "@shopflow/api/services/userService";
+import { branchService } from "@shopflow/api/services/branchService";
 import { useAuth as useCMSAuth } from "../auth";
 
 // Enhanced authentication query keys
@@ -373,7 +375,7 @@ export function useCanAccessBranch(branchId: string) {
   if (!branchAccess) return false;
   if (branchAccess.isAdmin) return true;
 
-  return branchAccess.accessible.some((branch) => branch.id === branchId);
+  return branchAccess.accessible.some((branch: any) => branch.id === branchId);
 }
 
 // Permission-based Component Wrapper

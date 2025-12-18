@@ -3,10 +3,10 @@ import { useToast } from "@chakra-ui/react";
 import {
   reportService,
   orderService,
-  userService,
-  branchService,
   type ReportFilters,
 } from "@shopflow/api";
+import { userService } from "@shopflow/api/services/userService";
+import { branchService } from "@shopflow/api/services/branchService";
 
 // Query Keys
 export const CMS_QUERY_KEYS = {
@@ -122,7 +122,7 @@ export function useDailySalesReport(date: string, branchId?: string) {
         const hour = i + 6; // Start from 6 AM
         const hourStr = hour.toString().padStart(2, "0") + ":00";
 
-        const hourOrders = orders.filter((order) => {
+        const hourOrders = orders.filter((order: any) => {
           if (!order.created_at) return false;
           const orderHour = new Date(order.created_at).getHours();
           return orderHour === hour;
@@ -130,11 +130,11 @@ export function useDailySalesReport(date: string, branchId?: string) {
 
         return {
           hour: hourStr,
-          sales: hourOrders.reduce((sum, order) => sum + order.total, 0),
+          sales: hourOrders.reduce((sum: number, order: any) => sum + order.total, 0),
           orders: hourOrders.length,
           customers: new Set(
             hourOrders.map(
-              (order) =>
+              (order: any) =>
                 order.customer_phone || order.customer_name || "anonymous"
             )
           ).size,
@@ -147,8 +147,8 @@ export function useDailySalesReport(date: string, branchId?: string) {
         { sales: number; quantity: number; revenue: number }
       >();
 
-      orders.forEach((order) => {
-        order.items?.forEach((item) => {
+      orders.forEach((order: any) => {
+        order.items?.forEach((item: any) => {
           const current = productSales.get(item.product_name) || {
             sales: 0,
             quantity: 0,
@@ -168,14 +168,14 @@ export function useDailySalesReport(date: string, branchId?: string) {
 
       // Calculate recent transactions
       const recentTransactions = orders
-        .filter((order) => order.created_at) // Filter out orders without created_at
+        .filter((order: any) => order.created_at) // Filter out orders without created_at
         .sort(
-          (a, b) =>
+          (a: any, b: any) =>
             new Date(b.created_at!).getTime() -
             new Date(a.created_at!).getTime()
         )
         .slice(0, 10)
-        .map((order) => ({
+        .map((order: any) => ({
           time: new Date(order.created_at!).toLocaleTimeString("th-TH", {
             hour: "2-digit",
             minute: "2-digit",
@@ -191,11 +191,11 @@ export function useDailySalesReport(date: string, branchId?: string) {
         recentTransactions,
         summary: salesResponse.data?.[0] || {
           date,
-          totalSales: orders.reduce((sum, order) => sum + order.total, 0),
+          totalSales: orders.reduce((sum: number, order: any) => sum + order.total, 0),
           totalOrders: orders.length,
           averageOrderValue:
             orders.length > 0
-              ? orders.reduce((sum, order) => sum + order.total, 0) /
+              ? orders.reduce((sum: number, order: any) => sum + order.total, 0) /
                 orders.length
               : 0,
           topPaymentMethod: "cash",
@@ -220,7 +220,7 @@ export function usePopularProductsReport(filters: ReportFilters = {}) {
       const products = response.data || [];
 
       // Transform data for popular products page
-      const transformedProducts = products.map((product, index) => ({
+      const transformedProducts = products.map((product: any, index: number) => ({
         id: index + 1,
         name: product.productName,
         category: product.category || "ไม่ระบุ",
@@ -240,7 +240,7 @@ export function usePopularProductsReport(filters: ReportFilters = {}) {
         {
           label: "ยอดขายรวม",
           value: products
-            .reduce((sum, p) => sum + p.revenue, 0)
+            .reduce((sum: number, p: any) => sum + p.revenue, 0)
             .toLocaleString(),
           change: 15.7, // TODO: Calculate real change
           changeType: "increase" as const,
@@ -253,14 +253,14 @@ export function usePopularProductsReport(filters: ReportFilters = {}) {
         },
         {
           label: "สินค้าขายดี",
-          value: products.filter((p) => p.quantitySold > 10).length.toString(),
+          value: products.filter((p: any) => p.quantitySold > 10).length.toString(),
           change: 12.4,
           changeType: "increase" as const,
         },
         {
           label: "มูลค่าสต็อก",
           value: products
-            .reduce((sum, p) => sum + p.stockLevel * p.averagePrice, 0)
+            .reduce((sum: number, p: any) => sum + p.stockLevel * p.averagePrice, 0)
             .toLocaleString(),
           change: 5.1,
           changeType: "increase" as const,

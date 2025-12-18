@@ -1,16 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import {
-  productService,
-  type ProductFilters,
-  type CreateProductData,
-  type UpdateProductData,
-} from "@shopflow/api";
+import { products as productService } from "@shopflow/api/services/coreService";
+import type { Product } from "@shopflow/types";
 import { QUERY_KEYS } from "./queryKeys";
 
 // Product Hooks
 export function useProducts(
-  filters?: ProductFilters & { searchQuery?: string }
+  filters?: Partial<Product> & { searchQuery?: string }
 ) {
   return useQuery({
     queryKey: [QUERY_KEYS.PRODUCTS, filters],
@@ -19,9 +15,6 @@ export function useProducts(
         ...filters,
         search: filters?.searchQuery,
       });
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch products");
-      }
       return response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -32,11 +25,8 @@ export function useProduct(id: string) {
   return useQuery({
     queryKey: [QUERY_KEYS.PRODUCT, id],
     queryFn: async () => {
-      const response = await productService.getById(id);
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch product");
-      }
-      return response.data;
+      const data = await productService.getById(id);
+      return data;
     },
     enabled: !!id,
   });
@@ -46,11 +36,8 @@ export function useLowStockProducts() {
   return useQuery({
     queryKey: [QUERY_KEYS.LOW_STOCK],
     queryFn: async () => {
-      const response = await productService.getLowStock();
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch low stock products");
-      }
-      return response.data || [];
+      const data = await productService.getLowStock();
+      return data || [];
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
@@ -60,11 +47,9 @@ export function useFeaturedProducts(limit?: number) {
   return useQuery({
     queryKey: [QUERY_KEYS.FEATURED_PRODUCTS, limit],
     queryFn: async () => {
-      const response = await productService.getFeatured(limit);
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch featured products");
-      }
-      return response.data || [];
+      const response = await productService.getAll({ limit });
+      const data = response.data || [];
+      return data.filter((p: any) => p.is_featured).slice(0, limit || 10);
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -75,12 +60,9 @@ export function useCreateProduct() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: async (data: CreateProductData) => {
-      const response = await productService.create(data);
-      if (!response.success) {
-        throw new Error(response.error || "Failed to create product");
-      }
-      return response.data;
+    mutationFn: async (data: Partial<Product>) => {
+      const created = await productService.create(data as any);
+      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
@@ -114,13 +96,10 @@ export function useUpdateProduct() {
       data,
     }: {
       id: string;
-      data: UpdateProductData;
+      data: Partial<Product>;
     }) => {
-      const response = await productService.update(id, data);
-      if (!response.success) {
-        throw new Error(response.error || "Failed to update product");
-      }
-      return response.data;
+      const updated = await productService.update(id, data as any);
+      return updated;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
@@ -155,11 +134,8 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await productService.delete(id);
-      if (!response.success) {
-        throw new Error(response.error || "Failed to delete product");
-      }
-      return response.data;
+      await productService.delete(id);
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
@@ -191,9 +167,7 @@ export function useProductSearch(query: string, limit = 10) {
 
       // Use getAll with search filter instead of search method
       const response = await productService.getAll({ search: query });
-      if (!response.success) {
-        throw new Error(response.error || "Failed to search products");
-      }
+      // productService.getAll returns { data, count } directly, not ApiResponse
       // Limit results client-side
       return (response.data || []).slice(0, limit);
     },

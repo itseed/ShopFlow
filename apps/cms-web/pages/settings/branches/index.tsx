@@ -123,7 +123,7 @@ function BranchSettingsPage() {
 
   // Filter branches locally
   const filteredBranches = (branches || []).filter(
-    (branch) =>
+    (branch: Branch) =>
       !searchTerm ||
       branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       branch.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -186,7 +186,7 @@ function BranchSettingsPage() {
   };
 
   const handleToggleStatus = (branchId: string) => {
-    const branch = (branches || []).find((b) => b.id === branchId);
+    const branch = (branches || []).find((b: Branch) => b.id === branchId);
     if (branch) {
       updateBranch({
         id: branchId,
@@ -245,7 +245,7 @@ function BranchSettingsPage() {
                     สาขาที่เปิดให้บริการ
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold" color="green.500">
-                    {(branches || []).filter((b) => b.is_active).length}
+                    {(branches || []).filter((b: Branch) => b.is_active).length}
                   </Text>
                 </Box>
                 <Icon as={FiClock} boxSize={8} color="green.500" />
@@ -261,7 +261,7 @@ function BranchSettingsPage() {
                     สาขาที่ปิดชั่วคราว
                   </Text>
                   <Text fontSize="2xl" fontWeight="bold" color="red.500">
-                    {(branches || []).filter((b) => !b.is_active).length}
+                    {(branches || []).filter((b: Branch) => !b.is_active).length}
                   </Text>
                 </Box>
                 <Icon as={FiX} boxSize={8} color="red.500" />
@@ -357,7 +357,7 @@ function BranchSettingsPage() {
                 </Tr>
               </Thead>
               <Tbody>
-                {filteredBranches.map((branch) => (
+                {filteredBranches.map((branch: Branch) => (
                   <Tr key={branch.id}>
                     <Td>
                       <VStack align="start" spacing={1}>

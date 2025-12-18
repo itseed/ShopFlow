@@ -49,6 +49,7 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
+  Spinner,
 } from "@chakra-ui/react";
 import {
   IoSearch,
@@ -79,7 +80,7 @@ import { Order, OrderStatus, PaymentStatus, CustomerType, ShopType, DeliveryMeth
 import { formatCurrency } from "../../lib/sales";
 import { useRouter } from "next/router";
 import OrderTable from "../../components/orders/OrderTable";
-import { useOrders, useOrderStats } from "../../lib/hooks/useSale";
+import { useOrders, useOrderStats } from "../../lib/hooks/useOrderManagement";
 
 interface OrderFilters {
   searchTerm?: string;
@@ -456,7 +457,7 @@ const OrdersPage = () => {
 
               <TouchButton
                 leftIcon={<IoRefresh />}
-                onClick={refetch}
+                onClick={() => refetch()}
                 isLoading={isLoading}
                 variant="secondary"
                 size="lg"
@@ -482,14 +483,14 @@ const OrdersPage = () => {
         {/* Orders Table */}
         <POSCard variant="elevated" bg={cardBg} borderColor={borderColor}>
           <OrderTable
-            orders={paginatedOrders}
+            orders={paginatedOrders as any}
             loading={isLoading}
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
-            onView={handleViewOrder}
-            onViewReceipt={handleViewReceipt}
-            onRefund={handleRefundOrder}
+            onView={handleViewOrder as any}
+            onViewReceipt={handleViewReceipt as any}
+            onRefund={handleRefundOrder as any}
             filters={filters}
             onFilterChange={setFilters}
           />
@@ -527,12 +528,12 @@ const OrdersPage = () => {
                     <HStack justify="space-between">
                       <Text fontSize="sm">วันที่/เวลา:</Text>
                       <Text fontSize="sm">
-                        {formatDate(selectedOrder.created_at)}
+                        {formatDate(selectedOrder.created_at || "")}
                       </Text>
                     </HStack>
                     <HStack justify="space-between">
                       <Text fontSize="sm">พนักงาน:</Text>
-                      <Text fontSize="sm">{selectedOrder.cashier_id}</Text>
+                      <Text fontSize="sm">{selectedOrder.created_by || "N/A"}</Text>
                     </HStack>
                     {selectedOrder.customer_name && (
                       <HStack justify="space-between">
@@ -551,7 +552,7 @@ const OrdersPage = () => {
                     รายการสินค้า
                   </Text>
                   <VStack spacing={2} align="stretch">
-                    {selectedOrder.items.map((item, index) => (
+                     {(selectedOrder.items || []).map((item: any, index: number) => (
                       <HStack key={index} justify="space-between">
                         <VStack align="start" spacing={0}>
                           <Text fontSize="sm" fontWeight="medium">
@@ -626,7 +627,7 @@ const OrdersPage = () => {
                     <HStack justify="space-between">
                       <Text fontSize="sm">สถานะ:</Text>
                       <Text fontSize="sm">
-                        {getPaymentStatusText(selectedOrder.payment_status)}
+                        {selectedOrder.payment_status === "paid" ? "ชำระแล้ว" : selectedOrder.payment_status === "pending" ? "รอชำระ" : selectedOrder.payment_status === "refunded" ? "คืนเงิน" : selectedOrder.payment_status}
                       </Text>
                     </HStack>
                   </VStack>
@@ -659,3 +660,10 @@ const OrdersPage = () => {
 };
 
 export default OrdersPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};

@@ -47,7 +47,7 @@ const PointsPreview: React.FC<PointsPreviewProps> = ({
           customerId
         );
 
-        if (result.success) {
+        if (result.success && result.data) {
           setPreview(result.data);
           if (onPointsCalculated) {
             onPointsCalculated(result.data.points_to_earn);

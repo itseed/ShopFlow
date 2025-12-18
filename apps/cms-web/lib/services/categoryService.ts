@@ -1,4 +1,5 @@
 import { supabase } from "../supabase";
+import { categories as categoriesApi } from "@shopflow/api";
 import { Database } from "@shopflow/types";
 
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
@@ -32,21 +33,13 @@ export class CategoryService {
 
       return data || [];
     } else {
-      let query = supabase.from("categories").select("*");
-
-      if (options?.activeOnly) {
-        query = query.eq("is_active", true);
-      }
-
-      query = query.order("display_order", { ascending: true });
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw new Error(`Failed to fetch categories: ${error.message}`);
-      }
-
-      return data || [];
+      const data = await categoriesApi.getAll();
+      const filtered = options?.activeOnly
+        ? (data || []).filter((c: any) => c.is_active)
+        : data || [];
+      return filtered.sort((a: any, b: any) =>
+        (a.display_order ?? 0) - (b.display_order ?? 0)
+      );
     }
   }
 
@@ -84,16 +77,7 @@ export class CategoryService {
    * Create a new category
    */
   static async createCategory(category: CategoryInsert) {
-    const { data, error } = await supabase
-      .from("categories")
-      .insert([category])
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create category: ${error.message}`);
-    }
-
+    const data = await categoriesApi.create(category);
     return data;
   }
 
@@ -101,20 +85,10 @@ export class CategoryService {
    * Update an existing category
    */
   static async updateCategory(id: string, updates: CategoryUpdate) {
-    const { data, error } = await supabase
-      .from("categories")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update category: ${error.message}`);
-    }
-
+    const data = await categoriesApi.update(id, {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    } as any);
     return data;
   }
 
@@ -136,12 +110,7 @@ export class CategoryService {
       throw new Error("Cannot delete category that contains products");
     }
 
-    const { error } = await supabase.from("categories").delete().eq("id", id);
-
-    if (error) {
-      throw new Error(`Failed to delete category: ${error.message}`);
-    }
-
+    await categoriesApi.delete(id);
     return true;
   }
 

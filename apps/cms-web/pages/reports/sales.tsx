@@ -142,30 +142,30 @@ function SalesReportPage() {
   const aggregatedMetrics = React.useMemo(() => {
     if (!salesData.length) return null;
 
-    const totalSales = salesData.reduce((sum, day) => sum + day.totalSales, 0);
+    const totalSales = salesData.reduce((sum: number, day: any) => sum + (day.totalSales || 0), 0);
     const totalOrders = salesData.reduce(
-      (sum, day) => sum + day.totalOrders,
+      (sum: number, day: any) => sum + (day.totalOrders || 0),
       0
     );
     // Use fallback values for properties that might not exist
     const totalProfit = salesData.reduce(
-      (sum, day) => sum + ((day as any).totalProfit || totalSales * 0.2),
+      (sum: number, day: any) => sum + ((day as any).totalProfit || totalSales * 0.2),
       0
     );
     const totalB2B = salesData.reduce(
-      (sum, day) => sum + ((day as any).b2bSales || totalSales * 0.6),
+      (sum: number, day: any) => sum + ((day as any).b2bSales || totalSales * 0.6),
       0
     );
     const totalWalkIn = salesData.reduce(
-      (sum, day) => sum + ((day as any).walkInSales || totalSales * 0.4),
+      (sum: number, day: any) => sum + ((day as any).walkInSales || totalSales * 0.4),
       0
     );
     const totalDelivery = salesData.reduce(
-      (sum, day) => sum + ((day as any).deliveryOrders || totalOrders * 0.3),
+      (sum: number, day: any) => sum + ((day as any).deliveryOrders || totalOrders * 0.3),
       0
     );
     const pendingPayments = salesData.reduce(
-      (sum, day) => sum + ((day as any).pendingPayments || totalSales * 0.1),
+      (sum: number, day: any) => sum + ((day as any).pendingPayments || totalSales * 0.1),
       0
     );
 

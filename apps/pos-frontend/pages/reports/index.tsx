@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   Box,
   VStack,
@@ -78,32 +79,16 @@ import {
 } from "react-icons/io5";
 import { POSLayout } from "../../components";
 import { formatCurrency } from "../../lib/sales";
-import { Bar, Line, Doughnut } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import Link from "next/link";
+// Use dynamic imports for ESM modules
+const Bar = dynamic(() => import("react-chartjs-2").then((mod) => mod.Bar), { ssr: false });
+const Line = dynamic(() => import("react-chartjs-2").then((mod) => mod.Line), { ssr: false });
+const Doughnut = dynamic(() => import("react-chartjs-2").then((mod) => mod.Doughnut), { ssr: false });
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import Link from "next/link";
+import { registerChartJS } from "../../lib/chartConfig";
+
+// Register Chart.js
+registerChartJS();
 
 const ReportsPage = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("week");
@@ -691,3 +676,10 @@ const ReportsPage = () => {
 };
 
 export default ReportsPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};

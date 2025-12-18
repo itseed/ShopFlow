@@ -12,7 +12,7 @@ type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 type OrderUpdate = Database["public"]["Tables"]["orders"]["Update"];
 
 type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
-type Payment = Database["public"]["Tables"]["payments"]["Row"];
+type Payment = Database["public"]["Tables"]["payment_transactions"]["Row"];
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
 type CustomerInsert = Database["public"]["Tables"]["customers"]["Insert"];
 type CustomerUpdate = Database["public"]["Tables"]["customers"]["Update"];
@@ -95,8 +95,7 @@ export const orders = {
         order_items(
           *,
           products(id, name, sku, unit)
-        ),
-        payments(*)
+        )
       `
       )
       .eq("id", id)
@@ -151,11 +150,14 @@ export const orders = {
     let newPayment = null;
     if (payment) {
       const { data: paymentData, error: paymentError } = await supabase
-        .from("payments")
+        .from("payment_transactions")
         .insert({
-          ...payment,
           order_id: newOrder.id,
+          transaction_type: "payment",
+          payment_method: payment.payment_method,
+          amount: payment.amount,
           status: payment.status || "completed",
+          processed_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -214,7 +216,7 @@ export const orders = {
   }) {
     let query = supabase
       .from("orders")
-      .select("id, total_amount, status, created_at");
+      .select("id, total, status, created_at");
 
     if (params?.branchId) {
       query = query.eq("branch_id", params.branchId);
@@ -236,15 +238,12 @@ export const orders = {
 
     return {
       totalOrders: orders.length,
-      totalRevenue: orders.reduce(
-        (sum, order) => sum + (order.total_amount || 0),
-        0
-      ),
+      totalRevenue: orders.reduce((sum, order) => sum + (order.total || 0), 0),
       completedOrders: orders.filter((o) => o.status === "completed").length,
       cancelledOrders: orders.filter((o) => o.status === "cancelled").length,
       averageOrderValue:
         orders.length > 0
-          ? orders.reduce((sum, order) => sum + (order.total_amount || 0), 0) /
+          ? orders.reduce((sum, order) => sum + (order.total || 0), 0) /
             orders.length
           : 0,
     };
@@ -435,7 +434,7 @@ export const customers = {
   async getStats(customerId: string) {
     const { data, error } = await supabase
       .from("orders")
-      .select("id, total_amount, created_at")
+      .select("id, total, created_at")
       .eq("customer_id", customerId)
       .eq("status", "completed");
 
@@ -445,13 +444,10 @@ export const customers = {
 
     return {
       totalOrders: orders.length,
-      totalSpent: orders.reduce(
-        (sum, order) => sum + (order.total_amount || 0),
-        0
-      ),
+      totalSpent: orders.reduce((sum, order) => sum + (order.total || 0), 0),
       averageOrderValue:
         orders.length > 0
-          ? orders.reduce((sum, order) => sum + (order.total_amount || 0), 0) /
+          ? orders.reduce((sum, order) => sum + (order.total || 0), 0) /
             orders.length
           : 0,
       lastOrderDate: orders.length > 0 ? orders[0].created_at : null,
@@ -474,10 +470,14 @@ export const payments = {
     notes?: string;
   }) {
     const { data, error } = await supabase
-      .from("payments")
+      .from("payment_transactions")
       .insert({
-        ...paymentData,
+        order_id: paymentData.order_id,
+        transaction_type: "payment",
+        payment_method: paymentData.payment_method,
+        amount: paymentData.amount,
         status: "completed",
+        processed_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -498,7 +498,7 @@ export const payments = {
    */
   async getById(id: string) {
     const { data, error } = await supabase
-      .from("payments")
+      .from("payment_transactions")
       .select("*, orders(*)")
       .eq("id", id)
       .single();
@@ -512,7 +512,7 @@ export const payments = {
    */
   async getByOrder(orderId: string) {
     const { data, error } = await supabase
-      .from("payments")
+      .from("payment_transactions")
       .select("*")
       .eq("order_id", orderId)
       .order("created_at", { ascending: false });
@@ -527,7 +527,7 @@ export const payments = {
   async refund(paymentId: string, amount?: number, reason?: string) {
     // Get original payment
     const { data: payment, error: getError } = await supabase
-      .from("payments")
+      .from("payment_transactions")
       .select("*")
       .eq("id", paymentId)
       .single();
@@ -538,13 +538,15 @@ export const payments = {
 
     // Create refund payment record
     const { data: refund, error: refundError } = await supabase
-      .from("payments")
+      .from("payment_transactions")
       .insert({
         order_id: payment.order_id,
+        transaction_type: "refund",
         amount: -refundAmount,
         payment_method: payment.payment_method,
         status: "refunded",
         notes: reason || "Refund",
+        processed_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -620,6 +622,36 @@ export const orderService = {
   orders,
   customers,
   payments,
+  async getAll(params?: {
+    branchId?: string;
+    customerId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return orders.getAll(params);
+  },
+  async getById(id: string) {
+    return orders.getById(id);
+  },
+  async create(orderData: any) {
+    return orders.create(orderData);
+  },
+  async update(id: string, updates: Partial<Order>) {
+    const { data, error } = await supabase
+      .from("orders")
+      .update(updates as any)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Order;
+  },
+  async getStats(params?: { branchId?: string; startDate?: string; endDate?: string }) {
+    return orders.getStats(params);
+  },
 };
 
 export default orderService;

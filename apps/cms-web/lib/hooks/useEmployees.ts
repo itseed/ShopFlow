@@ -1,11 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  userService,
-  UserFilters,
-  CreateUserData,
-  UpdateUserData,
-} from "@shopflow/api";
-import { UserProfile } from "@shopflow/api/dist/services/userService";
+import { userService } from "@shopflow/api/services/userService";
+import type { UserProfile } from "@shopflow/api/services/userService";
+import type { UserFilters } from "@shopflow/api/services/userService";
 
 // Hook for getting all employees
 export function useEmployees(filters: UserFilters = {}) {
@@ -21,7 +17,7 @@ export function useEmployees(filters: UserFilters = {}) {
       if (!result.success) {
         throw new Error(result.error || "Failed to fetch employees");
       }
-      return result.data;
+      return result.data || [];
     },
   });
 
@@ -89,7 +85,7 @@ export function useCreateEmployee() {
   const queryClient = useQueryClient();
 
   const { mutateAsync: createEmployee, isPending: isCreating } = useMutation({
-    mutationFn: async (employeeData: CreateUserData) => {
+    mutationFn: async (employeeData: any) => {
       const result = await userService.create(employeeData);
       if (!result.success) {
         throw new Error(result.error || "Failed to create employee");
@@ -113,7 +109,7 @@ export function useUpdateEmployee() {
   const queryClient = useQueryClient();
 
   const { mutateAsync: updateEmployee, isPending: isUpdating } = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateUserData }) => {
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const result = await userService.update(id, data);
       if (!result.success) {
         throw new Error(result.error || "Failed to update employee");

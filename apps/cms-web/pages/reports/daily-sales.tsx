@@ -465,7 +465,7 @@ function DailySalesReportPage() {
             </CardHeader>
             <CardBody>
               <VStack spacing={4} align="stretch">
-                {recentTransactions.map((transaction, index) => (
+                 {recentTransactions.map((transaction: any, index: number) => (
                   <HStack
                     key={index}
                     justify="space-between"

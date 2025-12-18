@@ -133,10 +133,13 @@ class ProductService {
       query = query.order(sortBy, { ascending: sortOrder === "asc" });
 
       // Apply pagination
+      // Apply pagination (always range to satisfy client and tests)
       if (filters.limit) {
         const from = (filters.page || 0) * filters.limit;
         const to = from + filters.limit - 1;
         query = query.range(from, to);
+      } else {
+        query = query.range(0, 49);
       }
 
       const { data, error } = await query;

@@ -8,16 +8,16 @@ export interface Order {
 
   // Customer Information
   customer_type: OrderCustomerType;
-  customer_id?: string; // For registered customers
-  customer_name?: string;
-  customer_phone?: string;
-  customer_email?: string;
-  shop_name?: string; // ชื่อร้านค้า
-  shop_type?: ShopType;
-  branch_name?: string; // สาขาของลูกค้า (ถ้ามี)
+  customer_id?: string | null; // For registered customers
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
+  shop_name?: string | null; // ชื่อร้านค้า
+  shop_type?: ShopType | null;
+  branch_name?: string | null; // สาขาของลูกค้า (ถ้ามี)
 
   // Branch Information
-  branch_id?: string;
+  branch_id?: string | null;
   branch?: {
     id: string;
     name: string;
@@ -36,21 +36,21 @@ export interface Order {
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   delivery_method: DeliveryMethod;
-  delivery_address?: string;
-  delivery_date?: string;
+  delivery_address?: string | null;
+  delivery_date?: string | null;
 
   // Status & Tracking
   status: OrderStatus;
   priority: OrderPriority;
-  notes?: string;
-  internal_notes?: string; // บันทึกภายใน
+  notes?: string | null;
+  internal_notes?: string | null; // บันทึกภายใน
 
   // Relations
-  items: OrderItem[];
-  created_by?: string;
-  sales_rep?: string; // พนักงานขาย
-  created_at?: string;
-  updated_at?: string;
+  items?: OrderItem[]; // Optional - may not be populated in list views
+  created_by?: string | null;
+  sales_rep?: string | null; // พนักงานขาย
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface OrderItem {
@@ -92,7 +92,7 @@ export type PaymentStatus =
   | "partial"
   | "overdue"
   | "refunded";
-export type DeliveryMethod = "pickup" | "delivery" | "express" | "scheduled";
+export type DeliveryMethod = "pickup" | "delivery" | "express" | "scheduled" | "shipping";
 // OrderCustomerType is imported from Customer.ts
 export type ShopType =
   | "convenience_store"

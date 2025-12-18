@@ -34,6 +34,11 @@ import {
   useColorModeValue,
   Icon,
   Badge,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
 } from "@chakra-ui/react";
 import {
   IoPersonOutline,
@@ -45,13 +50,12 @@ import {
   IoSaveOutline,
   IoCloseOutline,
 } from "react-icons/io5";
-import { Customer, CustomerFormData, MembershipType } from "@shopflow/types";
+import { Customer, CustomerFormData } from "@shopflow/types";
 
 interface CustomerFormProps {
   isOpen: boolean;
   onClose: () => void;
   customer?: Customer | null;
-  membershipTypes: MembershipType[];
   onSave: (data: CustomerFormData) => Promise<void>;
   mode: "create" | "edit";
   isInline?: boolean;
@@ -64,7 +68,6 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   isOpen,
   onClose,
   customer,
-  membershipTypes,
   onSave,
   mode,
   isInline = false,
@@ -73,13 +76,18 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   onFormDataChange,
 }) => {
   const [internalFormData, setInternalFormData] = useState<CustomerFormData>({
-    name: "",
+    first_name: "",
+    last_name: "",
+    company_name: "",
     phone: "",
     email: "",
     address: "",
-    dateOfBirth: undefined,
-    gender: undefined,
-    membershipType: "",
+    city: "",
+    postal_code: "",
+    country: "TH",
+    customer_type: "individual",
+    status: "active",
+    credit_limit: 0,
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -96,27 +104,37 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
 
   useEffect(() => {
     if (customer && mode === "edit") {
-      const newData = {
-        name: customer.name,
+      const newData: CustomerFormData = {
+        first_name: customer.first_name || "",
+        last_name: customer.last_name || "",
+        company_name: customer.company_name || "",
         phone: customer.phone || "",
         email: customer.email || "",
         address: customer.address || "",
-        dateOfBirth: customer.dateOfBirth,
-        gender: customer.gender,
-        membershipType: customer.membership?.membershipType.id || "",
+        city: customer.city || "",
+        postal_code: customer.postal_code || "",
+        country: customer.country || "TH",
+        customer_type: customer.customer_type || "individual",
+        status: customer.status || "active",
+        credit_limit: customer.credit_limit || 0,
         notes: customer.notes || "",
       };
       setFormData(newData);
     } else if (!externalFormData) {
       // Reset form for create mode only if not using external form data
-      const newData = {
-        name: "",
+      const newData: CustomerFormData = {
+        first_name: "",
+        last_name: "",
+        company_name: "",
         phone: "",
         email: "",
         address: "",
-        dateOfBirth: undefined,
-        gender: undefined,
-        membershipType: "",
+        city: "",
+        postal_code: "",
+        country: "TH",
+        customer_type: "individual",
+        status: "active",
+        credit_limit: 0,
         notes: "",
       };
       setFormData(newData);
@@ -127,8 +145,8 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "กรุณาระบุชื่อลูกค้า";
+    if (!formData.first_name?.trim() && !formData.company_name?.trim()) {
+      newErrors.first_name = "กรุณาระบุชื่อลูกค้าหรือชื่อบริษัท";
     }
 
     if (formData.phone && !/^[0-9-+\s()]+$/.test(formData.phone)) {
@@ -153,9 +171,10 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
     try {
       await onSave(formData);
       if (!isInline) {
+        const customerName = formData.company_name || `${formData.first_name} ${formData.last_name}`.trim() || "ลูกค้า";
         toast({
           title: mode === "create" ? "เพิ่มลูกค้าสำเร็จ" : "แก้ไขข้อมูลสำเร็จ",
-          description: `ข้อมูลลูกค้า ${formData.name} ได้รับการบันทึกแล้ว`,
+          description: `ข้อมูลลูกค้า ${customerName} ได้รับการบันทึกแล้ว`,
           status: "success",
           duration: 3000,
           isClosable: true,
@@ -180,20 +199,20 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   };
 
   const handleChange = (field: keyof CustomerFormData, value: any) => {
-    setFormData((prev: CustomerFormData) => ({ ...prev, [field]: value }));
+    if (onFormDataChange && formData) {
+      // External form data control
+      onFormDataChange({ ...formData, [field]: value });
+    } else {
+      // Internal form data control
+      setInternalFormData((prev: CustomerFormData) => {
+        return { ...prev, [field]: value };
+      });
+    }
     if (errors[field]) {
       setErrors((prev: Record<string, string>) => ({ ...prev, [field]: "" }));
     }
   };
 
-  const formatDateForInput = (date?: Date) => {
-    if (!date) return "";
-    return date.toISOString().split("T")[0];
-  };
-
-  const selectedMembershipType = membershipTypes.find(
-    (type) => type.id === formData.membershipType
-  );
 
   const formContent = (
     <VStack spacing={6} align="stretch">
@@ -206,20 +225,42 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
               </CardHeader>
               <CardBody>
                 <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                  <GridItem colSpan={2}>
-                    <FormControl isRequired isInvalid={!!errors.name}>
-                      <FormLabel>ชื่อลูกค้า</FormLabel>
+                  <GridItem>
+                    <FormControl isRequired isInvalid={!!errors.first_name}>
+                      <FormLabel>ชื่อ</FormLabel>
                       <InputGroup>
                         <InputLeftAddon>
                           <Icon as={IoPersonOutline} />
                         </InputLeftAddon>
                         <Input
-                          value={formData.name}
-                          onChange={(e) => handleChange("name", e.target.value)}
-                          placeholder="ระบุชื่อ-นามสกุล"
+                          value={formData.first_name || ""}
+                          onChange={(e) => handleChange("first_name", e.target.value)}
+                          placeholder="ชื่อ"
                         />
                       </InputGroup>
-                      <FormErrorMessage>{errors.name}</FormErrorMessage>
+                      <FormErrorMessage>{errors.first_name}</FormErrorMessage>
+                    </FormControl>
+                  </GridItem>
+                  <GridItem>
+                    <FormControl isInvalid={!!errors.last_name}>
+                      <FormLabel>นามสกุล</FormLabel>
+                      <Input
+                        value={formData.last_name || ""}
+                        onChange={(e) => handleChange("last_name", e.target.value)}
+                        placeholder="นามสกุล"
+                      />
+                      <FormErrorMessage>{errors.last_name}</FormErrorMessage>
+                    </FormControl>
+                  </GridItem>
+                  <GridItem colSpan={2}>
+                    <FormControl isInvalid={!!errors.company_name}>
+                      <FormLabel>ชื่อบริษัท (ถ้าเป็นลูกค้าบริษัท)</FormLabel>
+                      <Input
+                        value={formData.company_name || ""}
+                        onChange={(e) => handleChange("company_name", e.target.value)}
+                        placeholder="ชื่อบริษัท"
+                      />
+                      <FormErrorMessage>{errors.company_name}</FormErrorMessage>
                     </FormControl>
                   </GridItem>
 
@@ -279,111 +320,100 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
               </CardBody>
             </Card>
 
-            {/* Personal Information */}
+            {/* Additional Information */}
             <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
               <CardHeader>
                 <Text fontSize="md" fontWeight="medium">
-                  ข้อมูลส่วนตัว
+                  ข้อมูลเพิ่มเติม
                 </Text>
               </CardHeader>
               <CardBody>
                 <Grid templateColumns="repeat(2, 1fr)" gap={4}>
                   <GridItem>
                     <FormControl>
-                      <FormLabel>วันเกิด</FormLabel>
-                      <InputGroup>
-                        <InputLeftAddon>
-                          <Icon as={IoCalendarOutline} />
-                        </InputLeftAddon>
-                        <Input
-                          type="date"
-                          value={formatDateForInput(formData.dateOfBirth)}
-                          onChange={(e) =>
-                            handleChange(
-                              "dateOfBirth",
-                              e.target.value
-                                ? new Date(e.target.value)
-                                : undefined
-                            )
-                          }
-                        />
-                      </InputGroup>
+                      <FormLabel>เมือง</FormLabel>
+                      <Input
+                        value={formData.city || ""}
+                        onChange={(e) => handleChange("city", e.target.value)}
+                        placeholder="เมือง"
+                      />
                     </FormControl>
                   </GridItem>
-
                   <GridItem>
                     <FormControl>
-                      <FormLabel>เพศ</FormLabel>
-                      <RadioGroup
-                        value={formData.gender || ""}
-                        onChange={(value) =>
-                          handleChange("gender", value || undefined)
+                      <FormLabel>รหัสไปรษณีย์</FormLabel>
+                      <Input
+                        value={formData.postal_code || ""}
+                        onChange={(e) => handleChange("postal_code", e.target.value)}
+                        placeholder="รหัสไปรษณีย์"
+                      />
+                    </FormControl>
+                  </GridItem>
+                  <GridItem>
+                    <FormControl>
+                      <FormLabel>ประเทศ</FormLabel>
+                      <Input
+                        value={formData.country || "TH"}
+                        onChange={(e) => handleChange("country", e.target.value)}
+                        placeholder="ประเทศ"
+                      />
+                    </FormControl>
+                  </GridItem>
+                  <GridItem>
+                    <FormControl>
+                      <FormLabel>ประเภทลูกค้า</FormLabel>
+                      <Select
+                        value={formData.customer_type || "individual"}
+                        onChange={(e) =>
+                          handleChange("customer_type", e.target.value as any)
                         }
                       >
-                        <Stack direction="row" spacing={4}>
-                          <Radio value="male">ชาย</Radio>
-                          <Radio value="female">หญิง</Radio>
-                          <Radio value="other">อื่นๆ</Radio>
-                        </Stack>
-                      </RadioGroup>
+                        <option value="individual">บุคคล</option>
+                        <option value="business">บริษัท</option>
+                        <option value="regular">ลูกค้าประจำ</option>
+                        <option value="vip">VIP</option>
+                        <option value="wholesale">ขายส่ง</option>
+                      </Select>
+                    </FormControl>
+                  </GridItem>
+                  <GridItem>
+                    <FormControl>
+                      <FormLabel>สถานะ</FormLabel>
+                      <Select
+                        value={formData.status || "active"}
+                        onChange={(e) =>
+                          handleChange("status", e.target.value as any)
+                        }
+                      >
+                        <option value="active">ใช้งาน</option>
+                        <option value="inactive">ไม่ใช้งาน</option>
+                        <option value="vip">VIP</option>
+                      </Select>
+                    </FormControl>
+                  </GridItem>
+                  <GridItem>
+                    <FormControl>
+                      <FormLabel>วงเงินเครดิต</FormLabel>
+                      <NumberInput
+                        value={formData.credit_limit || 0}
+                        onChange={(_valueAsString: string, valueAsNumber: number) =>
+                          handleChange("credit_limit", valueAsNumber)
+                        }
+                        min={0}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
                     </FormControl>
                   </GridItem>
                 </Grid>
               </CardBody>
             </Card>
 
-            {/* Membership Information */}
-            <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
-              <CardHeader>
-                <Text fontSize="md" fontWeight="medium">
-                  ข้อมูลสมาชิก
-                </Text>
-              </CardHeader>
-              <CardBody>
-                <VStack spacing={4} align="stretch">
-                  <FormControl>
-                    <FormLabel>ประเภทสมาชิก</FormLabel>
-                    <Select
-                      value={formData.membershipType}
-                      onChange={(e) =>
-                        handleChange("membershipType", e.target.value)
-                      }
-                      placeholder="เลือกประเภทสมาชิก (ไม่บังคับ)"
-                    >
-                      {membershipTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name} - ส่วนลด {type.discountPercentage}%
-                        </option>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  {selectedMembershipType && (
-                    <Box p={4} bg="gray.50" borderRadius="md">
-                      <VStack spacing={2} align="start">
-                        <HStack>
-                          <Badge colorScheme="blue" size="sm">
-                            {selectedMembershipType.name}
-                          </Badge>
-                          <Text fontSize="sm" color="gray.600">
-                            ส่วนลด {selectedMembershipType.discountPercentage}%
-                          </Text>
-                        </HStack>
-                        <Text fontSize="sm">
-                          {selectedMembershipType.description}
-                        </Text>
-                        <Text fontSize="xs" color="gray.500">
-                          ยอดซื้อขั้นต่ำ:{" "}
-                          {selectedMembershipType.minSpent.toLocaleString()} บาท
-                        </Text>
-                      </VStack>
-                    </Box>
-                  )}
-                </VStack>
-              </CardBody>
-            </Card>
-
-            {/* Additional Notes */}
+            {/* Notes */}
             <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
               <CardHeader>
                 <Text fontSize="md" fontWeight="medium">
@@ -393,7 +423,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
               <CardBody>
                 <FormControl>
                   <Textarea
-                    value={formData.notes}
+                    value={formData.notes || ""}
                     onChange={(e) => handleChange("notes", e.target.value)}
                     placeholder="หมายเหตุเกี่ยวกับลูกค้า (ไม่บังคับ)"
                     rows={4}
@@ -401,6 +431,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
                 </FormControl>
               </CardBody>
             </Card>
+
 
             {/* Submit Buttons - only show in inline mode */}
             {isInline && (

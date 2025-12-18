@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { SalesProduct } from "@shopflow/types";
 import { SalesProductSearchFilters } from "@shopflow/types";
+import type { Product } from "@shopflow/types";
 import {
   useProducts,
   useSearchProductsForSales,
@@ -44,7 +45,7 @@ export const useSalesProducts = (
     queryKey: ["sales-products", filters, options],
     queryFn: async () => {
       if (productsQuery.data) {
-        return convertProductsToSalesProducts(productsQuery.data);
+        return convertProductsToSalesProducts(productsQuery.data as Product[]);
       }
 
       if (fallbackToMock) {
@@ -82,7 +83,7 @@ export const useSearchSalesProducts = (
     queryKey: ["search-sales-products", searchTerm, options],
     queryFn: async () => {
       if (searchQuery.data) {
-        return convertProductsToSalesProducts(searchQuery.data);
+        return convertProductsToSalesProducts(searchQuery.data as Product[]);
       }
 
       if (fallbackToMock && searchTerm.length >= 2) {
@@ -124,7 +125,7 @@ export const useSalesProductByBarcode = (
     queryKey: ["sales-product-barcode", barcode, options],
     queryFn: async () => {
       if (barcodeQuery.data) {
-        return convertProductToSalesProduct(barcodeQuery.data);
+        return convertProductToSalesProduct(barcodeQuery.data as Product);
       }
 
       if (fallbackToMock && barcode.length >= 8) {

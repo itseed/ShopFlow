@@ -15,8 +15,7 @@ type Category = Database["public"]["Tables"]["categories"]["Row"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
 type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
 
-type InventoryMovement =
-  Database["public"]["Tables"]["inventory_movements"]["Row"];
+// inventory movements handled via stock_movements in current schema
 
 /**
  * Product Management
@@ -322,7 +321,7 @@ export const inventory = {
   async getStockLevels(params?: { branchId?: string; productIds?: string[] }) {
     let query = supabase
       .from("products")
-      .select("id, name, sku, stock_quantity, unit, categories(name)");
+      .select("id, name, sku, stock, unit, categories(name)");
 
     if (params?.branchId) {
       query = query.eq("branch_id", params.branchId);
@@ -372,7 +371,7 @@ export const inventory = {
     // Get current stock
     const { data: product, error: productError } = await supabase
       .from("products")
-      .select("stock_quantity")
+      .select("stock")
       .eq("id", productId)
       .single();
 
@@ -385,25 +384,23 @@ export const inventory = {
       "transfer_in",
       "return",
     ].includes(movementType);
-    const newStock = isPositive
-      ? product.stock_quantity + quantity
-      : product.stock_quantity - quantity;
+    const newStock = isPositive ? product.stock + quantity : product.stock - quantity;
 
     // Update product stock
     const { error: updateError } = await supabase
       .from("products")
-      .update({ stock_quantity: Math.max(0, newStock) })
+      .update({ stock: Math.max(0, newStock) })
       .eq("id", productId);
 
     if (updateError) throw updateError;
 
     // Record movement
     const { data: movement, error: movementError } = await supabase
-      .from("inventory_movements")
+      .from("stock_movements")
       .insert({
         product_id: productId,
         branch_id: branchId,
-        quantity: quantity,
+        quantity_change: quantity,
         movement_type: movementType,
         reference_type: referenceType,
         reference_id: referenceId,
@@ -416,9 +413,9 @@ export const inventory = {
     if (movementError) throw movementError;
 
     return {
-      oldStock: product.stock_quantity,
+      oldStock: product.stock,
       newStock: Math.max(0, newStock),
-      movement: movement as InventoryMovement,
+      movement,
     };
   },
 
@@ -434,7 +431,7 @@ export const inventory = {
     limit?: number;
   }) {
     let query = supabase
-      .from("inventory_movements")
+      .from("stock_movements")
       .select("*, products(name, sku)");
 
     if (params?.productId) {
@@ -466,7 +463,7 @@ export const inventory = {
     const { data, error } = await query;
 
     if (error) throw error;
-    return data as InventoryMovement[];
+    return data as any[];
   },
 
   /**

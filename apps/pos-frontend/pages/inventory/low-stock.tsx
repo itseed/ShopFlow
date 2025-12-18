@@ -73,24 +73,21 @@ const mockLowStockProducts: Product[] = [
     name: "โค้ก",
     description: "โคคาโคลา 325ml",
     price: 15,
-    cost: 10,
+    cost_price: 10,
     category: {
       id: "1",
       name: "เครื่องดื่ม",
       description: "เครื่องดื่มทุกชนิด",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     },
-    stockQuantity: 5, // Critical
-    minStockLevel: 20,
-    maxStockLevel: 300,
-    isActive: true,
+    stock: 5, // Critical
+    min_stock: 20,
+    max_stock: 300,
+    status: "active",
     barcode: "1234567890126",
-    imageUrl: "",
+    images: [],
     tags: ["เครื่องดื่ม", "น้ำอัดลม"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: "2",
@@ -98,24 +95,21 @@ const mockLowStockProducts: Product[] = [
     name: "มาม่า",
     description: "บะหมี่กึ่งสำเร็จรูป",
     price: 8,
-    cost: 5,
+    cost_price: 5,
     category: {
       id: "2",
       name: "ขนม",
       description: "ขนมและของหวาน",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     },
-    stockQuantity: 15, // Low
-    minStockLevel: 30,
-    maxStockLevel: 200,
-    isActive: true,
+    stock: 15, // Low
+    min_stock: 30,
+    max_stock: 200,
+    status: "active",
     barcode: "1234567890124",
-    imageUrl: "",
+    images: [],
     tags: ["ขนม", "บะหมี่"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: "3",
@@ -123,24 +117,21 @@ const mockLowStockProducts: Product[] = [
     name: "นม",
     description: "นมสด 1 ลิตร",
     price: 25,
-    cost: 18,
+    cost_price: 18,
     category: {
       id: "3",
       name: "อาหารสด",
       description: "อาหารสดและผลไม้",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     },
-    stockQuantity: 0, // Out of stock
-    minStockLevel: 10,
-    maxStockLevel: 50,
-    isActive: true,
+    stock: 0, // Out of stock
+    min_stock: 10,
+    max_stock: 50,
+    status: "active",
     barcode: "1234567890127",
-    imageUrl: "",
+    images: [],
     tags: ["นม", "สด"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: "4",
@@ -148,24 +139,21 @@ const mockLowStockProducts: Product[] = [
     name: "ลูกอม",
     description: "ลูกอมหลากรส",
     price: 5,
-    cost: 3,
+    cost_price: 3,
     category: {
       id: "2",
       name: "ขนม",
       description: "ขนมและของหวาน",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     },
-    stockQuantity: 8, // Low
-    minStockLevel: 25,
-    maxStockLevel: 100,
-    isActive: true,
+    stock: 8, // Low
+    min_stock: 25,
+    max_stock: 100,
+    status: "active",
     barcode: "1234567890128",
-    imageUrl: "",
+    images: [],
     tags: ["ขนม", "ลูกอม"],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
 ];
 
@@ -209,38 +197,38 @@ const LowStockPage: React.FC = () => {
     return products.filter((product) => {
       const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+        (product.sku || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory =
-        categoryFilter === "all" || product.category.name === categoryFilter;
+        categoryFilter === "all" || product.category?.name === categoryFilter;
       const matchesStatus =
         statusFilter === "all" ||
-        (statusFilter === "critical" && product.stockQuantity === 0) ||
+        (statusFilter === "critical" && (product.stock || 0) === 0) ||
         (statusFilter === "low" &&
-          product.stockQuantity > 0 &&
-          product.stockQuantity <= product.minStockLevel) ||
+          (product.stock || 0) > 0 &&
+          (product.stock || 0) <= (product.min_stock || 0)) ||
         (statusFilter === "normal" &&
-          product.stockQuantity > product.minStockLevel);
+          (product.stock || 0) > (product.min_stock || 0));
 
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [products, searchTerm, categoryFilter, statusFilter]);
 
   const stockStats = useMemo(() => {
-    const outOfStock = products.filter((p) => p.stockQuantity === 0);
+    const outOfStock = products.filter((p) => (p.stock || 0) === 0);
     const critical = products.filter(
-      (p) => p.stockQuantity > 0 && p.stockQuantity <= p.minStockLevel * 0.5
+      (p) => (p.stock || 0) > 0 && (p.stock || 0) <= ((p.min_stock || 0) * 0.5)
     );
     const low = products.filter(
       (p) =>
-        p.stockQuantity > p.minStockLevel * 0.5 &&
-        p.stockQuantity <= p.minStockLevel
+        (p.stock || 0) > ((p.min_stock || 0) * 0.5) &&
+        (p.stock || 0) <= (p.min_stock || 0)
     );
     const totalValue = products.reduce(
-      (sum, p) => sum + p.stockQuantity * p.cost,
+      (sum, p) => sum + (p.stock || 0) * (p.cost_price || 0),
       0
     );
     const potentialLoss = outOfStock.reduce(
-      (sum, p) => sum + p.minStockLevel * p.cost,
+      (sum, p) => sum + (p.min_stock || 0) * (p.cost_price || 0),
       0
     );
 
@@ -251,22 +239,26 @@ const LowStockPage: React.FC = () => {
       low: low.length,
       totalValue,
       potentialLoss,
-      categories: [...new Set(products.map((p) => p.category.name))],
+      categories: [...new Set(products.map((p) => p.category?.name).filter(Boolean))],
     };
   }, [products]);
 
   const getStockStatus = (product: Product) => {
-    if (product.stockQuantity === 0)
+    const stock = product.stock || 0;
+    const minStock = product.min_stock || 0;
+    if (stock === 0)
       return { status: "out", color: "red", text: "หมด", priority: 4 };
-    if (product.stockQuantity <= product.minStockLevel * 0.5)
+    if (stock <= minStock * 0.5)
       return { status: "critical", color: "red", text: "วิกฤต", priority: 3 };
-    if (product.stockQuantity <= product.minStockLevel)
+    if (stock <= minStock)
       return { status: "low", color: "orange", text: "ต่ำ", priority: 2 };
     return { status: "normal", color: "green", text: "ปกติ", priority: 1 };
   };
 
   const getStockPercentage = (product: Product) => {
-    return Math.min((product.stockQuantity / product.minStockLevel) * 100, 100);
+    const stock = product.stock || 0;
+    const minStock = product.min_stock || 1;
+    return Math.min((stock / minStock) * 100, 100);
   };
 
   const getUrgencyColor = (urgency: string) => {
@@ -285,22 +277,27 @@ const LowStockPage: React.FC = () => {
   };
 
   const calculateRestockQuantity = (product: Product) => {
+    const stock = product.stock || 0;
+    const maxStock = product.max_stock || 0;
+    const minStock = product.min_stock || 0;
     return Math.max(
-      product.maxStockLevel - product.stockQuantity,
-      product.minStockLevel
+      maxStock - stock,
+      minStock
     );
   };
 
   const calculateRestockCost = (product: Product, quantity: number) => {
-    return quantity * product.cost;
+    return quantity * (product.cost_price || 0);
   };
 
   const handleRestockProduct = (product: Product) => {
     const recommendedQuantity = calculateRestockQuantity(product);
+    const stock = product.stock || 0;
+    const minStock = product.min_stock || 0;
     const urgency =
-      product.stockQuantity === 0
+      stock === 0
         ? "critical"
-        : product.stockQuantity <= product.minStockLevel * 0.5
+        : stock <= minStock * 0.5
         ? "high"
         : "medium";
 
@@ -308,7 +305,7 @@ const LowStockPage: React.FC = () => {
       productId: product.id,
       quantity: recommendedQuantity,
       urgency: urgency as any,
-      note: `เติมสต็อก ${product.name} จากสต็อกปัจจุบัน ${product.stockQuantity} ไปยังระดับแนะนำ`,
+      note: `เติมสต็อก ${product.name} จากสต็อกปัจจุบัน ${stock} ไปยังระดับแนะนำ`,
     });
     onRestockOpen();
   };
@@ -356,7 +353,7 @@ const LowStockPage: React.FC = () => {
     setProducts((prev) =>
       prev.map((p) =>
         p.id === restockData.productId
-          ? { ...p, stockQuantity: p.stockQuantity + restockData.quantity }
+          ? { ...p, stock: (p.stock || 0) + restockData.quantity }
           : p
       )
     );
@@ -705,7 +702,7 @@ const LowStockPage: React.FC = () => {
                           <VStack align="start" spacing={1}>
                             <Text fontWeight="bold">{product.name}</Text>
                             <Text fontSize="sm" color="gray.500">
-                              SKU: {product.sku}
+                              SKU: {product.sku || "N/A"}
                             </Text>
                             <Text fontSize="sm" color="gray.500">
                               {formatCurrency(product.price)}
@@ -714,7 +711,7 @@ const LowStockPage: React.FC = () => {
                         </Td>
                         <Td>
                           <Badge colorScheme="blue" variant="outline">
-                            {product.category.name}
+                            {product.category?.name || "ไม่ระบุ"}
                           </Badge>
                         </Td>
                         <Td>
@@ -724,10 +721,10 @@ const LowStockPage: React.FC = () => {
                                 fontWeight="bold"
                                 color={stockStatus.color + ".500"}
                               >
-                                {product.stockQuantity}
+                                {product.stock || 0}
                               </Text>
                               <Text fontSize="sm" color="gray.500">
-                                / {product.minStockLevel}
+                                / {product.min_stock || 0}
                               </Text>
                             </HStack>
                             <Progress
@@ -819,19 +816,19 @@ const LowStockPage: React.FC = () => {
                               <VStack align="start" spacing={0}>
                                 <Text color="gray.500">สต็อกปัจจุบัน</Text>
                                 <Text fontWeight="bold">
-                                  {product.stockQuantity}
+                                  {product.stock || 0}
                                 </Text>
                               </VStack>
                               <VStack align="start" spacing={0}>
                                 <Text color="gray.500">ขั้นต่ำ</Text>
                                 <Text fontWeight="bold">
-                                  {product.minStockLevel}
+                                  {product.min_stock || 0}
                                 </Text>
                               </VStack>
                               <VStack align="start" spacing={0}>
                                 <Text color="gray.500">สูงสุด</Text>
                                 <Text fontWeight="bold">
-                                  {product.maxStockLevel}
+                                  {product.max_stock || 0}
                                 </Text>
                               </VStack>
                             </SimpleGrid>
@@ -852,7 +849,7 @@ const LowStockPage: React.FC = () => {
                                 }))
                               }
                               min={1}
-                              max={product.maxStockLevel}
+                              max={product.max_stock || 1000}
                             >
                               <NumberInputField />
                               <NumberInputStepper>
@@ -940,7 +937,7 @@ const LowStockPage: React.FC = () => {
                                   fontWeight="bold"
                                   color="blue.600"
                                 >
-                                  {product.stockQuantity + restockData.quantity}
+                                  {(product.stock || 0) + restockData.quantity}
                                 </Text>
                               </HStack>
                             </VStack>
@@ -973,3 +970,10 @@ const LowStockPage: React.FC = () => {
 };
 
 export default LowStockPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};

@@ -839,6 +839,121 @@ export interface Database {
           updated_at?: string;
         };
       };
+      branch_settings: {
+        Row: {
+          id: string;
+          branch_id: string;
+          business_info: Record<string, any> | null;
+          pricing_config: Record<string, any> | null;
+          inventory_config: Record<string, any> | null;
+          printer_config: Record<string, any> | null;
+          loyalty_config: Record<string, any> | null;
+          payment_config: Record<string, any> | null;
+          permissions: Record<string, any> | null;
+          pos_display_settings: Record<string, any> | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          branch_id: string;
+          business_info?: Record<string, any> | null;
+          pricing_config?: Record<string, any> | null;
+          inventory_config?: Record<string, any> | null;
+          printer_config?: Record<string, any> | null;
+          loyalty_config?: Record<string, any> | null;
+          payment_config?: Record<string, any> | null;
+          permissions?: Record<string, any> | null;
+          pos_display_settings?: Record<string, any> | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          branch_id?: string;
+          business_info?: Record<string, any> | null;
+          pricing_config?: Record<string, any> | null;
+          inventory_config?: Record<string, any> | null;
+          printer_config?: Record<string, any> | null;
+          loyalty_config?: Record<string, any> | null;
+          payment_config?: Record<string, any> | null;
+          permissions?: Record<string, any> | null;
+          pos_display_settings?: Record<string, any> | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      payment_transactions: {
+        Row: {
+          id: string;
+          order_id: string;
+          transaction_type: "payment" | "refund" | "partial_refund";
+          payment_method:
+            | "cash"
+            | "card"
+            | "bank_transfer"
+            | "e_wallet"
+            | "credit"
+            | "points";
+          amount: number;
+          currency: string | null;
+          reference_number: string | null;
+          card_type: string | null;
+          card_last_four: string | null;
+          status: "pending" | "completed" | "failed" | "cancelled";
+          processed_by: string | null;
+          processed_at: string;
+          notes: string | null;
+          meta_data: Record<string, any> | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          transaction_type: "payment" | "refund" | "partial_refund";
+          payment_method:
+            | "cash"
+            | "card"
+            | "bank_transfer"
+            | "e_wallet"
+            | "credit"
+            | "points";
+          amount: number;
+          currency?: string | null;
+          reference_number?: string | null;
+          card_type?: string | null;
+          card_last_four?: string | null;
+          status?: "pending" | "completed" | "failed" | "cancelled";
+          processed_by?: string | null;
+          processed_at?: string;
+          notes?: string | null;
+          meta_data?: Record<string, any> | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          transaction_type?: "payment" | "refund" | "partial_refund";
+          payment_method?:
+            | "cash"
+            | "card"
+            | "bank_transfer"
+            | "e_wallet"
+            | "credit"
+            | "points";
+          amount?: number;
+          currency?: string | null;
+          reference_number?: string | null;
+          card_type?: string | null;
+          card_last_four?: string | null;
+          status?: "pending" | "completed" | "failed" | "cancelled";
+          processed_by?: string | null;
+          processed_at?: string;
+          notes?: string | null;
+          meta_data?: Record<string, any> | null;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;

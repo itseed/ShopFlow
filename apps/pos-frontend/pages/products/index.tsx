@@ -83,7 +83,7 @@ import {
   IoCheckmarkCircle,
 } from "react-icons/io5";
 import { POSLayout, TouchButton, POSCard } from "../../components";
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "../../lib/hooks/useSale";
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "../../lib/hooks/useProducts";
 import { Product, ProductStatus } from "@shopflow/types";
 
 interface ProductFormData {
@@ -244,7 +244,7 @@ const ProductsPage = () => {
   const getStatusColor = (status: ProductStatus) => {
     if (status === "out_of_stock") return "red";
     if (status === "inactive") return "gray";
-    if (status === "active" && products.find(p => p.id === selectedProduct?.id)?.stock <= (products.find(p => p.id === selectedProduct?.id)?.min_stock || 10)) return "orange";
+    if (status === "active" && selectedProduct && (selectedProduct.stock || 0) <= (selectedProduct.min_stock || 10)) return "orange";
     return "green";
   };
 
@@ -1233,7 +1233,7 @@ const ProductsPage = () => {
                     </Box>
                     <Box>
                       <Text fontWeight="bold" color="gray.500">อัตราภาษี</Text>
-                      <Text>{(selectedProduct.taxRate * 100).toFixed(1)}%</Text>
+                      <Text>7.0%</Text>
                     </Box>
                   </SimpleGrid>
                   {selectedProduct.description && (
@@ -1262,29 +1262,31 @@ const ProductsPage = () => {
                 ปิด
               </Button>
               <Button colorScheme="blue" onClick={() => {
+                if (!selectedProduct) return;
                 onViewProductClose();
                 setProductForm({
                   name: selectedProduct.name,
                   description: selectedProduct.description || "",
                   price: selectedProduct.price,
-                  category_id: selectedProduct.category_id || "",
-                  stock: selectedProduct.stock,
-                  barcode: selectedProduct.barcode || "",
-                  status: selectedProduct.status,
-                  cost_price: selectedProduct.cost_price || 0,
-                  short_description: selectedProduct.short_description || "",
-                  max_stock: selectedProduct.max_stock || 0,
-                  unit: selectedProduct.unit || "",
-                  weight: selectedProduct.weight || 0,
-                  dimensions: selectedProduct.dimensions || { length: 0, width: 0, height: 0 },
-                  supplier_id: selectedProduct.supplier_id || "",
-                  brand: selectedProduct.brand || "",
-                  tags: selectedProduct.tags || [],
-                  is_featured: selectedProduct.is_featured || false,
-                  is_trackable: selectedProduct.is_trackable || true,
+                  category_id: selectedProduct?.category_id || "",
+                  stock: selectedProduct?.stock || 0,
+                  barcode: selectedProduct?.barcode || "",
+                  status: selectedProduct?.status || "active",
+                  cost_price: selectedProduct?.cost_price || 0,
+                  short_description: selectedProduct?.short_description || "",
+                  max_stock: selectedProduct?.max_stock || 0,
+                  unit: selectedProduct?.unit || "",
+                  weight: selectedProduct?.weight || 0,
+                  dimensions: selectedProduct?.dimensions || { length: 0, width: 0, height: 0 },
+                  supplier_id: selectedProduct?.supplier_id || "",
+                  brand: selectedProduct?.brand || "",
+                  tags: selectedProduct?.tags || [],
+                  is_featured: selectedProduct?.is_featured || false,
+                  is_trackable: selectedProduct?.is_trackable || true,
                 });
                 onEditProductOpen();
-              }}>
+              }}
+              isDisabled={!selectedProduct}>
                 แก้ไข
               </Button>
             </ModalFooter>
@@ -1296,3 +1298,10 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};

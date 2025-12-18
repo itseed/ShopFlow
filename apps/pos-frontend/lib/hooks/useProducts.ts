@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import {
-  productService,
+import { productService } from "@shopflow/api/services/productService";
+import type {
   ProductFilters,
   CreateProductData,
   UpdateProductData,
   StockUpdateData,
-} from "@shopflow/api";
+} from "@shopflow/api/services/productService";
 import type { ApiResponse } from "@shopflow/api";
 import { Product } from "@shopflow/types";
 
@@ -36,11 +36,7 @@ export const useProducts = (
         ...pagination,
       });
 
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch products");
-      }
-
-      return response.data;
+      return response.data || [];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes (was cacheTime)
@@ -53,11 +49,12 @@ export const useProduct = (id: string) => {
     queryKey: [QUERY_KEYS.PRODUCT, id],
     queryFn: async () => {
       const response = await productService.getById(id);
-
       if (!response.success) {
         throw new Error(response.error || "Product not found");
       }
-
+      if (!response.data) {
+        throw new Error("Product not found");
+      }
       return response.data;
     },
     enabled: !!id,
@@ -71,15 +68,15 @@ export const useCreateProduct = () => {
 
   return useMutation({
     mutationFn: async (data: CreateProductData) => {
-      return await productService.create(data);
-    },
-    onSuccess: (response) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
-        toast.success("Product created successfully");
-      } else {
-        toast.error(response.error || "Failed to create product");
+      const response = await productService.create(data);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create product");
       }
+      return response.data;
+    },
+    onSuccess: (product) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
+      toast.success("Product created successfully");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to create product");
@@ -99,16 +96,16 @@ export const useUpdateProduct = () => {
       id: string;
       data: UpdateProductData;
     }) => {
-      return await productService.update(id, data);
-    },
-    onSuccess: (response, { id }) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCT, id] });
-        toast.success("Product updated successfully");
-      } else {
-        toast.error(response.error || "Failed to update product");
+      const response = await productService.update(id, data);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update product");
       }
+      return response.data;
+    },
+    onSuccess: (product, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCT, id] });
+      toast.success("Product updated successfully");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update product");
@@ -122,15 +119,15 @@ export const useDeleteProduct = () => {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      return await productService.delete(id);
-    },
-    onSuccess: (response) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
-        toast.success("Product deleted successfully");
-      } else {
-        toast.error(response.error || "Failed to delete product");
+      const response = await productService.delete(id);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to delete product");
       }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
+      toast.success("Product deleted successfully");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete product");
@@ -150,16 +147,17 @@ export const useUpdateProductStock = () => {
       id: string;
       stockData: StockUpdateData;
     }) => {
-      return await productService.updateStock(id, stockData);
-    },
-    onSuccess: (response, { id }) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCT, id] });
-        toast.success("Stock updated successfully");
-      } else {
-        toast.error(response.error || "Failed to update stock");
+      // Use updateStock method
+      const response = await productService.updateStock(id, stockData);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update stock");
       }
+      return response.data!;
+    },
+    onSuccess: (product, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCT, id] });
+      toast.success("Stock updated successfully");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update stock");

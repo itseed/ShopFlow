@@ -7,7 +7,7 @@
 import { supabase } from "../supabase";
 import type { Database } from "@shopflow/types";
 
-type User = Database["public"]["Tables"]["users"]["Row"];
+type User = Database["public"]["Tables"]["user_profiles"]["Row"];
 type Branch = Database["public"]["Tables"]["branches"]["Row"];
 type BranchSettings = Database["public"]["Tables"]["branch_settings"]["Row"];
 type SystemSettings = Database["public"]["Tables"]["system_settings"]["Row"];
@@ -20,13 +20,13 @@ export const users = {
    * Get all users
    */
   async getAll(params?: { branchId?: string }) {
-    let query = supabase.from("users").select("*");
+    let query = supabase.from("user_profiles").select("*");
 
     if (params?.branchId) {
       query = query.eq("branch_id", params.branchId);
     }
 
-    const { data, error } = await query.order("name");
+    const { data, error } = await query.order("display_name");
     if (error) throw error;
 
     return data as User[];
@@ -37,7 +37,7 @@ export const users = {
    */
   async getById(id: string) {
     const { data, error } = await supabase
-      .from("users")
+      .from("user_profiles")
       .select("*")
       .eq("id", id)
       .single();
@@ -51,7 +51,7 @@ export const users = {
    */
   async getByEmail(email: string) {
     const { data, error } = await supabase
-      .from("users")
+      .from("user_profiles")
       .select("*")
       .eq("email", email)
       .single();
@@ -70,7 +70,7 @@ export const users = {
    */
   async update(id: string, updates: Partial<User>) {
     const { data, error } = await supabase
-      .from("users")
+      .from("user_profiles")
       .update(updates)
       .eq("id", id)
       .select()
@@ -84,7 +84,10 @@ export const users = {
    * Delete user
    */
   async delete(id: string) {
-    const { error } = await supabase.from("users").delete().eq("id", id);
+    const { error } = await supabase
+      .from("user_profiles")
+      .delete()
+      .eq("id", id);
 
     if (error) throw error;
     return { success: true };
@@ -95,7 +98,7 @@ export const users = {
    */
   async getRole(userId: string) {
     const { data, error } = await supabase
-      .from("users")
+      .from("user_profiles")
       .select("role")
       .eq("id", userId)
       .single();
@@ -109,7 +112,7 @@ export const users = {
    */
   async updateRole(userId: string, role: string) {
     const { data, error } = await supabase
-      .from("users")
+      .from("user_profiles")
       .update({ role })
       .eq("id", userId)
       .select()
@@ -215,7 +218,7 @@ export const branches = {
   ) {
     let ordersQuery = supabase
       .from("orders")
-      .select("id, total_amount, status")
+      .select("id, total, status")
       .eq("branch_id", branchId);
 
     if (params?.startDate) {
@@ -243,7 +246,7 @@ export const branches = {
       totalOrders: orders?.length || 0,
       completedOrders: completedOrders.length,
       totalRevenue: completedOrders.reduce(
-        (sum: number, o: any) => sum + (o.total_amount || 0),
+        (sum: number, o: any) => sum + (o.total || 0),
         0
       ),
       totalProducts: productsCount || 0,
@@ -428,18 +431,17 @@ export const systemSettings = {
 
     if (error) {
       if (error.code === "PGRST116") {
-        // No settings found, return defaults
         return {
           maintenance_mode: false,
           default_language: "th",
           default_currency: "THB",
           tax_rate: 0.07,
-        };
+        } as any;
       }
       throw error;
     }
 
-    return data as SystemSettings;
+    return data as any;
   },
 
   /**
@@ -456,7 +458,7 @@ export const systemSettings = {
     if (existing) {
       const { data, error } = await supabase
         .from("system_settings")
-        .update(updates)
+        .update(updates as any)
         .eq("id", existing.id)
         .select()
         .single();
@@ -467,7 +469,7 @@ export const systemSettings = {
       // Create new settings
       const { data, error } = await supabase
         .from("system_settings")
-        .insert(updates)
+        .insert(updates as any)
         .select()
         .single();
 
@@ -480,15 +482,46 @@ export const systemSettings = {
    * Get maintenance mode status
    */
   async getMaintenanceMode() {
-    const settings = await this.get();
-    return settings.maintenance_mode || false;
+    const { data } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "maintenance_mode")
+      .limit(1)
+      .single();
+    if (!data) return false;
+    const val = (data as any).value;
+    return typeof val === "boolean" ? val : Boolean(val);
   },
 
   /**
    * Set maintenance mode
    */
   async setMaintenanceMode(enabled: boolean) {
-    return await this.update({ maintenance_mode: enabled });
+    const existing = await supabase
+      .from("system_settings")
+      .select("id")
+      .eq("key", "maintenance_mode")
+      .limit(1)
+      .single();
+
+    if (existing.data) {
+      const { data, error } = await supabase
+        .from("system_settings")
+        .update({ value: enabled })
+        .eq("id", (existing.data as any).id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const { data, error } = await supabase
+        .from("system_settings")
+        .insert({ key: "maintenance_mode", value: enabled })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
   },
 };
 

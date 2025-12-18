@@ -114,7 +114,16 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
     }
   };
 
-  const getCustomerInitials = (name: string) => {
+  const getCustomerName = (customer: Customer) => {
+    if (customer.company_name) return customer.company_name;
+    if (customer.first_name || customer.last_name) {
+      return `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+    }
+    return customer.customer_code || "Unknown Customer";
+  };
+
+  const getCustomerInitials = (customer: Customer) => {
+    const name = getCustomerName(customer);
     return name
       .split(" ")
       .map((word) => word.charAt(0))
@@ -163,7 +172,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
     onClose();
     toast({
       title: "ลบลูกค้าสำเร็จ",
-      description: `ข้อมูลลูกค้า ${customer.name} ได้รับการลบแล้ว`,
+      description: `ข้อมูลลูกค้า ${getCustomerName(customer)} ได้รับการลบแล้ว`,
       status: "success",
       duration: 3000,
       isClosable: true,
@@ -179,39 +188,33 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
             <HStack spacing={6} align="start">
               <Avatar
                 size="xl"
-                name={customer.name}
-                bg={`${getMembershipColor(
-                  customer.membership?.membershipType.name
-                )}.500`}
+                name={getCustomerName(customer)}
+                bg="blue.500"
                 color="white"
               >
-                {getCustomerInitials(customer.name)}
+                {getCustomerInitials(customer)}
               </Avatar>
 
               <VStack align="start" spacing={2} flex={1}>
                 <HStack spacing={3} align="center">
                   <Text fontSize="2xl" fontWeight="bold">
-                    {customer.name}
+                    {getCustomerName(customer)}
                   </Text>
-                  {customer.membership && (
+                  {customer.loyalty_points > 0 && (
                     <HStack spacing={1}>
                       <Icon
                         as={IoStar}
-                        color={`${getMembershipColor(
-                          customer.membership.membershipType.name
-                        )}.500`}
+                        color="yellow.500"
                       />
                       <Badge
-                        colorScheme={getMembershipColor(
-                          customer.membership.membershipType.name
-                        )}
+                        colorScheme="yellow"
                         size="lg"
                       >
-                        {customer.membership.membershipType.name}
+                        {customer.loyalty_points} แต้ม
                       </Badge>
                     </HStack>
                   )}
-                  {!customer.isActive && (
+                  {customer.status === "inactive" && (
                     <Badge colorScheme="red" size="lg">
                       ไม่ใช้งาน
                     </Badge>
@@ -219,7 +222,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                 </HStack>
 
                 <Text fontSize="md" color="gray.500">
-                  รหัสลูกค้า: {customer.customerNumber}
+                  รหัสลูกค้า: {customer.customer_code || customer.id}
                 </Text>
 
                 <Grid
@@ -250,7 +253,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   <HStack spacing={2}>
                     <Icon as={IoCalendarOutline} color="gray.500" />
                     <Text fontSize="sm">
-                      สมัคร {customer.createdAt.toLocaleDateString("th-TH")}
+                      สมัคร {new Date(customer.created_at).toLocaleDateString("th-TH")}
                     </Text>
                   </HStack>
                 </Grid>
@@ -292,7 +295,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                     <Text>จำนวนคำสั่งซื้อ</Text>
                   </HStack>
                 </StatLabel>
-                <StatNumber color="blue.500">{stats.totalOrders}</StatNumber>
+                <StatNumber color="blue.500">{stats.total_orders}</StatNumber>
                 <StatHelpText>คำสั่งทั้งหมด</StatHelpText>
               </Stat>
             </CardBody>
@@ -308,7 +311,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   </HStack>
                 </StatLabel>
                 <StatNumber color="green.500">
-                  {formatCurrency(stats.totalSpent)}
+                  {formatCurrency(stats.total_spent)}
                 </StatNumber>
                 <StatHelpText>ยอดซื้อทั้งหมด</StatHelpText>
               </Stat>
@@ -325,14 +328,14 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   </HStack>
                 </StatLabel>
                 <StatNumber color="purple.500">
-                  {formatCurrency(stats.averageOrderValue)}
+                  {formatCurrency(stats.avg_order_value)}
                 </StatNumber>
                 <StatHelpText>ยอดเฉลี่ย</StatHelpText>
               </Stat>
             </CardBody>
           </Card>
 
-          {customer.membership && (
+          {customer.loyalty_points > 0 && (
             <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
               <CardBody>
                 <Stat>
@@ -343,7 +346,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                     </HStack>
                   </StatLabel>
                   <StatNumber color="orange.500">
-                    {customer.membership.points.toLocaleString()}
+                    {customer.loyalty_points.toLocaleString()}
                   </StatNumber>
                   <StatHelpText>แต้มที่มี</StatHelpText>
                 </Stat>
@@ -353,7 +356,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
         </Grid>
 
         {/* Membership Progress */}
-        {customer.membership && stats.membershipStatus && (
+        {customer.loyalty_points > 0 && (
           <Card bg={cardBg} borderWidth="1px" borderColor={borderColor}>
             <CardHeader>
               <Text fontSize="lg" fontWeight="medium">
@@ -364,30 +367,23 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
               <VStack spacing={4} align="stretch">
                 <HStack justify="space-between">
                   <Text fontSize="md">
-                    ปัจจุบัน:{" "}
-                    <strong>{stats.membershipStatus.currentType}</strong>
+                    แต้มสะสม: {customer.loyalty_points.toLocaleString()} แต้ม
                   </Text>
-                  {stats.membershipStatus.nextType && (
-                    <Text fontSize="md">
-                      เป้าหมาย:{" "}
-                      <strong>{stats.membershipStatus.nextType}</strong>
-                    </Text>
-                  )}
+                  <Text fontSize="md">
+                    สถานะ: {customer.status === "vip" ? "VIP" : customer.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน"}
+                  </Text>
                 </HStack>
 
-                {stats.membershipStatus.progressToNext && (
+                {customer.loyalty_points > 0 && (
                   <>
                     <Progress
-                      value={stats.membershipStatus.progressToNext}
-                      colorScheme={getMembershipColor(
-                        stats.membershipStatus.nextType
-                      )}
+                      value={Math.min((customer.loyalty_points / 1000) * 100, 100)}
+                      colorScheme="orange"
                       size="lg"
                       borderRadius="md"
                     />
                     <Text fontSize="sm" color="gray.500" textAlign="center">
-                      ความก้าวหน้าไปสู่ระดับ {stats.membershipStatus.nextType}:{" "}
-                      {stats.membershipStatus.progressToNext.toFixed(1)}%
+                      แต้มสะสม: {customer.loyalty_points.toLocaleString()} แต้ม
                     </Text>
                   </>
                 )}
@@ -412,7 +408,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                 <VStack spacing={4} align="stretch">
                   <HStack justify="space-between">
                     <Text fontSize="md" fontWeight="medium">
-                      ประวัติการซื้อ ({stats.totalOrders} รายการ)
+                      ประวัติการซื้อ ({stats.total_orders} รายการ)
                     </Text>
                     <Button
                       leftIcon={<Icon as={IoAddOutline} />}
@@ -511,26 +507,28 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                     สินค้าที่ซื้อบ่อย
                   </Text>
 
-                  {stats.favoriteProducts.length > 0 ? (
+                  {stats.total_orders > 0 ? (
                     <TableContainer>
                       <Table variant="simple" size="sm">
                         <Thead>
                           <Tr>
-                            <Th>สินค้า</Th>
-                            <Th isNumeric>ซื้อกี่ครั้ง</Th>
-                            <Th isNumeric>ยอดรวม</Th>
+                            <Th>ข้อมูล</Th>
+                            <Th isNumeric>ค่า</Th>
                           </Tr>
                         </Thead>
                         <Tbody>
-                          {stats.favoriteProducts.map((product, index) => (
-                            <Tr key={index}>
-                              <Td>{product.productName}</Td>
-                              <Td isNumeric>{product.purchaseCount}</Td>
-                              <Td isNumeric>
-                                {formatCurrency(product.totalAmount)}
-                              </Td>
-                            </Tr>
-                          ))}
+                          <Tr>
+                            <Td>จำนวนคำสั่งซื้อ</Td>
+                            <Td isNumeric>{stats.total_orders}</Td>
+                          </Tr>
+                          <Tr>
+                            <Td>ยอดซื้อสะสม</Td>
+                            <Td isNumeric>{formatCurrency(stats.total_spent)}</Td>
+                          </Tr>
+                          <Tr>
+                            <Td>ค่าเฉลี่ยต่อคำสั่ง</Td>
+                            <Td isNumeric>{formatCurrency(stats.avg_order_value)}</Td>
+                          </Tr>
                         </Tbody>
                       </Table>
                     </TableContainer>
@@ -602,7 +600,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
               <VStack align="start" spacing={2}>
                 <AlertTitle>คำเตือน!</AlertTitle>
                 <AlertDescription>
-                  คุณต้องการลบข้อมูลลูกค้า "{customer.name}" หรือไม่?
+                  คุณต้องการลบข้อมูลลูกค้า "{getCustomerName(customer)}" หรือไม่?
                   การดำเนินการนี้ไม่สามารถยกเลิกได้
                 </AlertDescription>
               </VStack>

@@ -119,7 +119,16 @@ const CustomerList: React.FC<CustomerListProps> = ({
     return phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
   };
 
-  const getCustomerInitials = (name: string) => {
+  const getCustomerName = (customer: Customer) => {
+    if (customer.company_name) return customer.company_name;
+    if (customer.first_name || customer.last_name) {
+      return `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+    }
+    return customer.customer_code || "Unknown Customer";
+  };
+
+  const getCustomerInitials = (customer: Customer) => {
+    const name = getCustomerName(customer);
     return name
       .split(" ")
       .map((word) => word.charAt(0))
@@ -265,44 +274,36 @@ const CustomerList: React.FC<CustomerListProps> = ({
                   {/* Avatar */}
                   <Avatar
                     size="md"
-                    name={customer.name}
-                    bg={`${getMembershipColor(
-                      customer.membership?.membershipType.name
-                    )}.500`}
+                    name={getCustomerName(customer)}
+                    bg="blue.500"
                     color="white"
                   >
-                    {getCustomerInitials(customer.name)}
+                    {getCustomerInitials(customer)}
                   </Avatar>
 
                   {/* Customer Info */}
                   <VStack align="start" spacing={1} flex={1}>
                     <HStack spacing={2} align="center">
                       <Text fontSize="lg" fontWeight="bold">
-                        {customer.name}
+                        {getCustomerName(customer)}
                       </Text>
-                      {customer.membership && (
+                      {customer.loyalty_points > 0 && (
                         <HStack spacing={1}>
                           <Icon
-                            as={getMembershipIcon(
-                              customer.membership.membershipType.name
-                            )}
-                            color={`${getMembershipColor(
-                              customer.membership.membershipType.name
-                            )}.500`}
+                            as={IoStar}
+                            color="yellow.500"
                             w={3}
                             h={3}
                           />
                           <Badge
-                            colorScheme={getMembershipColor(
-                              customer.membership.membershipType.name
-                            )}
+                            colorScheme="yellow"
                             size="sm"
                           >
-                            {customer.membership.membershipType.name}
+                            {customer.loyalty_points} แต้ม
                           </Badge>
                         </HStack>
                       )}
-                      {!customer.isActive && (
+                      {customer.status !== "active" && (
                         <Badge colorScheme="red" size="sm">
                           ไม่ใช้งาน
                         </Badge>
@@ -310,7 +311,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
                     </HStack>
 
                     <Text fontSize="sm" color="gray.500">
-                      รหัสลูกค้า: {customer.customerNumber}
+                      รหัสลูกค้า: {customer.customer_code}
                     </Text>
 
                     <HStack spacing={4} wrap="wrap">
@@ -331,20 +332,16 @@ const CustomerList: React.FC<CustomerListProps> = ({
                       <HStack spacing={1}>
                         <Icon as={IoCalendarOutline} color="gray.500" />
                         <Text fontSize="sm">
-                          สมัคร {customer.createdAt.toLocaleDateString("th-TH")}
+                          สมัคร {customer.created_at ? new Date(customer.created_at).toLocaleDateString("th-TH") : "ไม่ระบุ"}
                         </Text>
                       </HStack>
                     </HStack>
 
-                    {customer.membership && (
+                    {customer.loyalty_points > 0 && (
                       <HStack spacing={4} mt={2}>
                         <Text fontSize="sm">
                           <strong>แต้มสะสม:</strong>{" "}
-                          {customer.membership.points.toLocaleString()} แต้ม
-                        </Text>
-                        <Text fontSize="sm">
-                          <strong>ยอดซื้อสะสม:</strong>{" "}
-                          {formatCurrency(customer.membership.totalSpent)}
+                          {customer.loyalty_points.toLocaleString()} แต้ม
                         </Text>
                       </HStack>
                     )}

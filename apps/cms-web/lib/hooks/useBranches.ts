@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import { branchService } from "@shopflow/api";
+import { branchService } from "@shopflow/api/services/branchService";
 import { Branch } from "@shopflow/types";
 
 // Enhanced Branch interface to match the database schema
@@ -190,7 +190,7 @@ export function useBranchSearch(searchTerm: string) {
     }
 
     const filtered = (branches || []).filter(
-      (branch) =>
+      (branch: Branch) =>
         branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         branch.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         branch.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||

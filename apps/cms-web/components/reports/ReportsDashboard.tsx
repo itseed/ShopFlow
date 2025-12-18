@@ -681,7 +681,7 @@ export default function ReportsDashboard() {
 
   // Create real sales trend data from salesReports
   const realSalesTrend = salesReports && salesReports.length > 0 
-    ? salesReports.map(report => ({
+    ? salesReports.map((report: any) => ({
         date: report.date,
         revenue: report.totalSales,
         orders: report.totalOrders
@@ -1035,7 +1035,7 @@ export default function ReportsDashboard() {
                         </Tr>
                       </Thead>
                       <Tbody>
-                        {salesReports.map((report, index) => (
+                        {salesReports.map((report: any, index: number) => (
                           <Tr key={index}>
                             <Td>
                               {new Date(report.date).toLocaleDateString("th-TH")}
@@ -1101,7 +1101,7 @@ export default function ReportsDashboard() {
                         </Tr>
                       </Thead>
                       <Tbody>
-                        {productReports.map((product, index) => (
+                        {productReports.map((product: any, index: number) => (
                           <Tr key={index}>
                             <Td>
                               <VStack align="start" spacing={0}>
@@ -1185,7 +1185,7 @@ export default function ReportsDashboard() {
                         </Tr>
                       </Thead>
                       <Tbody>
-                        {inventoryReports.map((item, index) => (
+                        {inventoryReports.map((item: any, index: number) => (
                           <Tr key={index}>
                             <Td>
                               <VStack align="start" spacing={0}>
@@ -1270,7 +1270,7 @@ export default function ReportsDashboard() {
                         </Tr>
                       </Thead>
                       <Tbody>
-                        {branchReports.map((branch, index) => (
+                        {branchReports.map((branch: any, index: number) => (
                           <Tr key={index}>
                             <Td fontWeight="medium">{branch.branchName}</Td>
                             <Td isNumeric>{formatCurrency(branch.totalSales)}</Td>

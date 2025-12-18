@@ -693,8 +693,8 @@ function OrdersPage() {
                     </Td>
                     <Td>
                       <HStack>
-                        <Avatar size="sm" name={order.sales_rep} />
-                        <Text fontSize="sm">{order.sales_rep}</Text>
+                        <Avatar size="sm" name={order.sales_rep || undefined} />
+                        <Text fontSize="sm">{order.sales_rep || "-"}</Text>
                       </HStack>
                     </Td>
                     <Td>
@@ -870,8 +870,8 @@ function OrdersPage() {
                       <Box>
                         <Text fontWeight="medium">พนักงานขาย</Text>
                         <HStack>
-                          <Avatar size="sm" name={selectedOrder.sales_rep} />
-                          <Text>{selectedOrder.sales_rep}</Text>
+                          <Avatar size="sm" name={selectedOrder.sales_rep || undefined} />
+                          <Text>{selectedOrder.sales_rep || "-"}</Text>
                         </HStack>
                       </Box>
                     </SimpleGrid>

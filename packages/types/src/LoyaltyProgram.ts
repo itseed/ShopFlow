@@ -372,7 +372,9 @@ export interface POSCustomerLookup {
   phone: string;
   customer?: {
     id: string;
-    name: string;
+    first_name?: string;
+    last_name?: string;
+    company_name?: string;
     email?: string;
     phone: string;
     customer_type: string;

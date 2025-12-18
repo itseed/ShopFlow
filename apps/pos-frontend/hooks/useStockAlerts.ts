@@ -23,8 +23,8 @@ interface UseStockAlertsReturn {
   alertsCount: number;
   isLoading: boolean;
   refreshAlerts: () => void;
-  acknowledgeAlert: (alertId: string, userId: string, userName: string) => void;
-  acknowledgeAllAlerts: (userId: string, userName: string) => void;
+  acknowledgeAlert: (alertId: string, userId: string) => void;
+  acknowledgeAllAlerts: (userId: string) => void;
   dismissAlert: (alertId: string) => void;
   getAlertsByLevel: (level: AlertLevel) => StockAlert[];
   getAlertsByProduct: (productId: string) => StockAlert[];
@@ -141,22 +141,22 @@ export const useStockAlerts = (options: UseStockAlertsOptions): UseStockAlertsRe
   }, [generateAlerts]);
 
   // Acknowledge an alert
-  const acknowledgeAlert = useCallback((alertId: string, userId: string, userName: string) => {
+  const acknowledgeAlert = useCallback((alertId: string, userId: string) => {
     setAlerts(prevAlerts => 
       prevAlerts.map(alert => 
         alert.id === alertId 
-          ? StockAlertsManager.acknowledgeAlert(alert, userId, userName)
+          ? StockAlertsManager.acknowledgeAlert(alert, userId)
           : alert
       )
     );
   }, []);
 
   // Acknowledge all alerts
-  const acknowledgeAllAlerts = useCallback((userId: string, userName: string) => {
+  const acknowledgeAllAlerts = useCallback((userId: string) => {
     setAlerts(prevAlerts => 
       prevAlerts.map(alert => 
         !alert.acknowledged 
-          ? StockAlertsManager.acknowledgeAlert(alert, userId, userName)
+          ? StockAlertsManager.acknowledgeAlert(alert, userId)
           : alert
       )
     );

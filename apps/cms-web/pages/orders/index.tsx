@@ -362,7 +362,7 @@ function OrdersPage() {
                 <Flex justify="space-between" align="center">
                   <Box>
                     <StatLabel>ยอดขายวันนี้</StatLabel>
-                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : `฿${orderStats?.todayRevenue.toLocaleString()}`}</StatNumber>
+                     <StatNumber>{statsLoading ? <Spinner size="sm" /> : `฿${(orderStats?.totalRevenue || 0).toLocaleString()}`}</StatNumber>
                   </Box>
                   <Icon as={FiTrendingUp} boxSize={8} color="green.500" />
                 </Flex>
@@ -376,7 +376,7 @@ function OrdersPage() {
                 <Flex justify="space-between" align="center">
                   <Box>
                     <StatLabel>คำสั่งซื้อวันนี้</StatLabel>
-                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : orderStats?.todayOrders}</StatNumber>
+                    <StatNumber>{statsLoading ? <Spinner size="sm" /> : orderStats?.totalOrders || 0}</StatNumber>
                   </Box>
                   <Icon as={FiCalendar} boxSize={8} color="purple.500" />
                 </Flex>
@@ -515,9 +515,9 @@ function OrdersPage() {
                     <Td>
                       <VStack align="start" spacing={1}>
                         <Text fontWeight="medium">
-                          {getDisplayCustomerName(order)}
+                          {getDisplayCustomerName(order as any)}
                         </Text>
-                        {shouldShowContactInfo(order) &&
+                        {shouldShowContactInfo(order as any) &&
                           order.customer_phone && (
                             <Text fontSize="xs" color="gray.600">
                               <Icon as={FiPhone} mr={1} />
@@ -541,9 +541,9 @@ function OrdersPage() {
                             </Text>
                           );
                         })()}
-                        {order.branch_name && (
+                        {(order as any).branch_name && (
                           <Text fontSize="xs" color="gray.500">
-                            {order.branch_name}
+                            {(order as any).branch_name}
                           </Text>
                         )}
                         <HStack spacing={2}>
@@ -618,8 +618,8 @@ function OrdersPage() {
                     </Td>
                     <Td>
                       <HStack>
-                        <Avatar size="sm" name={order.sales_rep} />
-                        <Text fontSize="sm">{order.sales_rep}</Text>
+                        <Avatar size="sm" name={order.sales_rep || undefined} />
+                        <Text fontSize="sm">{order.sales_rep || "-"}</Text>
                       </HStack>
                     </Td>
                     <Td>
@@ -829,8 +829,8 @@ function OrdersPage() {
                       <Box>
                         <Text fontWeight="medium">พนักงานขาย</Text>
                         <HStack>
-                          <Avatar size="sm" name={selectedOrder.sales_rep} />
-                          <Text>{selectedOrder.sales_rep}</Text>
+                          <Avatar size="sm" name={selectedOrder.sales_rep || undefined} />
+                          <Text>{selectedOrder.sales_rep || "-"}</Text>
                         </HStack>
                       </Box>
                     </SimpleGrid>

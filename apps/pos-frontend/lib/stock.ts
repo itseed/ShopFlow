@@ -253,8 +253,7 @@ export class StockAlertsManager {
 
   static acknowledgeAlert(
     alert: StockAlert,
-    userId: string,
-    userName: string
+    userId: string
   ): StockAlert {
     return {
       ...alert,

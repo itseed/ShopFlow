@@ -80,7 +80,7 @@ const CustomerLookup: React.FC<CustomerLookupProps> = ({
     try {
       const result = await loyaltyService.getPOSCustomerLookup(phone);
 
-      if (result.success) {
+      if (result.success && result.data) {
         setCustomerData(result.data);
         
         if (!result.data.customer) {
@@ -93,7 +93,7 @@ const CustomerLookup: React.FC<CustomerLookupProps> = ({
         } else {
           toast({
             title: "พบข้อมูลลูกค้า",
-            description: `${result.data.customer.name}`,
+            description: result.data.customer ? `${result.data.customer.first_name || ""} ${result.data.customer.last_name || ""}`.trim() || result.data.customer.company_name || "ลูกค้า" : "ลูกค้า",
             status: "success",
             duration: 2000,
           });
@@ -261,14 +261,28 @@ const CustomerLookup: React.FC<CustomerLookupProps> = ({
                     <HStack justify="space-between">
                       <HStack spacing={3}>
                         <Avatar
-                          name={customerData.customer.name}
+                          name={
+                            customerData.customer
+                              ? customerData.customer.company_name ||
+                                `${customerData.customer.first_name || ""} ${
+                                  customerData.customer.last_name || ""
+                                }`.trim() ||
+                                "ลูกค้า"
+                              : "ลูกค้า"
+                          }
                           size="lg"
                           bg="green.500"
                           color="white"
                         />
                         <VStack align="start" spacing={0}>
                           <Text fontSize="xl" fontWeight="bold">
-                            {customerData.customer.name}
+                            {customerData.customer
+                              ? customerData.customer.company_name ||
+                                `${customerData.customer.first_name || ""} ${
+                                  customerData.customer.last_name || ""
+                                }`.trim() ||
+                                "ลูกค้า"
+                              : "ลูกค้า"}
                           </Text>
                           <Text fontSize="md" color="gray.600">
                             {formatPhone(customerData.customer.phone)}
@@ -351,7 +365,7 @@ const CustomerLookup: React.FC<CustomerLookupProps> = ({
                             </Text>
                           </HStack>
                           <HStack spacing={2} flexWrap="wrap">
-                            {customerData.suggested_actions.map((action, index) => (
+                            {customerData.suggested_actions.map((action: string, index: number) => (
                               <Badge key={index} colorScheme="pink" fontSize="xs">
                                 {action}
                               </Badge>

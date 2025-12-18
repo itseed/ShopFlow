@@ -53,6 +53,9 @@ export interface EnhancedReportFilters extends ReportFilters {
     | "custom";
   groupBy?: "day" | "week" | "month" | "year";
   compareWith?: "previousPeriod" | "previousYear";
+  startDate?: string;
+  endDate?: string;
+  branchId?: string;
 }
 
 // Report export request
@@ -260,8 +263,7 @@ export function useSalesReports(
         ];
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - shorter for real data
-    cacheTime: 10 * 60 * 1000, // 10 minutes cache
+    staleTime: 5 * 60 * 1000,
     retry: 1, // Single retry
     retryDelay: 2000, // 2 second delay
     refetchOnWindowFocus: false, // Disable refetch on window focus
@@ -297,8 +299,7 @@ export function useProductReports(
       }
       return response.data || [];
     },
-    staleTime: 15 * 60 * 1000, // 15 minutes - increased from 10
-    cacheTime: 30 * 60 * 1000, // 30 minutes cache
+    staleTime: 15 * 60 * 1000,
     retry: 1, // Reduced retries from 2 to 1
     retryDelay: 2000, // Increased delay to 2 seconds
     refetchOnWindowFocus: false, // Disable refetch on window focus
@@ -321,8 +322,7 @@ export function useInventoryReports(
       }
       return response.data || [];
     },
-    staleTime: 20 * 60 * 1000, // 20 minutes - increased from 15
-    cacheTime: 30 * 60 * 1000, // 30 minutes cache
+    staleTime: 20 * 60 * 1000,
     retry: 1, // Reduced retries from 2 to 1
     retryDelay: 2000, // Increased delay to 2 seconds
     refetchOnWindowFocus: false, // Disable refetch on window focus
@@ -359,8 +359,7 @@ export function useBranchComparisonReports(
       }
       return response.data || [];
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    cacheTime: 30 * 60 * 1000, // 30 minutes cache
+    staleTime: 10 * 60 * 1000,
     retry: 1, // Reduced retries from 2 to 1
     retryDelay: 2000, // Increased delay to 2 seconds
     refetchOnWindowFocus: false, // Disable refetch on window focus
@@ -437,19 +436,19 @@ export function useDashboardSummary(filters: EnhancedReportFilters = {}) {
 
           // Calculate metrics with null safety
           const totalRevenue = currentOrdersData.reduce(
-            (sum, order) => sum + (order.total || 0),
+            (sum: number, order: any) => sum + (order.total || 0),
             0
           );
           const totalOrders = currentOrdersData.length;
           const totalProducts = productsData.length;
           const totalCustomers = new Set(
             currentOrdersData
-              .filter((order) => order.customer_phone)
-              .map((order) => order.customer_phone)
+              .filter((order: any) => order.customer_phone)
+              .map((order: any) => order.customer_phone)
           ).size;
 
           const previousRevenue = previousOrdersData.reduce(
-            (sum, order) => sum + (order.total || 0),
+            (sum: number, order: any) => sum + (order.total || 0),
             0
           );
           const previousOrderCount = previousOrdersData.length;
@@ -468,8 +467,8 @@ export function useDashboardSummary(filters: EnhancedReportFilters = {}) {
             string,
             { name: string; revenue: number; quantity: number }
           >();
-          currentOrdersData.forEach((order) => {
-            order.items?.forEach((item) => {
+          currentOrdersData.forEach((order: any) => {
+            order.items?.forEach((item: any) => {
               const current = productSales.get(
                 item.product_name || "unknown"
               ) || {
@@ -503,14 +502,14 @@ export function useDashboardSummary(filters: EnhancedReportFilters = {}) {
           ) {
             const dateStr = d.toISOString().split("T")[0];
             const dayOrders = currentOrdersData.filter(
-              (order) =>
+              (order: any) =>
                 order.created_at && order.created_at.startsWith(dateStr)
             );
 
             salesTrend.push({
               date: dateStr,
               revenue: dayOrders.reduce(
-                (sum, order) => sum + (order.total || 0),
+                (sum: number, order: any) => sum + (order.total || 0),
                 0
               ),
               orders: dayOrders.length,
@@ -519,9 +518,9 @@ export function useDashboardSummary(filters: EnhancedReportFilters = {}) {
 
           // Generate recent activity with null safety
           const recentActivity = currentOrdersData
-            .filter((order) => order.created_at)
+            .filter((order: any) => order.created_at)
             .slice(0, 10)
-            .map((order) => ({
+            .map((order: any) => ({
               type: "order",
               description: `คำสั่งซื้อ ${
                 order.order_number || "ไม่ระบุหมายเลข"
@@ -612,8 +611,7 @@ export function useDashboardSummary(filters: EnhancedReportFilters = {}) {
         };
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - shorter for real data
-    cacheTime: 10 * 60 * 1000, // 10 minutes cache
+    staleTime: 5 * 60 * 1000,
     retry: 1, // Single retry
     retryDelay: 2000, // 2 second delay
     refetchOnWindowFocus: false, // Disable refetch on window focus

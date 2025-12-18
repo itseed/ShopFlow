@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import {
-  categoryService,
-  type CategoryFilters,
-  type CreateCategoryData,
-  type UpdateCategoryData,
-} from "@shopflow/api";
+import { categoryService } from "@shopflow/api/services/categoryService";
+import type {
+  CategoryFilters,
+  CreateCategoryData,
+  UpdateCategoryData,
+} from "@shopflow/api/services/categoryService";
 import { QUERY_KEYS } from "./queryKeys";
 
 // Category Hooks with real API and fallback
@@ -88,8 +88,7 @@ export function useCategories(filters?: CategoryFilters) {
         ];
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - shorter for real data
-    cacheTime: 10 * 60 * 1000, // 10 minutes cache
+    staleTime: 5 * 60 * 1000,
     retry: 1, // Single retry
     retryDelay: 2000, // 2 second delay
     refetchOnWindowFocus: false, // Disable refetch on window focus

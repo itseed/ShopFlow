@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@chakra-ui/react";
-import {
-  supplierService,
-  type SupplierFilters,
-  type CreateSupplierData,
-  type UpdateSupplierData,
-} from "@shopflow/api";
+import { supplierService } from "@shopflow/api/services/supplierService";
+import type {
+  SupplierFilters,
+  CreateSupplierData,
+  UpdateSupplierData,
+} from "@shopflow/api/services/supplierService";
 import { QUERY_KEYS } from "./queryKeys";
 
 // Supplier Hooks

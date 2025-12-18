@@ -15,6 +15,7 @@ services:
       - PORT=3001
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
     ports:
       - "3001:3001"
     networks:
@@ -26,6 +27,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      - supabase
 
   # POS Frontend Application
   pos-frontend:
@@ -52,6 +55,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      - supabase
 
   # Nginx Reverse Proxy (Optional)
   nginx:
@@ -71,21 +76,29 @@ services:
     restart: unless-stopped
 
   # Supabase Local (Optional - for local development)
+  # Set USE_LOCAL_SUPABASE=false to use Supabase Cloud instead
   supabase:
-    image: supabase/postgres:latest
+    image: supabase/postgres:15.1.0.147
     container_name: shopflow-supabase
     environment:
-      - POSTGRES_DB=shopflow
-      - POSTGRES_USER=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-shopflow}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-shopflow123}
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - supabase_data:/var/lib/postgresql/data
-      - ./migrate:/docker-entrypoint-initdb.d
+      - ./migrate:/docker-entrypoint-initdb.d:ro
     networks:
       - shopflow-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-shopflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 networks:
   shopflow-network:

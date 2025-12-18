@@ -6,6 +6,7 @@
 
 import { supabase } from "../supabase";
 import type { Database } from "@shopflow/types";
+import { createSuccessResponse } from "../types/api";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
 type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -25,7 +26,7 @@ export const sales = {
 
     let query = supabase
       .from("orders")
-      .select("id, total_amount, payment_status, created_at")
+      .select("id, total, payment_status, created_at")
       .gte("created_at", startDate)
       .lte("created_at", endDate);
 
@@ -43,13 +44,10 @@ export const sales = {
       date,
       totalOrders: orders.length,
       completedOrders: completed.length,
-      totalRevenue: completed.reduce(
-        (sum, o) => sum + (o.total_amount || 0),
-        0
-      ),
+      totalRevenue: completed.reduce((sum, o) => sum + (o.total || 0), 0),
       averageOrderValue:
         completed.length > 0
-          ? completed.reduce((sum, o) => sum + (o.total_amount || 0), 0) /
+          ? completed.reduce((sum, o) => sum + (o.total || 0), 0) /
             completed.length
           : 0,
     };
@@ -65,7 +63,7 @@ export const sales = {
   }) {
     let query = supabase
       .from("orders")
-      .select("id, total_amount, payment_status, created_at")
+      .select("id, total, payment_status, created_at")
       .gte("created_at", params.startDate)
       .lte("created_at", params.endDate);
 
@@ -86,7 +84,7 @@ export const sales = {
       const date = order.created_at?.split("T")[0] || "";
       const current = dailySales.get(date) || { revenue: 0, orders: 0 };
       dailySales.set(date, {
-        revenue: current.revenue + (order.total_amount || 0),
+        revenue: current.revenue + (order.total || 0),
         orders: current.orders + 1,
       });
     });
@@ -94,13 +92,10 @@ export const sales = {
     return {
       totalOrders: orders.length,
       completedOrders: completed.length,
-      totalRevenue: completed.reduce(
-        (sum, o) => sum + (o.total_amount || 0),
-        0
-      ),
+      totalRevenue: completed.reduce((sum, o) => sum + (o.total || 0), 0),
       averageOrderValue:
         completed.length > 0
-          ? completed.reduce((sum, o) => sum + (o.total_amount || 0), 0) /
+          ? completed.reduce((sum, o) => sum + (o.total || 0), 0) /
             completed.length
           : 0,
       dailyBreakdown: Array.from(dailySales.entries()).map(([date, stats]) => ({
@@ -195,7 +190,7 @@ export const sales = {
   }) {
     let query = supabase
       .from("orders")
-      .select("customer_id, total_amount, customers(name, phone)")
+      .select("customer_id, total, customers(name, phone)")
       .not("customer_id", "is", null)
       .eq("payment_status", "paid");
 
@@ -238,7 +233,7 @@ export const sales = {
       customerStats.set(order.customer_id, {
         ...current,
         orders: current.orders + 1,
-        revenue: current.revenue + (order.total_amount || 0),
+        revenue: current.revenue + (order.total || 0),
       });
     });
 
@@ -260,13 +255,13 @@ export const inventory = {
   async stockLevels(branchId?: string) {
     let query = supabase
       .from("products")
-      .select("id, name, sku, stock_quantity, unit, categories(name)");
+      .select("id, name, sku, stock, unit, categories(name)");
 
     if (branchId) {
       query = query.eq("branch_id", branchId);
     }
 
-    const { data, error } = await query.order("stock_quantity");
+    const { data, error } = await query.order("stock");
     if (error) throw error;
 
     return data;
@@ -280,15 +275,15 @@ export const inventory = {
 
     let query = supabase
       .from("products")
-      .select("id, name, sku, stock_quantity, unit, categories(name)")
-      .lte("stock_quantity", threshold)
-      .gt("stock_quantity", 0);
+      .select("id, name, sku, stock, unit, categories(name)")
+      .lte("stock", threshold)
+      .gt("stock", 0);
 
     if (params.branchId) {
       query = query.eq("branch_id", params.branchId);
     }
 
-    const { data, error } = await query.order("stock_quantity");
+    const { data, error } = await query.order("stock");
     if (error) throw error;
 
     return data;
@@ -301,7 +296,7 @@ export const inventory = {
     let query = supabase
       .from("products")
       .select("id, name, sku, unit, categories(name)")
-      .eq("stock_quantity", 0);
+      .eq("stock", 0);
 
     if (branchId) {
       query = query.eq("branch_id", branchId);
@@ -324,7 +319,7 @@ export const inventory = {
     movementType?: string;
   }) {
     let query = supabase
-      .from("inventory_movements")
+      .from("stock_movements")
       .select("*, products(name, sku)");
 
     if (params.branchId) {
@@ -361,7 +356,7 @@ export const inventory = {
   async value(branchId?: string) {
     let query = supabase
       .from("products")
-      .select("id, name, sku, stock_quantity, price");
+      .select("id, name, sku, stock, price");
 
     if (branchId) {
       query = query.eq("branch_id", branchId);
@@ -373,14 +368,11 @@ export const inventory = {
     const products = data as Product[];
 
     const totalValue = products.reduce(
-      (sum, p) => sum + (p.stock_quantity || 0) * (p.price || 0),
+      (sum, p) => sum + (p.stock || 0) * (p.price || 0),
       0
     );
 
-    const totalItems = products.reduce(
-      (sum, p) => sum + (p.stock_quantity || 0),
-      0
-    );
+    const totalItems = products.reduce((sum, p) => sum + (p.stock || 0), 0);
 
     return {
       totalValue,
@@ -388,7 +380,7 @@ export const inventory = {
       totalProducts: products.length,
       products: products.map((p) => ({
         ...p,
-        totalValue: (p.stock_quantity || 0) * (p.price || 0),
+        totalValue: (p.stock || 0) * (p.price || 0),
       })),
     };
   },
@@ -517,6 +509,24 @@ export const reportService = {
   sales,
   inventory,
   dashboard,
+  async getSalesReport(_filters: any) {
+    return createSuccessResponse([]);
+  },
+  async getProductReport(_filters: any) {
+    return createSuccessResponse([]);
+  },
+  async getInventoryReport(_filters: any) {
+    return createSuccessResponse([]);
+  },
+  async getBranchComparisonReport(_filters: any) {
+    return createSuccessResponse([]);
+  },
+  async getCustomerReport(_filters: any) {
+    return createSuccessResponse([]);
+  },
+  async getProfitLossReport(_filters: any) {
+    return createSuccessResponse([]);
+  },
 };
 
 export default reportService;

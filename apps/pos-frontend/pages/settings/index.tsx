@@ -959,3 +959,10 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
+
+// Disable static generation for pages that use React Query
+export const getServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};
