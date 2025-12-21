@@ -1,7 +1,14 @@
-import { extendTheme } from "@chakra-ui/react";
+import { extendTheme, type ThemeConfig } from "@chakra-ui/react";
+import { mode } from "@chakra-ui/theme-tools";
 
 // POS-specific theme optimized for touch interfaces
+const config: ThemeConfig = {
+  initialColorMode: "light",
+  useSystemColorMode: false,
+};
+
 const posTheme = extendTheme({
+  config,
   fonts: {
     heading: 'Inter, Kanit, sans-serif',
     body: 'Inter, Kanit, sans-serif',
@@ -72,12 +79,29 @@ const posTheme = extendTheme({
       800: "#212529",
       900: "#121416",
     },
+
+    // POS design tokens used across the UI
+    pos: {
+      background: "#f8fafc",
+      primary: {
+        50: "#f0f9ff",
+        100: "#e0f2fe",
+        200: "#bae6fd",
+        300: "#7dd3fc",
+        400: "#38bdf8",
+        500: "#0ea5e9",
+        600: "#0284c7",
+        700: "#0369a1",
+        800: "#075985",
+        900: "#0c4a6e",
+      },
+    },
   },
   styles: {
-    global: {
+    global: (props: any) => ({
       body: {
-        bg: "gray.50",
-        color: "gray.800",
+        bg: mode("gray.50", "gray.900")(props),
+        color: mode("gray.800", "gray.50")(props),
         fontSize: "16px", // Larger base font for readability
         lineHeight: "1.5",
       },
@@ -86,7 +110,7 @@ const posTheme = extendTheme({
         minH: "44px", // Minimum 44px for touch targets
         minW: "44px",
       },
-    },
+    }),
   },
   components: {
     // Button component optimized for POS

@@ -8,6 +8,8 @@ import {
   HStack,
   Text,
   IconButton,
+  useColorMode,
+  useColorModeValue,
   useDisclosure,
   Drawer,
   DrawerBody,
@@ -57,6 +59,8 @@ import {
   FiKey,
   FiTool,
   FiPlus,
+  FiMoon,
+  FiSun,
 } from "react-icons/fi";
 import { useAuth } from "../lib/auth";
 import {
@@ -195,6 +199,9 @@ export default function Layout({
 }: LayoutProps) {
   const router = useRouter();
   const toast = useToast();
+  const { colorMode, toggleColorMode } = useColorMode();
+  const colorModeIcon = useColorModeValue(<FiMoon />, <FiSun />);
+  const colorModeLabel = useColorModeValue("สลับเป็นโหมดมืด", "สลับเป็นโหมดสว่าง");
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { userProfile, signOut } = useAuth();
   const { data: currentUser } = useCurrentUser();
@@ -651,6 +658,18 @@ export default function Layout({
 
           {/* User Profile Section */}
           <HStack spacing={3}>
+            {/* Color Mode Toggle */}
+            <IconButton
+              aria-label={colorModeLabel}
+              icon={colorModeIcon}
+              variant="ghost"
+              size="lg"
+              onClick={toggleColorMode}
+              color="gray.600"
+              _hover={{ bg: "gray.100" }}
+              title={colorModeLabel}
+            />
+
             {/* Current Date */}
             <Text
               fontSize="sm"
